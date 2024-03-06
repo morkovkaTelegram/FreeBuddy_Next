@@ -56,7 +56,6 @@ final class HuaweiFreeBuds4iSimPlaceholder extends HuaweiFreeBuds4i
   const HuaweiFreeBuds4iSimPlaceholder();
 
   @override
-  // TODO: implement settings
   ValueStream<HuaweiFreeBuds4iSettings> get settings => BehaviorSubject();
 
   @override
