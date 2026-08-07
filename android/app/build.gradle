@@ -2,7 +2,7 @@ plugins {
     id "com.android.application"
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
-    id "org.jetbrains.kotlin.plugin.compose" version "2.1.0"
+    id "org.jetbrains.kotlin.plugin.compose" version "2.2.20"
 }
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file('local.properties')
@@ -31,24 +31,21 @@ if (flutterVersionName == null) {
 
 android {
     namespace 'com.lastgimbus.the.freebuddy'
-    compileSdk 35
+    compileSdk flutter.compileSdkVersion
     ndkVersion flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     buildFeatures {
         compose true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.15"
-    }
 
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '17'
     }
 
     sourceSets {
@@ -57,10 +54,16 @@ android {
 
     defaultConfig {
         applicationId "com.lastgimbus.the.freebuddy"
-        minSdk 21
+        minSdkVersion flutter.minSdkVersion
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
+
+        // Ship only ARM binaries. x86/x86_64 are primarily used by emulators
+        // and significantly increase the size of a universal APK.
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a'
+        }
     }
 
     signingConfigs {
@@ -103,12 +106,7 @@ dependencies {
     implementation "androidx.glance:glance-appwidget:1.1.1"
     implementation "androidx.glance:glance-material3:1.1.1"
 
-    // this is to manually launch our routine update - same version as workmanager plugin 0.5.1
-    def work_version = "2.8.1"
-    implementation("androidx.work:work-runtime").version {
-        strictly("2.8.1")
-    }
-    implementation("androidx.work:work-runtime-ktx").version {
-        strictly("2.8.1")
-    }
+    // Used by BluetoothDeviceConnectedReceiver to enqueue immediate work.
+    implementation "androidx.work:work-runtime:2.11.2"
+
 }

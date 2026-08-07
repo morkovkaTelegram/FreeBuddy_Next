@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FreeBuddy</string>
+    <string name="widget_buds">Buds</string>
+    <string name="widget_left_earbud">Left</string>
+    <string name="widget_right_earbud">Right</string>
+    <string name="widget_case">Case</string>
+    <string name="widget_device_icon">%1$s icon</string>
+    <string name="widget_battery_level">%1$d%%</string>
+    <string name="widget_battery_unknown">—</string>
+    <string name="widget_description">Earbuds battery level</string>
+</resources>

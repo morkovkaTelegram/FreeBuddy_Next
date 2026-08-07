@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:freebuddy/l10n/app_localizations.dart';
 
 import '../../../../../headphones/framework/headphones_settings.dart';
 import '../../../../../headphones/huawei/settings.dart';
@@ -44,12 +44,14 @@ class DoubleTapSection extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(8),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: _DoubleTapSetting(
                         title: Text(
                           l.pageHeadphonesSettingsLeftBud,
                           style: tt.titleMedium,
+                          textAlign: TextAlign.center,
                         ),
                         value: dt.l,
                         onChanged: enabled
@@ -64,6 +66,7 @@ class DoubleTapSection extends StatelessWidget {
                         title: Text(
                           l.pageHeadphonesSettingsRightBud,
                           style: tt.titleMedium,
+                          textAlign: TextAlign.center,
                         ),
                         value: dt.r,
                         onChanged: enabled

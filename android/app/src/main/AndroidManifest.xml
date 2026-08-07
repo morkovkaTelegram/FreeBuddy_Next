@@ -1,20 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!--    We may need those later for foreground service: -->
     <!--    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />-->
     <!--    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />-->
 
     <!-- Request legacy Bluetooth permissions on ekhm ALL devices, thx xiaomi ;) -->
-    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
     <!-- Needed only if your app communicates with already-paired Bluetooth devices. -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
 
     <application
-        android:label="freebuddy"
+        android:label="@string/app_name"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -43,7 +44,6 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
-        <service android:name="com.pravera.flutter_foreground_task.service.ForegroundService" />
 
         <receiver
             android:name=".BatteryWidgetReceiver"

@@ -17,6 +17,11 @@ import 'model_matching.dart';
 class HeadphonesConnectionCubit extends Cubit<HeadphonesConnectionState> {
   final TheLastBluetooth _bluetooth;
   StreamChannel<Uint8List>? _connection;
+  BluetoothDevice? _activeDevice;
+  bool _isConnecting = false;
+  bool _isClosing = false;
+  Timer? _pendingConnect;
+  static const _bluetoothProfileSettleDelay = Duration(milliseconds: 1500);
   StreamSubscription? _btEnabledStream;
   StreamSubscription? _devStream;
   final Map<BluetoothDevice, StreamSubscription> _watchedKnownDevices = {};
@@ -44,7 +49,7 @@ class HeadphonesConnectionCubit extends Cubit<HeadphonesConnectionState> {
   // Stop.
   static const pingReceivePortName = 'pingHeadphonesCubitPort';
   final _pingReceivePort = ReceivePort('dummyHeadphonesCubitPort');
-  late final StreamSubscription _pingReceivePortSS;
+  StreamSubscription? _pingReceivePortSS;
 
   /// returns true if no port, and false if timeout
   static Future<bool> _checkUntilNoPort(Duration timeout) async {
@@ -71,8 +76,13 @@ class HeadphonesConnectionCubit extends Cubit<HeadphonesConnectionState> {
         HeadphonesConnectionCubit.pingReceivePortName);
     if (ping == null) return false;
     final pong = ReceivePort(); // this is not right naming, i know
-    ping.send(pong.sendPort);
-    return await pong.first.timeout(responseTimeout, onTimeout: () => false);
+    try {
+      ping.send(pong.sendPort);
+      return await pong.first.timeout(responseTimeout, onTimeout: () => false)
+          as bool;
+    } finally {
+      pong.close();
+    }
   }
 
   /// returns true if cubit was killed or didn't exist, and false if it didn't
@@ -101,66 +111,89 @@ class HeadphonesConnectionCubit extends Cubit<HeadphonesConnectionState> {
   static const sppUuid = "00001101-0000-1000-8000-00805f9b34fb";
 
   Future<void> connect() async {
-    if (_connection != null) return;
+    _pendingConnect?.cancel();
+    _pendingConnect = null;
+    if (_isClosing || isClosed || _isConnecting || _connection != null) return;
     final connected = _watchedKnownDevices.keys
         .firstWhereOrNull((dev) => dev.isConnected.valueOrNull ?? false);
-    if (connected != null) {
-      _connect(connected, matchModel(connected)!);
-    }
+    if (connected == null) return;
+    final model = matchModel(connected);
+    if (model != null) await _connect(connected, model);
+  }
+
+  /// Android reports ACL_CONNECTED before all Bluetooth profiles are ready.
+  /// Opening RFCOMM immediately at that point may block inside BluetoothSocket
+  /// on some devices. Debounce duplicate broadcasts and let the profile settle.
+  void _scheduleConnect() {
+    if (_isClosing || isClosed || _connection != null) return;
+    _pendingConnect?.cancel();
+    _pendingConnect = Timer(_bluetoothProfileSettleDelay, () {
+      _pendingConnect = null;
+      unawaited(connect());
+    });
   }
 
   Future<void> _connect(BluetoothDevice dev, MatchedModel model) async {
+    if (_isClosing || isClosed || _isConnecting || _connection != null) return;
+
+    _isConnecting = true;
+    _activeDevice = dev;
     final placeholder = model.placeholder;
-    emit(HeadphonesConnecting(placeholder));
+    StreamChannel<Uint8List>? connection;
+
+    if (!isClosed) emit(HeadphonesConnecting(placeholder));
     try {
-      // when Ai Life takes over our socket, the connecting always succeeds at
-      // 2'nd try 🤔
       for (var i = 0; i < connectTries; i++) {
+        if (_isClosing || isClosed || !(dev.isConnected.valueOrNull ?? false)) {
+          return;
+        }
         try {
-          _connection = _bluetooth.connectRfcomm(dev, sppUuid);
+          connection = await _bluetooth.connectRfcomm(dev, sppUuid);
           break;
         } catch (_) {
           loggI.w('Error when connecting socket: ${i + 1}/$connectTries tries');
-          if (!(dev.isConnected.valueOrNull ?? false)) {
-            // this may happen because connecting may take some time
-            // ...which is, well, not indicated by connectRfcomm being async...
-            // well, that may be a todo for the_last_bluetooth
-            // ...
-            // how am i even supposed to? do this on another isolate??
-            // well, maybe... 🙄 ehhh
-            loggI.w("...i's because device is not connected, dummy 😌");
+          if (!(dev.isConnected.valueOrNull ?? false) ||
+              i + 1 >= connectTries) {
             rethrow;
           }
-          if (i + 1 >= connectTries) rethrow;
-          // since, i found out that connect() may be blocking, then just in
-          // case give ui some time for 2 frames :D (16.6*2)
-          // of course, TODO: make this not necessary
-          await Future.delayed(Duration(milliseconds: 50));
+          await Future<void>.delayed(const Duration(milliseconds: 750));
         }
       }
-      emit(
-        HeadphonesConnectedOpen(model.builder(_connection!, dev)),
+
+      if (connection == null || _isClosing || isClosed) return;
+      _connection = connection;
+      emit(HeadphonesConnectedOpen(model.builder(connection, dev)));
+      await connection.stream.listen((_) {}).asFuture<void>();
+    } catch (error, stackTrace) {
+      loggI.e(
+        'Error while connecting to socket',
+        error: error,
+        stackTrace: stackTrace,
       );
-      await _connection!.stream.listen((event) {}).asFuture();
-      // when device disconnects, future completes and we free the
-      // hopefully this happens *before* next stream event with data 🤷
-      // so that it nicely goes again and we emit HeadphonesDisconnected()
-    } catch (e, s) {
-      loggI.e("Error while connecting to socket", error: e, stackTrace: s);
+    } finally {
+      await connection?.sink.close();
+      if (identical(_connection, connection)) _connection = null;
+      if (_activeDevice == dev) _activeDevice = null;
+      _isConnecting = false;
     }
-    await _connection?.sink.close();
-    _connection = null;
-    // if disconnected because of bluetooth, don't emit
-    // this is because we made async gap when awaiting stream close
-    if (!(_bluetooth.isEnabled.valueOrNull ?? false)) return;
+
+    if (_isClosing ||
+        isClosed ||
+        !(_bluetooth.isEnabled.valueOrNull ?? false)) {
+      return;
+    }
+
+    final deviceStillConnected = dev.isConnected.valueOrNull ?? false;
     emit(
-      (dev.isConnected.valueOrNull ?? false)
+      deviceStillConnected
           ? HeadphonesConnectedClosed(placeholder)
           : HeadphonesDisconnected(placeholder),
     );
+    if (!deviceStillConnected) await connect();
   }
 
   Future<void> _pairedDevicesHandle(Iterable<BluetoothDevice> devices) async {
+    if (_isClosing || isClosed) return;
     if (!(_bluetooth.isEnabled.valueOrNull ?? false)) {
       emit(const HeadphonesBluetoothDisabled());
       return;
@@ -168,35 +201,81 @@ class HeadphonesConnectionCubit extends Cubit<HeadphonesConnectionState> {
 
     final knownHeadphones = devices
         .map((dev) => (device: dev, match: matchModel(dev)))
-        .where((m) => m.match != null);
+        .where((entry) => entry.match != null)
+        .toList(growable: false);
+    final knownDevices = knownHeadphones.map((entry) => entry.device).toSet();
+
+    for (final dev in _watchedKnownDevices.keys.toList()) {
+      if (!knownDevices.contains(dev)) {
+        final subscription = _watchedKnownDevices.remove(dev);
+        await subscription?.cancel();
+        if (_activeDevice == dev) await _connection?.sink.close();
+      }
+    }
 
     if (knownHeadphones.isEmpty) {
-      emit(const HeadphonesNotPaired());
+      await _connection?.sink.close();
+      if (!isClosed) emit(const HeadphonesNotPaired());
       return;
     }
 
-    // "Add all devices that are in knownHp but not in _watched
     for (final hp in knownHeadphones) {
-      if (!_watchedKnownDevices.containsKey(hp.device)) {
-        _watchedKnownDevices[hp.device] =
-            hp.device.isConnected.listen((connected) {
+      if (_watchedKnownDevices.containsKey(hp.device)) continue;
+      var receivedInitialState = false;
+      _watchedKnownDevices[hp.device] = hp.device.isConnected.distinct().listen(
+        (connected) async {
+          if (_isClosing || isClosed) return;
+          final isInitialState = !receivedInitialState;
+          receivedInitialState = true;
           if (connected) {
-            if (_connection != null) return; // already connected, skip
-            _connect(hp.device, hp.match!);
-          } else {
-            _connection?.sink.close();
-            _connection = null;
+            // An already connected device can be opened immediately on startup.
+            // A newly connected device needs time for Android profiles to settle.
+            if (isInitialState) {
+              unawaited(connect());
+            } else {
+              _scheduleConnect();
+            }
+            return;
+          }
+          _pendingConnect?.cancel();
+          _pendingConnect = null;
+          // An unrelated paired device must never affect the active socket.
+          if (_activeDevice != hp.device) return;
+
+          // Cancel a pending native connect/read on its IO worker. Never await
+          // BluetoothSocket.close from this broadcast callback.
+          unawaited(_bluetooth.cancelRfcomm());
+
+          // Do not await BluetoothSocket.close from this broadcast callback.
+          // Some Android Bluetooth stacks block there after ACL_DISCONNECTED,
+          // freezing the Flutter UI. Publish the state immediately; the socket
+          // read loop will observe the physical disconnect and clean itself up.
+          _pendingConnect?.cancel();
+          _pendingConnect = null;
+          if (!isClosed) {
             emit(HeadphonesDisconnected(hp.match!.placeholder));
           }
-        });
-      }
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          loggI.e(
+            'Bluetooth device state stream failed',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        },
+      );
     }
-    // "Remove any device from _watched that's not in knownHp"
-    for (final dev in _watchedKnownDevices.keys) {
-      if (!knownHeadphones.map((e) => e.device).contains(dev)) {
-        _watchedKnownDevices[dev]!.cancel();
-        _watchedKnownDevices.remove(dev);
-      }
+
+    await connect();
+
+    // A supported device is paired, but none of them is currently connected.
+    // Do not retain the initial HeadphonesNotPaired state in that case.
+    if (!_isClosing &&
+        !isClosed &&
+        !_isConnecting &&
+        _connection == null &&
+        !knownDevices.any((dev) => dev.isConnected.valueOrNull ?? false)) {
+      emit(HeadphonesDisconnected(knownHeadphones.first.match!.placeholder));
     }
   }
 
@@ -235,6 +314,8 @@ class HeadphonesConnectionCubit extends Cubit<HeadphonesConnectionState> {
       }
     }
 
+    if (_isClosing || isClosed) return;
+
     // And *NOW* we can talk...
     // TODO: I mean, actually, it still sometimes hangs... but I think that's
     // a deep un-fixable-for-now fault of jni :///
@@ -256,6 +337,7 @@ class HeadphonesConnectionCubit extends Cubit<HeadphonesConnectionState> {
   }
 
   Future<void> _init() async {
+    if (_isClosing || isClosed) return;
     if (_btEnabledStream != null) {
       loggI.w("_init() was already done and finished, but got called"
           "again. Weird.");
@@ -272,15 +354,19 @@ class HeadphonesConnectionCubit extends Cubit<HeadphonesConnectionState> {
     }
     // it's down here to be sure that we do have device connected so
     if (!await Permission.bluetoothConnect.isGranted) {
+      if (_isClosing || isClosed) return;
       emit(const HeadphonesNoPermission());
       return;
     }
     // TODO: Some day, debug if (underneath?) this is somehow same instance
     // as the background one, and why does it crash/hang when we init it twice
     // ...but that's for another day xdddd
+    if (_isClosing || isClosed) return;
     _bluetooth.init();
     _btEnabledStream = _bluetooth.isEnabled.listen((enabled) {
-      if (!enabled) emit(const HeadphonesBluetoothDisabled());
+      if (!enabled && !_isClosing && !isClosed) {
+        emit(const HeadphonesBluetoothDisabled());
+      }
     });
     // logic of connect() is so universal we can use it on every change
     _devStream = _bluetooth.pairedDevices.listen(_pairedDevicesHandle);
@@ -299,15 +385,24 @@ class HeadphonesConnectionCubit extends Cubit<HeadphonesConnectionState> {
 
   @override
   Future<void> close() async {
+    if (_isClosing || isClosed) return;
+    _isClosing = true;
+    _pendingConnect?.cancel();
+    _pendingConnect = null;
+    unawaited(_bluetooth.cancelRfcomm());
+
     await _connection?.sink.close();
+    _connection = null;
+    _activeDevice = null;
     await _btEnabledStream?.cancel();
     await _devStream?.cancel();
     for (final sub in _watchedKnownDevices.values) {
       await sub.cancel();
     }
-    await _pingReceivePortSS.cancel();
+    _watchedKnownDevices.clear();
+    await _pingReceivePortSS?.cancel();
     _pingReceivePort.close();
     IsolateNameServer.removePortNameMapping(pingReceivePortName);
-    super.close();
+    await super.close();
   }
 }

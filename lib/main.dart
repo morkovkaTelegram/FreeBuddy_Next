@@ -1,10 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:freebuddy/l10n/app_localizations.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:provider/provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
@@ -49,16 +50,19 @@ class _MyAppWrapperState extends State<MyAppWrapper>
 
   @override
   void initState() {
-    WidgetsBinding.instance.addObserver(this);
-    // ...and this removes splash if we either connected or 1 second passed
-    _btBlock.stream
-        .firstWhere((e) => e is HeadphonesConnectedOpen)
-        .timeout(
-          const Duration(seconds: 1),
-          onTimeout: () => const HeadphonesNotPaired(), // just placeholder
-        )
-        .then((_) => FlutterNativeSplash.remove());
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
+    // Never leave the native splash visible because a Bluetooth stream closed,
+    // failed or got replaced by a foreground/background isolate race.
+    unawaited(
+      _btBlock.stream
+          .firstWhere((state) => state is HeadphonesConnectedOpen)
+          .timeout(const Duration(seconds: 1))
+          .then<void>((_) {})
+          .catchError((Object _, StackTrace __) {})
+          .whenComplete(FlutterNativeSplash.remove),
+    );
   }
 
   @override
@@ -83,17 +87,9 @@ class _MyAppWrapperState extends State<MyAppWrapper>
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) async {
-    if (state == AppLifecycleState.detached) {
-      await _btBlock.close();
-    }
-    super.didChangeAppLifecycleState(state);
-  }
-
-  @override
-  void dispose() async {
-    await _btBlock.close();
+  void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    unawaited(_btBlock.close());
     super.dispose();
   }
 }

@@ -33,7 +33,7 @@ abstract base class HuaweiFreeBuds5i
   // to just leave it like that, but I will 🥰🥰
   @override
   ValueStream<String> get imageAssetPath =>
-      BehaviorSubject.seeded('assets/app_icons/ic_launcher.png');
+      BehaviorSubject.seeded('assets/headphones/huawei/freebuds_5i.webp');
 
   // As I said everywhere else - i have no good idea where to put this stuff :/
   // This will be a bit of chaos for now 👍👍

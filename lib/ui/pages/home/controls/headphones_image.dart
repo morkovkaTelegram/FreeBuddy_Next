@@ -20,8 +20,10 @@ class HeadphonesImage extends StatelessWidget {
               ? Image.asset(
                   snap.data!,
                   fit: BoxFit.contain,
-                  filterQuality: FilterQuality.none,
-                  color: textColor,
+                  filterQuality: FilterQuality.high,
+                  color: snap.data!.toLowerCase().endsWith('.webp')
+                      ? null
+                      : textColor,
                 )
               : const SizedBox(),
         ),

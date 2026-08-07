@@ -8,29 +8,42 @@ import '../../../headphones/cubit/headphones_cubit_objects.dart';
 import '../../../headphones/framework/lrc_battery.dart';
 import '../../../logger.dart';
 
-// no better idea for this yet - that's fine
 StreamSubscription<LRCBatteryLevels>? _headphonesBatteryStreamSub;
 
-void batteryHomeWidgetHearBloc(BuildContext context,
-    HeadphonesConnectionState headphonesConnectionState) async {
-  if (headphonesConnectionState is! HeadphonesConnectedOpen) {
-    await _headphonesBatteryStreamSub?.cancel();
-    _headphonesBatteryStreamSub = null;
-  } else if (headphonesConnectionState.headphones is LRCBattery) {
-    _headphonesBatteryStreamSub =
-        (headphonesConnectionState.headphones as LRCBattery)
-            .lrcBattery
-            .distinct()
-            .throttleTime(const Duration(seconds: 1),
-                trailing: true, leading: false)
-            .listen((event) async {
-      logg.d("Updating widget from UI listener: $event");
-      await updateBatteryHomeWidget(event);
-    });
+Future<void> batteryHomeWidgetHearBloc(
+  BuildContext context,
+  HeadphonesConnectionState state,
+) async {
+  await _headphonesBatteryStreamSub?.cancel();
+  _headphonesBatteryStreamSub = null;
+
+  if (state is! HeadphonesConnectedOpen || state.headphones is! LRCBattery) {
+    return;
   }
+
+  _headphonesBatteryStreamSub = (state.headphones as LRCBattery)
+      .lrcBattery
+      .distinct()
+      .throttleTime(
+        const Duration(seconds: 1),
+        trailing: true,
+        leading: false,
+      )
+      .listen(
+    (event) async {
+      logg.d('Updating widget from UI listener: $event');
+      await updateBatteryHomeWidget(event);
+    },
+    onError: (Object error, StackTrace stackTrace) {
+      logg.e(
+        'Widget battery listener failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    },
+  );
 }
 
-// this is separate so we can use it from f.e. background stuff
 Future<void> updateBatteryHomeWidget(LRCBatteryLevels batteryData) async {
   await HomeWidget.saveWidgetData<int?>('left', batteryData.levelLeft);
   await HomeWidget.saveWidgetData<int?>('right', batteryData.levelRight);

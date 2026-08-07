@@ -1,11 +1,9 @@
 {
   "appTitle": "FreeBuddy",
   "helloWorld": "Hello World!",
-
   "leftBudShort": "Left",
   "rightBudShort": "Right",
   "caseShort": "Case",
-
   "pageHomeConnected": "Connected",
   "pageHomeDisconnected": "Headphones not connected 🙅",
   "pageHomeDisconnectedDesc": "Your headphones are not connected to your phone 😨",
@@ -32,15 +30,12 @@
   "lowLatencyDesc": "Allows you to minimize delays, useful for games",
   "soundQuality": "Enable LDAC codec",
   "soundQualityDesc": "Allows you to listen with more quality but can cause lags",
-
   "pageHeadphonesSettingsEqualizer": "Equalizer",
   "pageHeadphonesSettingsEqualizerDefault": "Default",
   "pageHeadphonesSettingsEqualizerHardBass": "Bass",
   "pageHeadphonesSettingsEqualizerTreble": "Treble",
   "pageHeadphonesSettingsEqualizerVoices": "Voices",
-
   "pageHeadphonesSettingsGestures": "Gestures",
-
   "pageHeadphonesSettingsTitle": "Headphones settings 🔧",
   "pageHeadphonesSettingsDoubleTap": "Double tap",
   "pageHeadphonesSettingsDoubleTapDesc": "Tap a bud twice to:",
@@ -55,7 +50,6 @@
   "pageHeadphonesSettingsRightBud": "Right bud",
   "pageHeadphonesSettingsHold": "Touch and hold",
   "pageHeadphonesSettingsHoldDesc": "Holding a bud will toggle these ANC modes:",
-
   "ancNoiseCancel": "Noise cancelling 🔇",
   "ancNoiseCancelDesc": "Reduces noise around you",
   "ancOff": "Off 🤷",
@@ -66,7 +60,6 @@
   "ancCancelLevelComfort": "Comfort",
   "ancCancelLevelUltra": "Ultra",
   "ancCancelLevelDynamic": "Dynamic",
-
   "dualConnect": "Dual connect",
   "dualConnectConnect": "Connect",
   "dualConnectDisconnect": "Disconnect",
@@ -79,7 +72,6 @@
   "dualConnectDeviceMac": "MAC address",
   "dualConnectAutoConnect": "Auto connect",
   "dualConnectPreferred": "Preferred device",
-
   "settings": "Settings",
   "privacyPolicy": "Privacy policy",
   "privacyPolicyTitle": "\"Privacy policy\"",
@@ -99,7 +91,7 @@
   "pageAboutOpenSourceLicensesBtn": "Open source licenses",
   "pageIntroTitle": "Welcome to FreeBuddy 👋",
   "pageIntroWhatIsThis": "FreeBuddy is open source app for your headphones 🎧",
-  "pageIntroSupported": "Currently supported are:\n - Huawei FreeBuds 4i\n - Huawei FreeBuds 3i",
+  "pageIntroSupported": "Currently supported are:\n - Huawei FreeBuds 5i\n - Huawei FreeBuds 4i\n - Huawei FreeBuds 3i",
   "pageIntroShortPrivacyPolicy": "This app doesn't collect any emails, identifiers, or any personal data 🎉 You can read more about it here: ",
   "pageIntroAnyQuestions": "If you have any questions, feel free to contact me 💌 Look at \"Settings->About\" for my socials!",
   "pageIntroQuit": "Okay 👍",
