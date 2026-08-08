@@ -3,5 +3,5 @@
     <color name="battery_widget_text_color">#E8DEF8</color>
     <color name="battery_widget_bar_color">#7655B5</color>
     <color name="battery_widget_bar_background">#211F26</color>
-    <color name="battery_widget_empty_color">#211F26</color>
+    <color name="battery_widget_empty_color">#38343E</color>
 </resources>

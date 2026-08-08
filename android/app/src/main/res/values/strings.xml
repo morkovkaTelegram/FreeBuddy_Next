@@ -116,4 +116,8 @@
     <string name="headphones_color_black">Black</string>
     <string name="headphones_color_white">White</string>
     <string name="headphones_color_blue">Blue</string>
+    <string name="widget_labels_title">Labels</string>
+    <string name="widget_labels_full">Full names</string>
+    <string name="widget_labels_short">L / R, no case label</string>
+    <string name="widget_labels_hidden">No labels</string>
 </resources>

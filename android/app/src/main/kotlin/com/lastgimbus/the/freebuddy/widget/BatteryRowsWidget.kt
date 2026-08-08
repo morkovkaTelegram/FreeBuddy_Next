@@ -55,6 +55,7 @@ class BatteryRowsWidget : GlanceAppWidget() {
             GlanceAppWidgetManager(context).getAppWidgetId(id)
         }.getOrDefault(0)
         val initialOpacity = WidgetStorage.readOpacity(context, appWidgetId)
+        val initialLabelMode = WidgetStorage.readLabelMode(context, appWidgetId)
         provideContent {
             // currentState makes the session recompose whenever
             // WidgetStorage.updateAll pushes new values - battery and
@@ -67,13 +68,21 @@ class BatteryRowsWidget : GlanceAppWidget() {
                 prefs[WidgetStorage.RIGHT_KEY] ?: right,
                 prefs[WidgetStorage.CASE_KEY] ?: case,
                 prefs[WidgetStorage.OPACITY_KEY] ?: initialOpacity,
+                prefs[WidgetStorage.LABEL_MODE_KEY] ?: initialLabelMode,
             )
         }
     }
 
     @SuppressLint("RestrictedApi")
     @Composable
-    private fun Content(context: Context, left: Int, right: Int, case: Int, opacity: Int) {
+    private fun Content(
+        context: Context,
+        left: Int,
+        right: Int,
+        case: Int,
+        opacity: Int,
+        labelMode: Int,
+    ) {
         val textColor = ColorProvider(R.color.battery_widget_text_color)
         val labelStyle = TextStyle(
             color = textColor,
@@ -111,11 +120,11 @@ class BatteryRowsWidget : GlanceAppWidget() {
             horizontalAlignment = Alignment.Horizontal.CenterHorizontally,
             verticalAlignment = Alignment.Vertical.CenterVertically,
         ) {
-            BatteryRow(context, R.drawable.left_earbud, R.string.widget_left_earbud, left, labelStyle, levelStyle, opacity, GlanceModifier.defaultWeight())
+            BatteryRow(context, R.drawable.left_earbud, R.string.widget_left_earbud, left, labelStyle, levelStyle, opacity, labelMode, "L", GlanceModifier.defaultWeight())
             Spacer(GlanceModifier.size(4.dp))
-            BatteryRow(context, R.drawable.right_earbud, R.string.widget_right_earbud, right, labelStyle, levelStyle, opacity, GlanceModifier.defaultWeight())
+            BatteryRow(context, R.drawable.right_earbud, R.string.widget_right_earbud, right, labelStyle, levelStyle, opacity, labelMode, "R", GlanceModifier.defaultWeight())
             Spacer(GlanceModifier.size(4.dp))
-            BatteryRow(context, R.drawable.earbuds_case, R.string.widget_case, case, labelStyle, levelStyle, opacity, GlanceModifier.defaultWeight())
+            BatteryRow(context, R.drawable.earbuds_case, R.string.widget_case, case, labelStyle, levelStyle, opacity, labelMode, null, GlanceModifier.defaultWeight())
         }
     }
 
@@ -129,12 +138,15 @@ class BatteryRowsWidget : GlanceAppWidget() {
         labelStyle: TextStyle,
         levelStyle: TextStyle,
         opacity: Int,
+        labelMode: Int,
+        shortLabel: String?,
         modifier: GlanceModifier,
     ) {
         val normalized = BatteryLevel.validOrNull(level)
         val batteryText = normalized?.let {
             context.getString(R.string.widget_battery_level, it)
         } ?: context.getString(R.string.widget_battery_unknown)
+        val visibleLabel = WidgetLabels.visibleLabel(context, labelMode, label, shortLabel)
         // Both the filled and empty parts fade with the user-chosen
         // transparency; text and icons stay fully opaque for readability.
         val progressBitmap = WidgetProgressBitmap.horizontal(
@@ -170,8 +182,10 @@ class BatteryRowsWidget : GlanceAppWidget() {
                     modifier = GlanceModifier.size(28.dp),
                     colorFilter = ColorFilter.tint(ColorProvider(R.color.battery_widget_text_color)),
                 )
-                Spacer(GlanceModifier.width(10.dp))
-                Text(context.getString(label), style = labelStyle, maxLines = 1)
+                if (visibleLabel.isNotEmpty()) {
+                    Spacer(GlanceModifier.width(10.dp))
+                    Text(visibleLabel, style = labelStyle, maxLines = 1)
+                }
                 Spacer(GlanceModifier.defaultWeight())
                 Text(
                     text = batteryText,

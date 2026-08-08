@@ -17,7 +17,11 @@ object WidgetStorage {
     private const val ANC_MODE = "anc_mode"
     private const val ANC_CONNECTED = "anc_connected"
     private const val OPACITY_PREFIX = "opacity_"
+    private const val LABEL_MODE_PREFIX = "label_mode_"
     const val DEFAULT_OPACITY = 100
+    const val LABELS_FULL = 0
+    const val LABELS_SHORT = 1
+    const val LABELS_HIDDEN = 2
 
     // Keys for the per-instance Glance state. Pushing values through Glance
     // state (instead of reading prefs in provideGlance) is what makes updates
@@ -30,6 +34,7 @@ object WidgetStorage {
     val ANC_MODE_KEY = intPreferencesKey(ANC_MODE)
     val ANC_CONNECTED_KEY = intPreferencesKey(ANC_CONNECTED)
     val OPACITY_KEY = intPreferencesKey("opacity")
+    val LABEL_MODE_KEY = intPreferencesKey("label_mode")
 
     /** Background opacity for one widget instance, percent 0..100. */
     fun readOpacity(context: Context, appWidgetId: Int): Int =
@@ -43,9 +48,23 @@ object WidgetStorage {
             .apply()
     }
 
+    fun readLabelMode(context: Context, appWidgetId: Int): Int =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .getInt(LABEL_MODE_PREFIX + appWidgetId, LABELS_FULL)
+            .coerceIn(LABELS_FULL, LABELS_HIDDEN)
+
+    fun writeLabelMode(context: Context, appWidgetId: Int, mode: Int) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
+            .putInt(LABEL_MODE_PREFIX + appWidgetId, mode.coerceIn(LABELS_FULL, LABELS_HIDDEN))
+            .apply()
+    }
+
     fun removeOpacity(context: Context, appWidgetIds: IntArray) {
         val editor = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
-        appWidgetIds.forEach { editor.remove(OPACITY_PREFIX + it) }
+        appWidgetIds.forEach {
+            editor.remove(OPACITY_PREFIX + it)
+            editor.remove(LABEL_MODE_PREFIX + it)
+        }
         editor.apply()
     }
 
@@ -93,6 +112,7 @@ object WidgetStorage {
             manager.getGlanceIds(cls).forEach { id ->
                 val appWidgetId = runCatching { manager.getAppWidgetId(id) }.getOrDefault(0)
                 val opacity = readOpacity(context, appWidgetId)
+                val labelMode = readLabelMode(context, appWidgetId)
                 updateAppWidgetState(context, id) { prefs ->
                     prefs[LEFT_KEY] = left
                     prefs[RIGHT_KEY] = right
@@ -100,6 +120,7 @@ object WidgetStorage {
                     prefs[ANC_MODE_KEY] = ancMode
                     prefs[ANC_CONNECTED_KEY] = if (ancConnected) 1 else 0
                     prefs[OPACITY_KEY] = opacity
+                    prefs[LABEL_MODE_KEY] = labelMode
                 }
                 widget.update(context, id)
             }

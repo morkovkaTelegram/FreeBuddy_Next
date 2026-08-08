@@ -109,13 +109,27 @@ class BatteryCompactWidget : GlanceAppWidget() {
         val normalized = BatteryLevel.validOrNull(level)
         val batteryText = normalized?.let { context.getString(R.string.widget_battery_level, it) }
             ?: context.getString(R.string.widget_battery_unknown)
+        val innerBackground = ColorProvider(
+            androidx.compose.ui.graphics.Color(
+                WidgetProgressBitmap.withOpacity(
+                    context.getColor(R.color.battery_widget_empty_color), opacity,
+                ),
+            ),
+        )
         val progress = WidgetProgressBitmap.horizontal(
             level = normalized,
-            filled = WidgetProgressBitmap.withOpacity(context.getColor(R.color.battery_widget_bar_color), opacity),
-            empty = WidgetProgressBitmap.withOpacity(context.getColor(R.color.battery_widget_empty_color), opacity),
+            filled = WidgetProgressBitmap.withOpacity(
+                context.getColor(R.color.battery_widget_bar_color), opacity,
+            ),
+            // The empty part is provided by the rounded cell background below.
+            // Keeping it outside the bitmap makes the inner container visible
+            // even in very short RemoteViews used by the compact widget.
+            empty = android.graphics.Color.TRANSPARENT,
         )
         Box(
-            modifier.fillMaxHeight().cornerRadius(14.dp),
+            modifier.fillMaxHeight()
+                .background(innerBackground)
+                .cornerRadius(14.dp),
             contentAlignment = Alignment.Center,
         ) {
             Image(

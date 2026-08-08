@@ -116,4 +116,8 @@
     <string name="headphones_color_black">Чёрный</string>
     <string name="headphones_color_white">Белый</string>
     <string name="headphones_color_blue">Голубой</string>
+    <string name="widget_labels_title">Подписи</string>
+    <string name="widget_labels_full">Полные названия</string>
+    <string name="widget_labels_short">L / R, без подписи кейса</string>
+    <string name="widget_labels_hidden">Без подписей</string>
 </resources>

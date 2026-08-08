@@ -54,6 +54,7 @@ class BatteryWidget : GlanceAppWidget() {
             GlanceAppWidgetManager(context).getAppWidgetId(id)
         }.getOrDefault(0)
         val initialOpacity = WidgetStorage.readOpacity(context, appWidgetId)
+        val initialLabelMode = WidgetStorage.readLabelMode(context, appWidgetId)
         provideContent {
             // currentState makes the session recompose whenever
             // WidgetStorage.updateAll pushes new values - battery and
@@ -66,13 +67,21 @@ class BatteryWidget : GlanceAppWidget() {
                 prefs[WidgetStorage.RIGHT_KEY] ?: right,
                 prefs[WidgetStorage.CASE_KEY] ?: case,
                 prefs[WidgetStorage.OPACITY_KEY] ?: initialOpacity,
+                prefs[WidgetStorage.LABEL_MODE_KEY] ?: initialLabelMode,
             )
         }
     }
 
     @SuppressLint("RestrictedApi")
     @Composable
-    private fun Content(context: Context, left: Int, right: Int, case: Int, opacity: Int) {
+    private fun Content(
+        context: Context,
+        left: Int,
+        right: Int,
+        case: Int,
+        opacity: Int,
+        labelMode: Int,
+    ) {
         val style = TextStyle(
             color = ColorProvider(R.color.battery_widget_text_color),
             fontSize = 14.sp,
@@ -100,11 +109,11 @@ class BatteryWidget : GlanceAppWidget() {
                 .padding(6.dp),
             verticalAlignment = Alignment.Vertical.CenterVertically,
         ) {
-            BatteryCell(context, R.drawable.left_earbud, R.string.widget_left_earbud, left, style, opacity, GlanceModifier.defaultWeight())
+            BatteryCell(context, R.drawable.left_earbud, R.string.widget_left_earbud, left, style, opacity, labelMode, "L", GlanceModifier.defaultWeight())
             Spacer(GlanceModifier.width(4.dp))
-            BatteryCell(context, R.drawable.right_earbud, R.string.widget_right_earbud, right, style, opacity, GlanceModifier.defaultWeight())
+            BatteryCell(context, R.drawable.right_earbud, R.string.widget_right_earbud, right, style, opacity, labelMode, "R", GlanceModifier.defaultWeight())
             Spacer(GlanceModifier.width(4.dp))
-            BatteryCell(context, R.drawable.earbuds_case, R.string.widget_case, case, style, opacity, GlanceModifier.defaultWeight())
+            BatteryCell(context, R.drawable.earbuds_case, R.string.widget_case, case, style, opacity, labelMode, null, GlanceModifier.defaultWeight())
         }
     }
 
@@ -117,12 +126,15 @@ class BatteryWidget : GlanceAppWidget() {
         level: Int,
         style: TextStyle,
         opacity: Int,
+        labelMode: Int,
+        shortLabel: String?,
         modifier: GlanceModifier,
     ) {
         val normalized = BatteryLevel.validOrNull(level)
         val batteryText = normalized?.let {
             context.getString(R.string.widget_battery_level, it)
         } ?: context.getString(R.string.widget_battery_unknown)
+        val visibleLabel = WidgetLabels.visibleLabel(context, labelMode, label, shortLabel)
         // Both the filled and empty parts fade with the user-chosen
         // transparency; text and icons stay fully opaque for readability.
         val progressBitmap = WidgetProgressBitmap.vertical(
@@ -159,7 +171,9 @@ class BatteryWidget : GlanceAppWidget() {
                     modifier = GlanceModifier.size(26.dp),
                     colorFilter = ColorFilter.tint(ColorProvider(R.color.battery_widget_text_color)),
                 )
-                Text(context.getString(label), style = style, maxLines = 1)
+                if (visibleLabel.isNotEmpty()) {
+                    Text(visibleLabel, style = style, maxLines = 1)
+                }
                 Text(
                     batteryText,
                     style = style,

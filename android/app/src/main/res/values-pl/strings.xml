@@ -116,4 +116,8 @@
     <string name="headphones_color_black">Czarny</string>
     <string name="headphones_color_white">Biały</string>
     <string name="headphones_color_blue">Niebieski</string>
+    <string name="widget_labels_title">Etykiety</string>
+    <string name="widget_labels_full">Pełne nazwy</string>
+    <string name="widget_labels_short">L / R, bez etykiety etui</string>
+    <string name="widget_labels_hidden">Bez etykiet</string>
 </resources>
