@@ -85,8 +85,10 @@
     <string name="anc_off_desc">Wyłącza redukcję hałasu</string>
     <string name="anc_transparency_desc">Pozwala słyszeć otoczenie</string>
     <string name="save">Zapisz</string>
-    <string name="widget_transparency_title">Przezroczystość tła widżetu</string>
-    <string name="widget_transparency_hint" formatted="false">0% — nieprzezroczyste tło, 100% — całkowicie przezroczyste. Tekst i ikony zawsze pozostają widoczne.</string>
+    <string name="widget_transparency_title">Wygląd widżetu</string>
+    <string name="widget_background_transparency">Przezroczystość tła</string>
+    <string name="widget_elements_transparency">Przezroczystość elementów</string>
+    <string name="widget_transparency_hint" formatted="false">0% — nieprzezroczyste, 100% — całkowicie przezroczyste. Tło steruje zewnętrznym kontenerem, a elementy paskami postępu i przyciskami ANC. Tekst i ikony zawsze pozostają widoczne.</string>
     <string name="appearance">Wygląd</string>
     <string name="theme">Motyw</string>
     <string name="theme_system">Domyślny systemowy</string>

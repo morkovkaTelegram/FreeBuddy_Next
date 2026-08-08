@@ -49,7 +49,8 @@ class BatteryCompactWidget : GlanceAppWidget() {
         val appWidgetId = runCatching {
             GlanceAppWidgetManager(context).getAppWidgetId(id)
         }.getOrDefault(0)
-        val initialOpacity = WidgetStorage.readOpacity(context, appWidgetId)
+        val initialBackgroundOpacity = WidgetStorage.readBackgroundOpacity(context, appWidgetId)
+        val initialElementOpacity = WidgetStorage.readElementOpacity(context, appWidgetId)
         provideContent {
             val prefs = currentState<Preferences>()
             Content(
@@ -57,18 +58,26 @@ class BatteryCompactWidget : GlanceAppWidget() {
                 left = prefs[WidgetStorage.LEFT_KEY] ?: left,
                 right = prefs[WidgetStorage.RIGHT_KEY] ?: right,
                 case = prefs[WidgetStorage.CASE_KEY] ?: case,
-                opacity = prefs[WidgetStorage.OPACITY_KEY] ?: initialOpacity,
+                backgroundOpacity = prefs[WidgetStorage.BACKGROUND_OPACITY_KEY] ?: initialBackgroundOpacity,
+                elementOpacity = prefs[WidgetStorage.ELEMENT_OPACITY_KEY] ?: initialElementOpacity,
             )
         }
     }
 
     @SuppressLint("RestrictedApi")
     @Composable
-    private fun Content(context: Context, left: Int, right: Int, case: Int, opacity: Int) {
+    private fun Content(
+        context: Context,
+        left: Int,
+        right: Int,
+        case: Int,
+        backgroundOpacity: Int,
+        elementOpacity: Int,
+    ) {
         val outerBackground = ColorProvider(
             androidx.compose.ui.graphics.Color(
                 WidgetProgressBitmap.withOpacity(
-                    context.getColor(R.color.battery_widget_bar_background), opacity,
+                    context.getColor(R.color.battery_widget_bar_background), backgroundOpacity,
                 ),
             ),
         )
@@ -87,11 +96,11 @@ class BatteryCompactWidget : GlanceAppWidget() {
                 .padding(6.dp),
             verticalAlignment = Alignment.Vertical.CenterVertically,
         ) {
-            CompactCell(context, R.drawable.left_earbud, R.string.widget_left_earbud, left, opacity, style, GlanceModifier.defaultWeight())
+            CompactCell(context, R.drawable.left_earbud, R.string.widget_left_earbud, left, elementOpacity, style, GlanceModifier.defaultWeight())
             Spacer(GlanceModifier.width(4.dp))
-            CompactCell(context, R.drawable.right_earbud, R.string.widget_right_earbud, right, opacity, style, GlanceModifier.defaultWeight())
+            CompactCell(context, R.drawable.right_earbud, R.string.widget_right_earbud, right, elementOpacity, style, GlanceModifier.defaultWeight())
             Spacer(GlanceModifier.width(4.dp))
-            CompactCell(context, R.drawable.earbuds_case, R.string.widget_case, case, opacity, style, GlanceModifier.defaultWeight())
+            CompactCell(context, R.drawable.earbuds_case, R.string.widget_case, case, elementOpacity, style, GlanceModifier.defaultWeight())
         }
     }
 
@@ -102,7 +111,7 @@ class BatteryCompactWidget : GlanceAppWidget() {
         icon: Int,
         label: Int,
         level: Int,
-        opacity: Int,
+        elementOpacity: Int,
         style: TextStyle,
         modifier: GlanceModifier,
     ) {
@@ -112,14 +121,14 @@ class BatteryCompactWidget : GlanceAppWidget() {
         val innerBackground = ColorProvider(
             androidx.compose.ui.graphics.Color(
                 WidgetProgressBitmap.withOpacity(
-                    context.getColor(R.color.battery_widget_empty_color), opacity,
+                    context.getColor(R.color.battery_widget_empty_color), elementOpacity,
                 ),
             ),
         )
         val progress = WidgetProgressBitmap.horizontal(
             level = normalized,
             filled = WidgetProgressBitmap.withOpacity(
-                context.getColor(R.color.battery_widget_bar_color), opacity,
+                context.getColor(R.color.battery_widget_bar_color), elementOpacity,
             ),
             // The empty part is provided by the rounded cell background below.
             // Keeping it outside the bitmap makes the inner container visible

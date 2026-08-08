@@ -16,7 +16,11 @@ object WidgetStorage {
     const val CASE = "case"
     private const val ANC_MODE = "anc_mode"
     private const val ANC_CONNECTED = "anc_connected"
-    private const val OPACITY_PREFIX = "opacity_"
+    // Legacy single-opacity value is retained as a migration source for
+    // widgets configured before split transparency was introduced.
+    private const val LEGACY_OPACITY_PREFIX = "opacity_"
+    private const val BACKGROUND_OPACITY_PREFIX = "background_opacity_"
+    private const val ELEMENT_OPACITY_PREFIX = "element_opacity_"
     private const val LABEL_MODE_PREFIX = "label_mode_"
     const val DEFAULT_OPACITY = 100
     const val LABELS_FULL = 0
@@ -33,18 +37,40 @@ object WidgetStorage {
     val CASE_KEY = intPreferencesKey(CASE)
     val ANC_MODE_KEY = intPreferencesKey(ANC_MODE)
     val ANC_CONNECTED_KEY = intPreferencesKey(ANC_CONNECTED)
-    val OPACITY_KEY = intPreferencesKey("opacity")
+    val BACKGROUND_OPACITY_KEY = intPreferencesKey("background_opacity")
+    val ELEMENT_OPACITY_KEY = intPreferencesKey("element_opacity")
     val LABEL_MODE_KEY = intPreferencesKey("label_mode")
 
-    /** Background opacity for one widget instance, percent 0..100. */
-    fun readOpacity(context: Context, appWidgetId: Int): Int =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-            .getInt(OPACITY_PREFIX + appWidgetId, DEFAULT_OPACITY)
-            .coerceIn(0, 100)
+    /** Outer widget container opacity for one instance, percent 0..100. */
+    fun readBackgroundOpacity(context: Context, appWidgetId: Int): Int =
+        readSplitOpacity(context, BACKGROUND_OPACITY_PREFIX, appWidgetId)
 
-    fun writeOpacity(context: Context, appWidgetId: Int, opacity: Int) {
+    /** Progress bars and ANC button opacity, percent 0..100. */
+    fun readElementOpacity(context: Context, appWidgetId: Int): Int =
+        readSplitOpacity(context, ELEMENT_OPACITY_PREFIX, appWidgetId)
+
+    private fun readSplitOpacity(context: Context, prefix: String, appWidgetId: Int): Int {
+        val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        val key = prefix + appWidgetId
+        // Existing widgets preserve their exact appearance: the old single
+        // value seeds both new controls until the user saves them separately.
+        return if (prefs.contains(key)) {
+            prefs.getInt(key, DEFAULT_OPACITY)
+        } else {
+            prefs.getInt(LEGACY_OPACITY_PREFIX + appWidgetId, DEFAULT_OPACITY)
+        }.coerceIn(0, 100)
+    }
+
+    fun writeOpacities(
+        context: Context,
+        appWidgetId: Int,
+        backgroundOpacity: Int,
+        elementOpacity: Int,
+    ) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
-            .putInt(OPACITY_PREFIX + appWidgetId, opacity.coerceIn(0, 100))
+            .putInt(BACKGROUND_OPACITY_PREFIX + appWidgetId, backgroundOpacity.coerceIn(0, 100))
+            .putInt(ELEMENT_OPACITY_PREFIX + appWidgetId, elementOpacity.coerceIn(0, 100))
+            .remove(LEGACY_OPACITY_PREFIX + appWidgetId)
             .apply()
     }
 
@@ -62,7 +88,9 @@ object WidgetStorage {
     fun removeOpacity(context: Context, appWidgetIds: IntArray) {
         val editor = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
         appWidgetIds.forEach {
-            editor.remove(OPACITY_PREFIX + it)
+            editor.remove(LEGACY_OPACITY_PREFIX + it)
+            editor.remove(BACKGROUND_OPACITY_PREFIX + it)
+            editor.remove(ELEMENT_OPACITY_PREFIX + it)
             editor.remove(LABEL_MODE_PREFIX + it)
         }
         editor.apply()
@@ -101,7 +129,7 @@ object WidgetStorage {
         updateAll(context)
     }
 
-    /** Pushes current battery + per-instance opacity into each widget's
+    /** Pushes current battery + per-instance appearance into each widget's
      * Glance state and triggers an update; state changes recompose live
      * sessions immediately. */
     suspend fun updateAll(context: Context) {
@@ -111,7 +139,8 @@ object WidgetStorage {
         suspend fun push(widget: GlanceAppWidget, cls: Class<out GlanceAppWidget>) {
             manager.getGlanceIds(cls).forEach { id ->
                 val appWidgetId = runCatching { manager.getAppWidgetId(id) }.getOrDefault(0)
-                val opacity = readOpacity(context, appWidgetId)
+                val backgroundOpacity = readBackgroundOpacity(context, appWidgetId)
+                val elementOpacity = readElementOpacity(context, appWidgetId)
                 val labelMode = readLabelMode(context, appWidgetId)
                 updateAppWidgetState(context, id) { prefs ->
                     prefs[LEFT_KEY] = left
@@ -119,7 +148,8 @@ object WidgetStorage {
                     prefs[CASE_KEY] = case
                     prefs[ANC_MODE_KEY] = ancMode
                     prefs[ANC_CONNECTED_KEY] = if (ancConnected) 1 else 0
-                    prefs[OPACITY_KEY] = opacity
+                    prefs[BACKGROUND_OPACITY_KEY] = backgroundOpacity
+                    prefs[ELEMENT_OPACITY_KEY] = elementOpacity
                     prefs[LABEL_MODE_KEY] = labelMode
                 }
                 widget.update(context, id)

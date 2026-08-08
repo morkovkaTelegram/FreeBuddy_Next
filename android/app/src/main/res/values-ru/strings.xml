@@ -85,8 +85,10 @@
     <string name="anc_off_desc">Отключает шумоподавление</string>
     <string name="anc_transparency_desc">Позволяет слышать окружающие звуки</string>
     <string name="save">Сохранить</string>
-    <string name="widget_transparency_title">Прозрачность фона виджета</string>
-    <string name="widget_transparency_hint" formatted="false">0% — непрозрачный фон, 100% — полностью прозрачный. Текст и иконки всегда остаются видимыми.</string>
+    <string name="widget_transparency_title">Оформление виджета</string>
+    <string name="widget_background_transparency">Прозрачность фона</string>
+    <string name="widget_elements_transparency">Прозрачность элементов</string>
+    <string name="widget_transparency_hint" formatted="false">0% — непрозрачно, 100% — полностью прозрачно. Фон регулирует внешний контейнер, элементы — индикаторы заряда и кнопки ANC. Текст и иконки всегда остаются видимыми.</string>
     <string name="appearance">Оформление</string>
     <string name="theme">Тема</string>
     <string name="theme_system">Как в системе</string>

@@ -85,8 +85,10 @@
     <string name="anc_off_desc">Schaltet ANC aus</string>
     <string name="anc_transparency_desc">Lässt Sie Ihre Umgebung hören</string>
     <string name="save">Speichern</string>
-    <string name="widget_transparency_title">Transparenz des Widget-Hintergrunds</string>
-    <string name="widget_transparency_hint" formatted="false">0% — undurchsichtig, 100% — vollständig transparent. Text und Symbole bleiben immer sichtbar.</string>
+    <string name="widget_transparency_title">Widget-Darstellung</string>
+    <string name="widget_background_transparency">Hintergrundtransparenz</string>
+    <string name="widget_elements_transparency">Transparenz der Elemente</string>
+    <string name="widget_transparency_hint" formatted="false">0% — undurchsichtig, 100% — vollständig transparent. Der Hintergrund steuert den äußeren Container, die Elemente Fortschrittsanzeigen und ANC-Tasten. Text und Symbole bleiben immer sichtbar.</string>
     <string name="appearance">Erscheinungsbild</string>
     <string name="theme">Design</string>
     <string name="theme_system">Systemstandard</string>

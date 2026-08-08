@@ -53,7 +53,8 @@ class AncWidget : GlanceAppWidget() {
         val appWidgetId = runCatching {
             GlanceAppWidgetManager(context).getAppWidgetId(id)
         }.getOrDefault(0)
-        val initialOpacity = WidgetStorage.readOpacity(context, appWidgetId)
+        val initialBackgroundOpacity = WidgetStorage.readBackgroundOpacity(context, appWidgetId)
+        val initialElementOpacity = WidgetStorage.readElementOpacity(context, appWidgetId)
         provideContent {
             val prefs = currentState<Preferences>()
             Content(
@@ -61,15 +62,22 @@ class AncWidget : GlanceAppWidget() {
                 modeCode = prefs[WidgetStorage.ANC_MODE_KEY] ?: initialMode,
                 connected = (prefs[WidgetStorage.ANC_CONNECTED_KEY]
                     ?: if (initialConnected) 1 else 0) == 1,
-                opacity = prefs[WidgetStorage.OPACITY_KEY] ?: initialOpacity,
+                backgroundOpacity = prefs[WidgetStorage.BACKGROUND_OPACITY_KEY] ?: initialBackgroundOpacity,
+                elementOpacity = prefs[WidgetStorage.ELEMENT_OPACITY_KEY] ?: initialElementOpacity,
             )
         }
     }
 
     @SuppressLint("RestrictedApi")
     @Composable
-    private fun Content(context: Context, modeCode: Int, connected: Boolean, opacity: Int) {
-        val outer = color(context, R.color.battery_widget_bar_background, opacity)
+    private fun Content(
+        context: Context,
+        modeCode: Int,
+        connected: Boolean,
+        backgroundOpacity: Int,
+        elementOpacity: Int,
+    ) {
+        val outer = color(context, R.color.battery_widget_bar_background, backgroundOpacity)
         Row(
             modifier = GlanceModifier.fillMaxSize()
                 .appWidgetBackground()
@@ -80,13 +88,13 @@ class AncWidget : GlanceAppWidget() {
             horizontalAlignment = Alignment.Horizontal.CenterHorizontally,
         ) {
             ModeButton(context, AncMode.NOISE_CANCELLING,
-                R.string.anc_noise, modeCode, connected, opacity, GlanceModifier.defaultWeight())
+                R.string.anc_noise, modeCode, connected, elementOpacity, GlanceModifier.defaultWeight())
             Spacer(GlanceModifier.width(5.dp))
             ModeButton(context, AncMode.OFF,
-                R.string.anc_off, modeCode, connected, opacity, GlanceModifier.defaultWeight())
+                R.string.anc_off, modeCode, connected, elementOpacity, GlanceModifier.defaultWeight())
             Spacer(GlanceModifier.width(5.dp))
             ModeButton(context, AncMode.TRANSPARENCY,
-                R.string.anc_transparency, modeCode, connected, opacity, GlanceModifier.defaultWeight())
+                R.string.anc_transparency, modeCode, connected, elementOpacity, GlanceModifier.defaultWeight())
         }
     }
 
@@ -98,14 +106,14 @@ class AncWidget : GlanceAppWidget() {
         label: Int,
         selectedCode: Int,
         connected: Boolean,
-        opacity: Int,
+        elementOpacity: Int,
         modifier: GlanceModifier,
     ) {
         val selected = connected && selectedCode == mode.code
         val background = color(
             context,
             if (selected) R.color.battery_widget_bar_color else R.color.battery_widget_empty_color,
-            opacity,
+            elementOpacity,
         )
         val description = if (connected) {
             context.getString(label)

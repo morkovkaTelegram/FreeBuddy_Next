@@ -85,8 +85,10 @@
     <string name="anc_off_desc">Turns ANC off</string>
     <string name="anc_transparency_desc">Lets you hear your surroundings</string>
     <string name="save">Save</string>
-    <string name="widget_transparency_title">Widget background transparency</string>
-    <string name="widget_transparency_hint" formatted="false">0% — opaque, 100% — fully transparent. Text and icons always stay visible.</string>
+    <string name="widget_transparency_title">Widget appearance</string>
+    <string name="widget_background_transparency">Background transparency</string>
+    <string name="widget_elements_transparency">Element transparency</string>
+    <string name="widget_transparency_hint" formatted="false">0% — opaque, 100% — fully transparent. Background controls the outer container; elements control progress bars and ANC buttons. Text and icons always stay visible.</string>
     <string name="appearance">Appearance</string>
     <string name="theme">Theme</string>
     <string name="theme_system">System default</string>

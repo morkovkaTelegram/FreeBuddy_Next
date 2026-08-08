@@ -54,7 +54,8 @@ class BatteryRowsWidget : GlanceAppWidget() {
         val appWidgetId = runCatching {
             GlanceAppWidgetManager(context).getAppWidgetId(id)
         }.getOrDefault(0)
-        val initialOpacity = WidgetStorage.readOpacity(context, appWidgetId)
+        val initialBackgroundOpacity = WidgetStorage.readBackgroundOpacity(context, appWidgetId)
+        val initialElementOpacity = WidgetStorage.readElementOpacity(context, appWidgetId)
         val initialLabelMode = WidgetStorage.readLabelMode(context, appWidgetId)
         provideContent {
             // currentState makes the session recompose whenever
@@ -67,7 +68,8 @@ class BatteryRowsWidget : GlanceAppWidget() {
                 prefs[WidgetStorage.LEFT_KEY] ?: left,
                 prefs[WidgetStorage.RIGHT_KEY] ?: right,
                 prefs[WidgetStorage.CASE_KEY] ?: case,
-                prefs[WidgetStorage.OPACITY_KEY] ?: initialOpacity,
+                prefs[WidgetStorage.BACKGROUND_OPACITY_KEY] ?: initialBackgroundOpacity,
+                prefs[WidgetStorage.ELEMENT_OPACITY_KEY] ?: initialElementOpacity,
                 prefs[WidgetStorage.LABEL_MODE_KEY] ?: initialLabelMode,
             )
         }
@@ -80,7 +82,8 @@ class BatteryRowsWidget : GlanceAppWidget() {
         left: Int,
         right: Int,
         case: Int,
-        opacity: Int,
+        backgroundOpacity: Int,
+        elementOpacity: Int,
         labelMode: Int,
     ) {
         val textColor = ColorProvider(R.color.battery_widget_text_color)
@@ -97,7 +100,7 @@ class BatteryRowsWidget : GlanceAppWidget() {
             textAlign = TextAlign.End,
         )
 
-        val outerBackground = if (opacity >= 100) {
+        val outerBackground = if (backgroundOpacity >= 100) {
             ColorProvider(R.color.battery_widget_bar_background)
         } else {
             // Resolved color is required to multiply alpha; theme switches are
@@ -105,7 +108,7 @@ class BatteryRowsWidget : GlanceAppWidget() {
             ColorProvider(
                 androidx.compose.ui.graphics.Color(
                     WidgetProgressBitmap.withOpacity(
-                        context.getColor(R.color.battery_widget_bar_background), opacity,
+                        context.getColor(R.color.battery_widget_bar_background), backgroundOpacity,
                     ),
                 ),
             )
@@ -120,11 +123,11 @@ class BatteryRowsWidget : GlanceAppWidget() {
             horizontalAlignment = Alignment.Horizontal.CenterHorizontally,
             verticalAlignment = Alignment.Vertical.CenterVertically,
         ) {
-            BatteryRow(context, R.drawable.left_earbud, R.string.widget_left_earbud, left, labelStyle, levelStyle, opacity, labelMode, "L", GlanceModifier.defaultWeight())
+            BatteryRow(context, R.drawable.left_earbud, R.string.widget_left_earbud, left, labelStyle, levelStyle, elementOpacity, labelMode, "L", GlanceModifier.defaultWeight())
             Spacer(GlanceModifier.size(4.dp))
-            BatteryRow(context, R.drawable.right_earbud, R.string.widget_right_earbud, right, labelStyle, levelStyle, opacity, labelMode, "R", GlanceModifier.defaultWeight())
+            BatteryRow(context, R.drawable.right_earbud, R.string.widget_right_earbud, right, labelStyle, levelStyle, elementOpacity, labelMode, "R", GlanceModifier.defaultWeight())
             Spacer(GlanceModifier.size(4.dp))
-            BatteryRow(context, R.drawable.earbuds_case, R.string.widget_case, case, labelStyle, levelStyle, opacity, labelMode, null, GlanceModifier.defaultWeight())
+            BatteryRow(context, R.drawable.earbuds_case, R.string.widget_case, case, labelStyle, levelStyle, elementOpacity, labelMode, null, GlanceModifier.defaultWeight())
         }
     }
 
@@ -137,7 +140,7 @@ class BatteryRowsWidget : GlanceAppWidget() {
         level: Int,
         labelStyle: TextStyle,
         levelStyle: TextStyle,
-        opacity: Int,
+        elementOpacity: Int,
         labelMode: Int,
         shortLabel: String?,
         modifier: GlanceModifier,
@@ -152,10 +155,10 @@ class BatteryRowsWidget : GlanceAppWidget() {
         val progressBitmap = WidgetProgressBitmap.horizontal(
             level = normalized,
             filled = WidgetProgressBitmap.withOpacity(
-                context.getColor(R.color.battery_widget_bar_color), opacity,
+                context.getColor(R.color.battery_widget_bar_color), elementOpacity,
             ),
             empty = WidgetProgressBitmap.withOpacity(
-                context.getColor(R.color.battery_widget_empty_color), opacity,
+                context.getColor(R.color.battery_widget_empty_color), elementOpacity,
             ),
         )
         Box(
