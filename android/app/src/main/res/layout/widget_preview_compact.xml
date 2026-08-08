@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="180dp" android:layout_height="60dp"
+    android:background="@drawable/widget_preview_background" android:gravity="center"
+    android:orientation="horizontal" android:padding="6dp">
+    <FrameLayout android:layout_width="0dp" android:layout_height="match_parent"
+        android:layout_marginEnd="2dp" android:layout_weight="1" android:background="@drawable/widget_preview_cell_empty">
+        <ImageView android:layout_width="32dp"
+            android:layout_height="match_parent" android:background="@drawable/widget_preview_fill_horizontal_partial"
+            android:contentDescription="@null" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+            android:gravity="center" android:orientation="horizontal" android:padding="3dp">
+            <ImageView android:layout_width="16dp" android:layout_height="16dp"
+                android:contentDescription="@string/widget_left_earbud" android:src="@drawable/left_earbud"
+                android:tint="@color/battery_widget_text_color" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginStart="4dp" android:maxLines="1" android:text="60%"
+                android:textColor="@color/battery_widget_text_color" android:textSize="8sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </FrameLayout>
+    <FrameLayout android:layout_width="0dp" android:layout_height="match_parent"
+        android:layout_marginHorizontal="2dp" android:layout_weight="1" android:background="@drawable/widget_preview_cell_empty">
+        <ImageView android:layout_width="45dp"
+            android:layout_height="match_parent" android:background="@drawable/widget_preview_fill_horizontal_partial"
+            android:contentDescription="@null" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+            android:gravity="center" android:orientation="horizontal" android:padding="3dp">
+            <ImageView android:layout_width="16dp" android:layout_height="16dp"
+                android:contentDescription="@string/widget_right_earbud" android:src="@drawable/right_earbud"
+                android:tint="@color/battery_widget_text_color" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginStart="4dp" android:maxLines="1" android:text="85%"
+                android:textColor="@color/battery_widget_text_color" android:textSize="8sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </FrameLayout>
+    <FrameLayout android:layout_width="0dp" android:layout_height="match_parent"
+        android:layout_marginStart="2dp" android:layout_weight="1" android:background="@drawable/widget_preview_cell_empty">
+        <ImageView android:layout_width="53dp"
+            android:layout_height="match_parent" android:background="@drawable/widget_preview_cell"
+            android:contentDescription="@null" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+            android:gravity="center" android:orientation="horizontal" android:padding="3dp">
+            <ImageView android:layout_width="16dp" android:layout_height="16dp"
+                android:contentDescription="@string/widget_case" android:src="@drawable/earbuds_case"
+                android:tint="@color/battery_widget_text_color" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginStart="4dp" android:maxLines="1" android:text="100%"
+                android:textColor="@color/battery_widget_text_color" android:textSize="8sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </FrameLayout>
+</LinearLayout>

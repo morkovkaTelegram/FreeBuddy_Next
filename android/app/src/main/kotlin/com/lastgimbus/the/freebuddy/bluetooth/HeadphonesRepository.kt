@@ -123,17 +123,23 @@ class HeadphonesRepository(private val context: Context) {
         scope.launch {
             client.commands.collect { command ->
                 var batteryChanged = false
+                var ancChanged = false
                 _state.update { state ->
                     val current = (state as? ConnectionState.Connected)?.snapshot ?: return@update state
                     val updated = current.apply(command)
                     if (updated == current) return@update state
                     batteryChanged = updated.battery != current.battery
+                    ancChanged = updated.ancMode != current.ancMode
                     ConnectionState.Connected(updated)
                 }
                 if (batteryChanged) {
                     ((_state.value as? ConnectionState.Connected)?.snapshot?.battery)?.let {
                         WidgetStorage.saveAndUpdate(context, it)
                     }
+                }
+                if (ancChanged) {
+                    val mode = (_state.value as? ConnectionState.Connected)?.snapshot?.ancMode
+                    WidgetStorage.saveAncAndUpdate(context, mode, connected = true)
                 }
                 if (command.serviceId == 43 && command.commandId == 54) {
                     send(MbbCommand(43, 47))
@@ -237,6 +243,7 @@ class HeadphonesRepository(private val context: Context) {
                     _state.value = ConnectionState.Connected(
                         HeadphonesSnapshot(name = name, address = device.address)
                     )
+                    WidgetStorage.saveAncAndUpdate(context, mode = null, connected = true)
                     // MBB pushes updates on its own (battery 1/39, ANC 43/42,
                     // dual-connect 43/54), so no periodic polling is needed.
                     FreeBuds5iCommands.initialRequests.forEach {
@@ -307,9 +314,19 @@ class HeadphonesRepository(private val context: Context) {
         connectJob = null
         activeDevice = null
         client.close()
+        WidgetStorage.saveAncAndUpdate(context, mode = null, connected = false)
     }
 
-    fun setAncMode(mode: AncMode) = send(FreeBuds5iCommands.ancMode(mode))
+    fun setAncMode(mode: AncMode): Boolean {
+        if (_state.value !is ConnectionState.Connected) return false
+        _state.update { state ->
+            val connected = state as? ConnectionState.Connected ?: return@update state
+            connected.copy(snapshot = connected.snapshot.copy(ancMode = mode))
+        }
+        scope.launch { WidgetStorage.saveAncAndUpdate(context, mode, connected = true) }
+        send(FreeBuds5iCommands.ancMode(mode))
+        return true
+    }
     fun setAncLevel(level: AncLevel) {
         val mode = (_state.value as? ConnectionState.Connected)?.snapshot?.ancMode ?: AncMode.NOISE_CANCELLING
         send(FreeBuds5iCommands.ancLevel(mode, level))

@@ -3,6 +3,7 @@ package com.lastgimbus.the.freebuddy.widget
 import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.os.Bundle
+import androidx.annotation.DrawableRes
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
@@ -73,10 +74,17 @@ class WidgetConfigureActivity : ComponentActivity() {
             return
         }
         val initialTransparency = 100 - WidgetStorage.readOpacity(this, appWidgetId)
+        val providerClass = AppWidgetManager.getInstance(this)
+            .getAppWidgetInfo(appWidgetId)
+            ?.provider?.className
+        val isAncWidget = providerClass == AncWidgetReceiver::class.java.name
+        val isCompactWidget = providerClass == BatteryCompactWidgetReceiver::class.java.name
         setContent {
             FreeBuddyTheme {
                 ConfigureScreen(
                     initialTransparency = initialTransparency,
+                    isAncWidget = isAncWidget,
+                    isCompactWidget = isCompactWidget,
                     onCancel = { finish() },
                     onSave = { transparency -> save(opacity = 100 - transparency) },
                 )
@@ -100,6 +108,8 @@ class WidgetConfigureActivity : ComponentActivity() {
 @Composable
 private fun ConfigureScreen(
     initialTransparency: Int,
+    isAncWidget: Boolean,
+    isCompactWidget: Boolean,
     onCancel: () -> Unit,
     onSave: (Int) -> Unit,
 ) {
@@ -116,7 +126,11 @@ private fun ConfigureScreen(
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(20.dp))
-            WidgetPreview(transparency = transparency)
+            when {
+                isAncWidget -> AncWidgetPreview(transparency = transparency)
+                isCompactWidget -> CompactWidgetPreview(transparency = transparency)
+                else -> WidgetPreview(transparency = transparency)
+            }
             Spacer(Modifier.height(20.dp))
             Text(
                 stringResource(R.string.widget_battery_level, transparency),
@@ -151,6 +165,126 @@ private fun ConfigureScreen(
     }
 }
 
+@Composable
+private fun CompactWidgetPreview(transparency: Int) {
+    val alpha = (100 - transparency) / 100f
+    val outer = colorResource(R.color.battery_widget_bar_background).copy(alpha = alpha)
+    val filled = colorResource(R.color.battery_widget_bar_color).copy(alpha = alpha)
+    val empty = colorResource(R.color.battery_widget_empty_color).copy(alpha = alpha)
+    val text = colorResource(R.color.battery_widget_text_color)
+    Box(
+        Modifier.widthIn(max = 340.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)),
+    ) {
+        Checkerboard(Modifier.matchParentSize())
+        Row(
+            Modifier.fillMaxWidth().background(outer, RoundedCornerShape(20.dp)).padding(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            CompactPreviewCell(R.drawable.left_earbud, 60, filled, empty, text, Modifier.weight(1f))
+            CompactPreviewCell(R.drawable.right_earbud, 85, filled, empty, text, Modifier.weight(1f))
+            CompactPreviewCell(R.drawable.earbuds_case, 100, filled, empty, text, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun CompactPreviewCell(
+    @DrawableRes icon: Int,
+    level: Int?,
+    filled: Color,
+    empty: Color,
+    text: Color,
+    modifier: Modifier,
+) {
+    Box(modifier.height(58.dp).clip(RoundedCornerShape(14.dp)).background(empty)) {
+        if (level != null) {
+            Box(Modifier.fillMaxWidth(level / 100f).fillMaxHeight().background(filled))
+        }
+        Row(
+            Modifier.fillMaxSize().padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(painterResource(icon), text)
+            Spacer(Modifier.weight(1f))
+            Text(
+                level?.let { stringResource(R.string.widget_battery_level, it) }
+                    ?: stringResource(R.string.widget_battery_unknown),
+                color = text,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AncWidgetPreview(transparency: Int) {
+    val alpha = (100 - transparency) / 100f
+    val outer = colorResource(R.color.battery_widget_bar_background).copy(alpha = alpha)
+    val selected = colorResource(R.color.battery_widget_bar_color).copy(alpha = alpha)
+    val unselected = colorResource(R.color.battery_widget_empty_color).copy(alpha = alpha)
+    val text = colorResource(R.color.battery_widget_text_color)
+
+    Box(
+        Modifier
+            .widthIn(max = 340.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp)),
+    ) {
+        Checkerboard(Modifier.matchParentSize())
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .background(outer, RoundedCornerShape(20.dp))
+                .padding(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            AncPreviewButton(
+                R.drawable.ic_anc_noise_control,
+                selected,
+                text,
+                Modifier.weight(1f),
+            )
+            AncPreviewButton(
+                R.drawable.ic_anc_off,
+                unselected,
+                text,
+                Modifier.weight(1f),
+            )
+            AncPreviewButton(
+                R.drawable.ic_anc_transparency,
+                unselected,
+                text,
+                Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AncPreviewButton(
+    @DrawableRes icon: Int,
+    background: Color,
+    tint: Color,
+    modifier: Modifier,
+) {
+    Box(
+        modifier
+            .height(58.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(background),
+        contentAlignment = Alignment.Center,
+    ) {
+        androidx.compose.material3.Icon(
+            painter = painterResource(icon),
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(38.dp),
+        )
+    }
+}
+
 /**
  * Live preview of the "rows" widget on a checkerboard backdrop so the
  * chosen transparency is immediately visible. Uses the exact same widget
@@ -179,9 +313,9 @@ private fun WidgetPreview(transparency: Int) {
                 .padding(8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            PreviewBar(R.drawable.left_earbud, stringResource(R.string.widget_left_earbud), 100, filled, empty, text)
-            PreviewBar(R.drawable.right_earbud, stringResource(R.string.widget_right_earbud), 90, filled, empty, text)
-            PreviewBar(R.drawable.earbuds_case, stringResource(R.string.widget_case), 65, filled, empty, text)
+            PreviewBar(R.drawable.left_earbud, stringResource(R.string.widget_left_earbud), 60, filled, empty, text)
+            PreviewBar(R.drawable.right_earbud, stringResource(R.string.widget_right_earbud), 85, filled, empty, text)
+            PreviewBar(R.drawable.earbuds_case, stringResource(R.string.widget_case), 100, filled, empty, text)
         }
     }
 }

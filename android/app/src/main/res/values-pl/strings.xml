@@ -1,22 +1,78 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">FreeBuddy</string><string name="about">O FreeBuddy ℹ️</string>
-    <string name="about_text">Niezależna aplikacja open source do sterowania obsługiwanymi słuchawkami Huawei FreeBuds.</string><string name="version_text">Wersja %1$s</string>
-    <string name="connected">Słuchawki połączone 🎧</string><string name="disconnected">Słuchawki nie są połączone 🙅</string><string name="disconnected_desc">Połącz słuchawki z telefonem przez Bluetooth.</string>
-    <string name="connecting">Łączenie… 🔄</string><string name="connecting_desc">Nawiązywanie połączenia ze słuchawkami.</string>
-    <string name="connection_failed">Nie udało się połączyć 🤨</string><string name="connection_failed_desc">Połączenie może być używane przez inną aplikację. Zamknij ją i spróbuj ponownie.</string>
-    <string name="page_home_no_permission">Brak dostępu do Bluetooth 😢</string><string name="page_home_no_permission_desc">Uprawnienie Bluetooth jest wymagane do komunikacji ze słuchawkami.</string><string name="grant_access">Zezwól 🔑</string>
-    <string name="bluetooth_disabled">Bluetooth jest wyłączony 📶</string><string name="bluetooth_disabled_desc">Włącz Bluetooth, aby połączyć słuchawki.</string>
-    <string name="not_paired">Brak sparowanych obsługiwanych słuchawek 😿</string><string name="not_paired_desc">Sparuj Huawei FreeBuds 5i w ustawieniach Androida.</string>
-    <string name="open_bluetooth_settings">Otwórz ustawienia Bluetooth 💙</string><string name="retry">Spróbuj ponownie 🔄</string>
-    <string name="case_label">Etui</string><string name="left_bud_short">Lewa</string><string name="right_bud_short">Prawa</string>
-    <string name="headphones_settings">Ustawienia słuchawek 🔧</string><string name="anc_title">Sterowanie redukcją hałasu</string><string name="anc_off">Wyłączone</string><string name="anc_noise">Redukcja hałasu</string><string name="anc_transparency">Przepuszczanie dźwięku</string>
-    <string name="anc_level_title">Poziom redukcji hałasu</string><string name="anc_normal">Normalny</string><string name="anc_comfort">Komfortowy</string><string name="anc_ultra">Maksymalny</string><string name="anc_dynamic">Dynamiczny</string>
-    <string name="dual_connect">Podwójne połączenie 🔗</string><string name="expand">Rozwiń</string><string name="collapse">Zwiń</string><string name="dual_connect_no_devices">Nie znaleziono sparowanych urządzeń</string><string name="dual_connect_playing">Odtwarza</string><string name="dual_connect_connected">Połączono</string><string name="dual_connect_disconnected">Nie połączono</string><string name="dual_connect_auto_connect">Automatyczne łączenie</string><string name="dual_connect_preferred">Urządzenie preferowane</string><string name="dual_connect_connect">Połącz</string><string name="dual_connect_disconnect">Rozłącz</string><string name="dual_connect_unpair">Usuń parowanie</string><string name="dual_connect_unpair_confirmation">Usunąć parowanie z urządzeniem „%1$s”?</string><string name="equalizer">Korektor 🎚️</string><string name="eq_default">Domyślny</string><string name="eq_bass">Wzmocnienie basów</string><string name="eq_treble">Wzmocnienie sopranów</string><string name="eq_voices">Wokal</string>
-    <string name="auto_pause">Automatyczna pauza ⏸️</string><string name="low_latency">Niskie opóźnienie 🎮</string><string name="ldac">Kodek LDAC 🎵</string><string name="gestures">Sterowanie gestami 👆</string>
-    <string name="double_tap">Podwójne dotknięcie</string><string name="triple_tap">Potrójne dotknięcie</string><string name="hold">Dotknięcie i przytrzymanie</string><string name="hold_modes">Tryby przełączane przytrzymaniem</string><string name="swipe">Przesunięcie</string>
-    <string name="action_none">Brak</string><string name="action_assistant">Asystent</string><string name="action_play_pause">Start/pauza</string><string name="action_next">Dalej</string><string name="action_previous">Wstecz</string><string name="action_cycle_anc">Przełącz ANC</string><string name="action_volume">Głośność</string>
-    <string name="widget_left_earbud">Lewa</string><string name="widget_right_earbud">Prawa</string><string name="widget_case">Etui</string><string name="widget_device_icon">%1$s: %2$s</string><string name="widget_battery_level">%1$d%%</string><string name="widget_battery_unknown">—</string>
+    <string name="app_name">FreeBuddy</string>
+    <string name="about">O FreeBuddy ℹ️</string>
+    <string name="about_text">Niezależna aplikacja open source do sterowania obsługiwanymi słuchawkami Huawei FreeBuds.</string>
+    <string name="version_text">Wersja %1$s</string>
+    <string name="connected">Słuchawki połączone 🎧</string>
+    <string name="disconnected">Słuchawki nie są połączone 🙅</string>
+    <string name="disconnected_desc">Połącz słuchawki z telefonem przez Bluetooth.</string>
+    <string name="connecting">Łączenie… 🔄</string>
+    <string name="connecting_desc">Nawiązywanie połączenia ze słuchawkami.</string>
+    <string name="connection_failed">Nie udało się połączyć 🤨</string>
+    <string name="connection_failed_desc">Połączenie może być używane przez inną aplikację. Zamknij ją i spróbuj ponownie.</string>
+    <string name="page_home_no_permission">Brak dostępu do Bluetooth 😢</string>
+    <string name="page_home_no_permission_desc">Uprawnienie Bluetooth jest wymagane do komunikacji ze słuchawkami.</string>
+    <string name="grant_access">Zezwól 🔑</string>
+    <string name="bluetooth_disabled">Bluetooth jest wyłączony 📶</string>
+    <string name="bluetooth_disabled_desc">Włącz Bluetooth, aby połączyć słuchawki.</string>
+    <string name="not_paired">Brak sparowanych obsługiwanych słuchawek 😿</string>
+    <string name="not_paired_desc">Sparuj Huawei FreeBuds 5i w ustawieniach Androida.</string>
+    <string name="open_bluetooth_settings">Otwórz ustawienia Bluetooth 💙</string>
+    <string name="retry">Spróbuj ponownie 🔄</string>
+    <string name="case_label">Etui</string>
+    <string name="left_bud_short">Lewa</string>
+    <string name="right_bud_short">Prawa</string>
+    <string name="headphones_settings">Ustawienia słuchawek 🔧</string>
+    <string name="anc_title">Sterowanie redukcją hałasu</string>
+    <string name="anc_off">Wyłączone</string>
+    <string name="anc_noise">Redukcja hałasu</string>
+    <string name="anc_transparency">Przepuszczanie dźwięku</string>
+    <string name="anc_level_title">Poziom redukcji hałasu</string>
+    <string name="anc_normal">Normalny</string>
+    <string name="anc_comfort">Komfortowy</string>
+    <string name="anc_ultra">Maksymalny</string>
+    <string name="anc_dynamic">Dynamiczny</string>
+    <string name="dual_connect">Podwójne połączenie 🔗</string>
+    <string name="expand">Rozwiń</string>
+    <string name="collapse">Zwiń</string>
+    <string name="dual_connect_no_devices">Nie znaleziono sparowanych urządzeń</string>
+    <string name="dual_connect_playing">Odtwarza</string>
+    <string name="dual_connect_connected">Połączono</string>
+    <string name="dual_connect_disconnected">Nie połączono</string>
+    <string name="dual_connect_auto_connect">Automatyczne łączenie</string>
+    <string name="dual_connect_preferred">Urządzenie preferowane</string>
+    <string name="dual_connect_connect">Połącz</string>
+    <string name="dual_connect_disconnect">Rozłącz</string>
+    <string name="dual_connect_unpair">Usuń parowanie</string>
+    <string name="dual_connect_unpair_confirmation">Usunąć parowanie z urządzeniem „%1$s”?</string>
+    <string name="equalizer">Korektor 🎚️</string>
+    <string name="eq_default">Domyślny</string>
+    <string name="eq_bass">Wzmocnienie basów</string>
+    <string name="eq_treble">Wzmocnienie sopranów</string>
+    <string name="eq_voices">Wokal</string>
+    <string name="auto_pause">Automatyczna pauza ⏸️</string>
+    <string name="low_latency">Niskie opóźnienie 🎮</string>
+    <string name="ldac">Kodek LDAC 🎵</string>
+    <string name="gestures">Sterowanie gestami 👆</string>
+    <string name="double_tap">Podwójne dotknięcie</string>
+    <string name="triple_tap">Potrójne dotknięcie</string>
+    <string name="hold">Dotknięcie i przytrzymanie</string>
+    <string name="hold_modes">Tryby przełączane przytrzymaniem</string>
+    <string name="swipe">Przesunięcie</string>
+    <string name="action_none">Brak</string>
+    <string name="action_assistant">Asystent</string>
+    <string name="action_play_pause">Start/pauza</string>
+    <string name="action_next">Dalej</string>
+    <string name="action_previous">Wstecz</string>
+    <string name="action_cycle_anc">Przełącz ANC</string>
+    <string name="action_volume">Głośność</string>
+    <string name="widget_left_earbud">Lewa</string>
+    <string name="widget_right_earbud">Prawa</string>
+    <string name="widget_case">Etui</string>
+    <string name="widget_device_icon">%1$s: %2$s</string>
+    <string name="widget_battery_level">%1$d%%</string>
+    <string name="widget_battery_unknown">—</string>
     <string name="cancel">Anuluj</string>
     <string name="widget_columns_name">Bateria · 3 kolumny</string>
     <string name="widget_rows_name">Bateria · 3 wiersze</string>
@@ -47,4 +103,17 @@
     <string name="close">Zamknij</string>
     <string name="show_emojis">Pokazuj emoji</string>
     <string name="show_emojis_description">Wyświetlaj dekoracyjne emoji w tekście interfejsu</string>
+    <string name="widget_anc_name">Tryby redukcji hałasu</string>
+    <string name="widget_anc_description">Przełączanie trybów redukcji hałasu</string>
+    <string name="widget_anc_disconnected">%1$s. Słuchawki nie są połączone</string>
+    <string name="device_info_unknown_fields">Nieznane pola protokołu</string>
+    <string name="device_info_tlv_field">TLV %1$d</string>
+    <string name="widget_compact_name">Bateria · kompaktowy</string>
+    <string name="widget_compact_description">Poziom baterii w jednym kompaktowym wierszu</string>
+    <string name="force_headphones_color">Wymuś kolor słuchawek</string>
+    <string name="force_headphones_color_description">Użyj wybranego koloru zamiast automatycznego wykrywania</string>
+    <string name="headphones_color">Kolor słuchawek</string>
+    <string name="headphones_color_black">Czarny</string>
+    <string name="headphones_color_white">Biały</string>
+    <string name="headphones_color_blue">Niebieski</string>
 </resources>

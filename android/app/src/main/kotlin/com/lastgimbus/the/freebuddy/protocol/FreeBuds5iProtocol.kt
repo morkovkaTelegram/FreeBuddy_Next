@@ -112,16 +112,34 @@ fun HeadphonesSnapshot.apply(command: MbbCommand): HeadphonesSnapshot {
                     right = it.getOrNull(1)?.removePrefix("R-")
                 }
             }
-            fun hex(id: Int): String? =
-                command.args[id]?.takeIf { it.isNotEmpty() }?.joinToString("") { "%02X".format(it) }
+            fun hex(bytes: ByteArray): String =
+                bytes.joinToString("") { "%02X".format(it.toInt().and(0xFF)) }
+            fun hex(id: Int): String? = command.args[id]
+                ?.takeIf { it.isNotEmpty() }
+                ?.let(::hex)
+            fun diagnosticValue(bytes: ByteArray): String {
+                val utf8 = bytes.toString(Charsets.UTF_8)
+                    .trim { c -> c <= ' ' || c == '\u0000' }
+                return utf8.takeIf { value ->
+                    value.isNotEmpty() && value.all { c -> c.code in 32..126 }
+                } ?: "0x${hex(bytes)}"
+            }
+            val knownFields = setOf(3, 7, 9, 10, 15, 24)
+            val unknownFields = command.args
+                .asSequence()
+                .filter { (id, value) -> id !in knownFields && value.isNotEmpty() }
+                .sortedBy { it.key }
+                .associate { (id, value) -> id to diagnosticValue(value) }
+            val previous = deviceInfo ?: DeviceInfo()
             val info = DeviceInfo(
-                model = text(15),
-                subModel = text(10) ?: hex(10),
-                firmware = text(7),
-                serialNumber = text(9),
-                hardwareVersion = text(3),
-                leftSerial = left,
-                rightSerial = right,
+                model = text(15) ?: previous.model,
+                subModel = text(10) ?: hex(10) ?: previous.subModel,
+                firmware = text(7) ?: previous.firmware,
+                serialNumber = text(9) ?: previous.serialNumber,
+                hardwareVersion = text(3) ?: previous.hardwareVersion,
+                leftSerial = left ?: previous.leftSerial,
+                rightSerial = right ?: previous.rightSerial,
+                unknownFields = previous.unknownFields + unknownFields,
             )
             if (info == DeviceInfo()) this else copy(deviceInfo = info)
         }

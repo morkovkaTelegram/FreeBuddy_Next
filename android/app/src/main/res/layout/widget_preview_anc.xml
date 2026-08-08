@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="180dp"
+    android:layout_height="60dp"
+    android:background="@drawable/widget_preview_background"
+    android:gravity="center"
+    android:orientation="horizontal"
+    android:padding="6dp">
+
+    <ImageView
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginEnd="2dp"
+        android:layout_weight="1"
+        android:background="@drawable/widget_preview_anc_selected"
+        android:contentDescription="@string/anc_noise"
+        android:padding="10dp"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_anc_noise_control"
+        android:tint="@color/battery_widget_text_color" />
+
+    <ImageView
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginHorizontal="2dp"
+        android:layout_weight="1"
+        android:background="@drawable/widget_preview_anc_unselected"
+        android:contentDescription="@string/anc_off"
+        android:padding="10dp"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_anc_off"
+        android:tint="@color/battery_widget_text_color" />
+
+    <ImageView
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginStart="2dp"
+        android:layout_weight="1"
+        android:background="@drawable/widget_preview_anc_unselected"
+        android:contentDescription="@string/anc_transparency"
+        android:padding="10dp"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_anc_transparency"
+        android:tint="@color/battery_widget_text_color" />
+</LinearLayout>

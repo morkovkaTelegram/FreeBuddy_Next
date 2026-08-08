@@ -8,7 +8,7 @@
     android:minHeight="60dp"
     android:minResizeWidth="120dp"
     android:minResizeHeight="60dp"
-    android:previewImage="@drawable/battery_widget_preview"
+    android:previewImage="@drawable/battery_columns_widget_preview"
     android:previewLayout="@layout/widget_preview_columns"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="0"

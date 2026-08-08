@@ -2,6 +2,7 @@ package com.lastgimbus.the.freebuddy.protocol
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class MbbProtocolTest {
@@ -55,6 +56,8 @@ class MbbProtocolTest {
                     10 to "Nebula Black".toByteArray(),
                     15 to "HUAWEI FreeBuds 5i".toByteArray(),
                     24 to "L-LEFT123,R-RIGHT456".toByteArray(),
+                    18 to "COLOR-CANDIDATE".toByteArray(),
+                    30 to byteArrayOf(0x01, 0xFF.toByte(), 0x20),
                 ),
             ),
         )
@@ -64,7 +67,42 @@ class MbbProtocolTest {
         assertEquals("CASE123", snapshot.deviceInfo?.serialNumber)
         assertEquals("LEFT123", snapshot.deviceInfo?.leftSerial)
         assertEquals("RIGHT456", snapshot.deviceInfo?.rightSerial)
+        assertEquals("COLOR-CANDIDATE", snapshot.deviceInfo?.unknownFields?.get(18))
+        assertEquals("0x01FF20", snapshot.deviceInfo?.unknownFields?.get(30))
         assertEquals(DeviceColor.BLACK, snapshot.deviceInfo?.detectColor())
+    }
+
+    @Test fun realFreeBuds5iVariantTlvIdentifiesConfirmedColors() {
+        val commonSubModel = "BTFT0014-000145"
+        val commonHardware = "HL1OTEM2_VA"
+        assertEquals(
+            DeviceColor.BLACK,
+            DeviceInfo(
+                subModel = commonSubModel,
+                hardwareVersion = commonHardware,
+                unknownFields = mapOf(25 to "0x0C"),
+            ).detectColor(),
+        )
+        assertEquals(
+            DeviceColor.WHITE,
+            DeviceInfo(
+                subModel = commonSubModel,
+                hardwareVersion = commonHardware,
+                unknownFields = mapOf(25 to "0x01"),
+            ).detectColor(),
+        )
+        assertNull(DeviceInfo(subModel = commonSubModel, hardwareVersion = commonHardware).detectColor())
+    }
+
+    @Test fun partialDeviceInfoResponsesAreMergedWithoutLosingVariant() {
+        val withVariant = HeadphonesSnapshot().apply(
+            MbbCommand(1, 7, mapOf(25 to byteArrayOf(0x01))),
+        )
+        val completed = withVariant.apply(
+            MbbCommand(1, 7, mapOf(3 to "HL1OTEM2_VA".toByteArray(), 15 to "BTFT0014".toByteArray())),
+        )
+        assertEquals("0x01", completed.deviceInfo?.unknownFields?.get(25))
+        assertEquals(DeviceColor.WHITE, completed.deviceInfo?.detectColor())
     }
 
     @Test(expected = IllegalArgumentException::class)

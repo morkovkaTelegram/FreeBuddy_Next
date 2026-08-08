@@ -56,6 +56,30 @@
         </receiver>
 
         <receiver
+            android:name=".widget.BatteryCompactWidgetReceiver"
+            android:exported="false"
+            android:label="@string/widget_compact_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/battery_compact_widget_config" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.AncWidgetReceiver"
+            android:exported="false"
+            android:label="@string/widget_anc_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/anc_widget_config" />
+        </receiver>
+
+        <receiver
             android:name=".widget.WidgetAppearanceReceiver"
             android:exported="false">
             <intent-filter>

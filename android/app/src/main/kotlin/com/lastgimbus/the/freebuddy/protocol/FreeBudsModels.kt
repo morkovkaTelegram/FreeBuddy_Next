@@ -28,23 +28,30 @@ data class DeviceInfo(
     val hardwareVersion: String? = null,
     val leftSerial: String? = null,
     val rightSerial: String? = null,
+    /** Unrecognised non-empty MBB 1/7 TLVs, rendered as printable text or uppercase HEX. */
+    val unknownFields: Map<Int, String> = emptyMap(),
 )
 
 /** FreeBuds 5i retail colors: Nebula Black, Ceramic White, Isle Blue. */
 enum class DeviceColor { BLACK, WHITE, BLUE }
 
 /**
- * Best-effort color detection from the factory sub-model (MBB 1/7, TLV 10).
- * Exact codes are collected from real devices; unknown values return null
- * so the UI can fall back to the default (black) artwork.
+ * Best-effort color detection from MBB 1/7 device information.
+ *
+ * Confirmed retail samples use TLV 25 as the variant identifier:
+ * 0x01 = Ceramic White, 0x0C = Nebula Black. TLV 10 (sub-model) and TLV 3
+ * (hardware version) can be identical across colors, so TLV 25 has priority.
+ * Textual names are retained as a fallback for future firmware variants.
  */
 fun DeviceInfo.detectColor(): DeviceColor? {
-    val sub = subModel?.uppercase() ?: return null
+    val variant = unknownFields[25]?.uppercase()
+    val sub = subModel?.uppercase()
     return when {
-        sub == "BTFT0014-000145" -> DeviceColor.BLACK
-        "BLACK" in sub -> DeviceColor.BLACK
-        "WHITE" in sub -> DeviceColor.WHITE
-        "BLUE" in sub -> DeviceColor.BLUE
+        variant == "0X01" -> DeviceColor.WHITE
+        variant == "0X0C" -> DeviceColor.BLACK
+        sub?.contains("BLACK") == true -> DeviceColor.BLACK
+        sub?.contains("WHITE") == true -> DeviceColor.WHITE
+        sub?.contains("BLUE") == true -> DeviceColor.BLUE
         else -> null
     }
 }

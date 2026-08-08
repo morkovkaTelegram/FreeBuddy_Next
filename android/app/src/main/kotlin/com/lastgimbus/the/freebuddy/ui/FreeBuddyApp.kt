@@ -8,6 +8,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,7 +35,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -70,8 +72,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -103,7 +103,6 @@ import com.lastgimbus.the.freebuddy.protocol.TripleTap
 
 private enum class Screen { HOME, HEADPHONES_SETTINGS, ABOUT }
 
-private val AncSymbols = FontFamily(Font(R.font.material_symbols_anc))
 
 private val AppCardShape = RoundedCornerShape(16.dp)
 private val LocalShowEmojis = staticCompositionLocalOf { true }
@@ -154,7 +153,7 @@ private fun HomeScreen(
     val context = LocalContext.current
     Scaffold(topBar = {
         TopAppBar(title = { Text(stringResource(R.string.app_name)) }, actions = {
-            IconButton(onClick = openAbout) { Icon(Icons.Default.Info, stringResource(R.string.about)) }
+            IconButton(onClick = openAbout) { Icon(Icons.Default.Settings, stringResource(R.string.about)) }
         })
     }) { padding ->
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
@@ -182,6 +181,13 @@ private fun StatusContent(@StringRes title: Int, @StringRes description: Int, @S
 
 @Composable
 private fun ConnectedContent(snapshot: HeadphonesSnapshot, repository: HeadphonesRepository, openSettings: () -> Unit) {
+    val context = LocalContext.current
+    val forceColor by ThemeStore.forceHeadphonesColor(context)
+        .collectAsStateWithLifecycle(initialValue = false)
+    val storedColor by ThemeStore.headphonesColor(context)
+        .collectAsStateWithLifecycle(initialValue = DeviceColor.BLACK.name)
+    val selectedColor = storedColor.toDeviceColor()
+
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Column(
@@ -205,7 +211,7 @@ private fun ConnectedContent(snapshot: HeadphonesSnapshot, repository: Headphone
             var showInfo by remember { mutableStateOf(false) }
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Image(
-                    painter = painterResource(headphonesImage(snapshot.deviceInfo)),
+                    painter = painterResource(headphonesImage(snapshot.deviceInfo, forceColor, selectedColor)),
                     contentDescription = snapshot.name,
                     modifier = Modifier
                         .size(width = 260.dp, height = 180.dp)
@@ -224,7 +230,11 @@ private fun ConnectedContent(snapshot: HeadphonesSnapshot, repository: Headphone
 }
 
 @DrawableRes
-private fun headphonesImage(info: DeviceInfo?): Int = when (info?.detectColor()) {
+private fun headphonesImage(
+    info: DeviceInfo?,
+    forceColor: Boolean,
+    selectedColor: DeviceColor,
+): Int = when (if (forceColor) selectedColor else info?.detectColor()) {
     DeviceColor.WHITE -> R.drawable.freebuds_5i_w
     DeviceColor.BLUE -> R.drawable.freebuds_5i_bl
     DeviceColor.BLACK, null -> R.drawable.freebuds_5i_b
@@ -237,7 +247,12 @@ private fun DeviceInfoDialog(snapshot: HeadphonesSnapshot, onDismiss: () -> Unit
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.device_info_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                Modifier
+                    .heightIn(max = 520.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 DeviceInfoRow(R.string.device_info_model, info?.model ?: snapshot.name)
                 DeviceInfoRow(R.string.device_info_submodel, info?.subModel)
                 DeviceInfoRow(R.string.device_info_firmware, info?.firmware)
@@ -245,6 +260,19 @@ private fun DeviceInfoDialog(snapshot: HeadphonesSnapshot, onDismiss: () -> Unit
                 DeviceInfoRow(R.string.device_info_serial, info?.serialNumber)
                 DeviceInfoRow(R.string.device_info_left_serial, info?.leftSerial)
                 DeviceInfoRow(R.string.device_info_right_serial, info?.rightSerial)
+                if (!info?.unknownFields.isNullOrEmpty()) {
+                    HorizontalDivider(Modifier.padding(vertical = 6.dp))
+                    Text(
+                        stringResource(R.string.device_info_unknown_fields),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    info?.unknownFields?.forEach { (id, value) ->
+                        DeviceInfoRow(
+                            stringResource(R.string.device_info_tlv_field, id),
+                            value,
+                        )
+                    }
+                }
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
@@ -253,10 +281,14 @@ private fun DeviceInfoDialog(snapshot: HeadphonesSnapshot, onDismiss: () -> Unit
 }
 
 @Composable
-private fun DeviceInfoRow(@StringRes label: Int, value: String?) {
+private fun DeviceInfoRow(@StringRes label: Int, value: String?) =
+    DeviceInfoRow(stringResource(label), value)
+
+@Composable
+private fun DeviceInfoRow(label: String, value: String?) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
-            stringResource(label),
+            label,
             modifier = Modifier.weight(0.8f),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -526,13 +558,13 @@ private fun AncCard(snapshot: HeadphonesSnapshot, repository: HeadphonesReposito
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                AncModeButton(AncMode.NOISE_CANCELLING, snapshot.ancMode, "\uF8A8") {
+                AncModeButton(AncMode.NOISE_CANCELLING, snapshot.ancMode, R.drawable.ic_anc_noise_control) {
                     repository.setAncMode(AncMode.NOISE_CANCELLING)
                 }
-                AncModeButton(AncMode.OFF, snapshot.ancMode, "\uEBF3") {
+                AncModeButton(AncMode.OFF, snapshot.ancMode, R.drawable.ic_anc_off) {
                     repository.setAncMode(AncMode.OFF)
                 }
-                AncModeButton(AncMode.TRANSPARENCY, snapshot.ancMode, "\uEBEC") {
+                AncModeButton(AncMode.TRANSPARENCY, snapshot.ancMode, R.drawable.ic_anc_transparency) {
                     repository.setAncMode(AncMode.TRANSPARENCY)
                 }
             }
@@ -541,13 +573,12 @@ private fun AncCard(snapshot: HeadphonesSnapshot, repository: HeadphonesReposito
 }
 
 @Composable
-private fun AncModeButton(mode: AncMode, selectedMode: AncMode?, symbol: String, onClick: () -> Unit) {
+private fun AncModeButton(mode: AncMode, selectedMode: AncMode?, @DrawableRes icon: Int, onClick: () -> Unit) {
     val content: @Composable () -> Unit = {
-        Text(
-            text = symbol,
-            fontFamily = AncSymbols,
-            fontSize = 38.sp,
-            fontWeight = if (mode == selectedMode) FontWeight.SemiBold else FontWeight.Normal,
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = stringResource(mode.label()),
+            modifier = Modifier.size(38.dp),
         )
     }
     if (mode == selectedMode) {
@@ -759,8 +790,14 @@ private fun AboutScreen(back: () -> Unit) {
     val scope = rememberCoroutineScope()
     val themeMode by ThemeStore.themeMode(context)
         .collectAsStateWithLifecycle(initialValue = ThemeStore.ThemeMode.SYSTEM)
-    val showEmojis by ThemeStore.showEmojis(context)
-        .collectAsStateWithLifecycle(initialValue = true)
+    // Reuse the value already collected at the application UI root. Starting a second
+    // DataStore collection here with `true` caused the switch to flash on every entry.
+    val showEmojis = LocalShowEmojis.current
+    val forceHeadphonesColor by ThemeStore.forceHeadphonesColor(context)
+        .collectAsStateWithLifecycle(initialValue = false)
+    val storedHeadphonesColor by ThemeStore.headphonesColor(context)
+        .collectAsStateWithLifecycle(initialValue = DeviceColor.BLACK.name)
+    val selectedHeadphonesColor = storedHeadphonesColor.toDeviceColor()
     var showThemeDialog by remember { mutableStateOf(false) }
 
     Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.about)) }, navigationIcon = { IconButton(back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } }) }) { padding ->
@@ -804,6 +841,45 @@ private fun AboutScreen(back: () -> Unit) {
                     },
                 )
             }
+            Row(
+                Modifier.fillMaxWidth()
+                    .clickable {
+                        scope.launch {
+                            ThemeStore.setForceHeadphonesColor(context, !forceHeadphonesColor)
+                        }
+                    }
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.force_headphones_color),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        stringResource(R.string.force_headphones_color_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = forceHeadphonesColor,
+                    onCheckedChange = { force ->
+                        scope.launch { ThemeStore.setForceHeadphonesColor(context, force) }
+                    },
+                )
+            }
+            if (forceHeadphonesColor) {
+                EnumDropdown(
+                    title = R.string.headphones_color,
+                    values = DeviceColor.entries,
+                    selected = selectedHeadphonesColor,
+                    label = { stringResource(it.label()) },
+                    choose = { color ->
+                        scope.launch { ThemeStore.setHeadphonesColor(context, color.name) }
+                    },
+                )
+            }
             HorizontalDivider()
             Text("FreeBuddy", style = MaterialTheme.typography.headlineMedium)
             Text(stringResource(R.string.about_text))
@@ -839,6 +915,15 @@ private fun AboutScreen(back: () -> Unit) {
             },
         )
     }
+}
+
+private fun String.toDeviceColor(): DeviceColor =
+    runCatching { DeviceColor.valueOf(this) }.getOrDefault(DeviceColor.BLACK)
+
+private fun DeviceColor.label() = when (this) {
+    DeviceColor.BLACK -> R.string.headphones_color_black
+    DeviceColor.WHITE -> R.string.headphones_color_white
+    DeviceColor.BLUE -> R.string.headphones_color_blue
 }
 
 private fun ThemeStore.ThemeMode.label() = when (this) {

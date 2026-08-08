@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
+import com.lastgimbus.the.freebuddy.protocol.AncMode
 import com.lastgimbus.the.freebuddy.protocol.BatteryLevel
 import com.lastgimbus.the.freebuddy.protocol.BatteryLevels
 
@@ -13,6 +14,8 @@ object WidgetStorage {
     const val LEFT = "left"
     const val RIGHT = "right"
     const val CASE = "case"
+    private const val ANC_MODE = "anc_mode"
+    private const val ANC_CONNECTED = "anc_connected"
     private const val OPACITY_PREFIX = "opacity_"
     const val DEFAULT_OPACITY = 100
 
@@ -24,6 +27,8 @@ object WidgetStorage {
     val LEFT_KEY = intPreferencesKey(LEFT)
     val RIGHT_KEY = intPreferencesKey(RIGHT)
     val CASE_KEY = intPreferencesKey(CASE)
+    val ANC_MODE_KEY = intPreferencesKey(ANC_MODE)
+    val ANC_CONNECTED_KEY = intPreferencesKey(ANC_CONNECTED)
     val OPACITY_KEY = intPreferencesKey("opacity")
 
     /** Background opacity for one widget instance, percent 0..100. */
@@ -42,6 +47,24 @@ object WidgetStorage {
         val editor = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
         appWidgetIds.forEach { editor.remove(OPACITY_PREFIX + it) }
         editor.apply()
+    }
+
+    suspend fun saveAncAndUpdate(context: Context, mode: AncMode?, connected: Boolean) {
+        val modeCode = mode?.code ?: -1
+        val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        if (prefs.getInt(ANC_MODE, -1) == modeCode &&
+            prefs.getBoolean(ANC_CONNECTED, false) == connected
+        ) return
+        prefs.edit()
+            .putInt(ANC_MODE, modeCode)
+            .putBoolean(ANC_CONNECTED, connected)
+            .apply()
+        updateAll(context)
+    }
+
+    fun readAnc(context: Context): Pair<Int, Boolean> {
+        val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        return prefs.getInt(ANC_MODE, -1) to prefs.getBoolean(ANC_CONNECTED, false)
     }
 
     suspend fun saveAndUpdate(context: Context, battery: BatteryLevels) {
@@ -65,6 +88,7 @@ object WidgetStorage {
     suspend fun updateAll(context: Context) {
         val manager = GlanceAppWidgetManager(context)
         val (left, right, case) = read(context)
+        val (ancMode, ancConnected) = readAnc(context)
         suspend fun push(widget: GlanceAppWidget, cls: Class<out GlanceAppWidget>) {
             manager.getGlanceIds(cls).forEach { id ->
                 val appWidgetId = runCatching { manager.getAppWidgetId(id) }.getOrDefault(0)
@@ -73,6 +97,8 @@ object WidgetStorage {
                     prefs[LEFT_KEY] = left
                     prefs[RIGHT_KEY] = right
                     prefs[CASE_KEY] = case
+                    prefs[ANC_MODE_KEY] = ancMode
+                    prefs[ANC_CONNECTED_KEY] = if (ancConnected) 1 else 0
                     prefs[OPACITY_KEY] = opacity
                 }
                 widget.update(context, id)
@@ -80,12 +106,16 @@ object WidgetStorage {
         }
         push(BatteryWidget(), BatteryWidget::class.java)
         push(BatteryRowsWidget(), BatteryRowsWidget::class.java)
+        push(BatteryCompactWidget(), BatteryCompactWidget::class.java)
+        push(AncWidget(), AncWidget::class.java)
     }
 
     suspend fun hasAnyWidget(context: Context): Boolean {
         val manager = GlanceAppWidgetManager(context)
         return manager.getGlanceIds(BatteryWidget::class.java).isNotEmpty() ||
-            manager.getGlanceIds(BatteryRowsWidget::class.java).isNotEmpty()
+            manager.getGlanceIds(BatteryRowsWidget::class.java).isNotEmpty() ||
+            manager.getGlanceIds(BatteryCompactWidget::class.java).isNotEmpty() ||
+            manager.getGlanceIds(AncWidget::class.java).isNotEmpty()
     }
 
     fun read(context: Context): Triple<Int, Int, Int> {

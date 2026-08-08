@@ -16,6 +16,8 @@ object ThemeStore {
 
     private val KEY = stringPreferencesKey("theme_mode")
     private val SHOW_EMOJIS = booleanPreferencesKey("show_emojis")
+    private val FORCE_HEADPHONES_COLOR = booleanPreferencesKey("force_headphones_color")
+    private val HEADPHONES_COLOR = stringPreferencesKey("headphones_color")
 
     fun themeMode(context: Context): Flow<ThemeMode> =
         context.themeDataStore.data.map { prefs ->
@@ -31,5 +33,19 @@ object ThemeStore {
 
     suspend fun setShowEmojis(context: Context, show: Boolean) {
         context.themeDataStore.edit { it[SHOW_EMOJIS] = show }
+    }
+
+    fun forceHeadphonesColor(context: Context): Flow<Boolean> =
+        context.themeDataStore.data.map { prefs -> prefs[FORCE_HEADPHONES_COLOR] ?: false }
+
+    suspend fun setForceHeadphonesColor(context: Context, force: Boolean) {
+        context.themeDataStore.edit { it[FORCE_HEADPHONES_COLOR] = force }
+    }
+
+    fun headphonesColor(context: Context): Flow<String> =
+        context.themeDataStore.data.map { prefs -> prefs[HEADPHONES_COLOR] ?: "BLACK" }
+
+    suspend fun setHeadphonesColor(context: Context, color: String) {
+        context.themeDataStore.edit { it[HEADPHONES_COLOR] = color }
     }
 }
