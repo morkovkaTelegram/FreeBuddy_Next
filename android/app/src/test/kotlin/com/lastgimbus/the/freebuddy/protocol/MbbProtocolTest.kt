@@ -43,6 +43,30 @@ class MbbProtocolTest {
         assertEquals(true, device.preferred)
     }
 
+    @Test fun deviceInfoResponseIsParsed() {
+        val snapshot = HeadphonesSnapshot().apply(
+            MbbCommand(
+                1,
+                7,
+                mapOf(
+                    3 to "REV1".toByteArray(),
+                    7 to "2.1.0.202".toByteArray(),
+                    9 to "CASE123".toByteArray(),
+                    10 to "Nebula Black".toByteArray(),
+                    15 to "HUAWEI FreeBuds 5i".toByteArray(),
+                    24 to "L-LEFT123,R-RIGHT456".toByteArray(),
+                ),
+            ),
+        )
+        assertEquals("HUAWEI FreeBuds 5i", snapshot.deviceInfo?.model)
+        assertEquals("Nebula Black", snapshot.deviceInfo?.subModel)
+        assertEquals("2.1.0.202", snapshot.deviceInfo?.firmware)
+        assertEquals("CASE123", snapshot.deviceInfo?.serialNumber)
+        assertEquals("LEFT123", snapshot.deviceInfo?.leftSerial)
+        assertEquals("RIGHT456", snapshot.deviceInfo?.rightSerial)
+        assertEquals(DeviceColor.BLACK, snapshot.deviceInfo?.detectColor())
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun parserRejectsInvalidChecksum() {
         val payload = MbbCommand(1, 8).toPayload()
@@ -71,11 +95,6 @@ class MbbProtocolTest {
         assertEquals(null, BatteryLevel.validOrNull(101))
         assertEquals(1, BatteryLevel.validOrNull(1))
         assertEquals(100, BatteryLevel.validOrNull(100))
-        assertEquals(0, BatteryLevel.segments(null))
-        assertEquals(0, BatteryLevel.segments(0))
-        assertEquals(16, BatteryLevel.segments(80))
-        assertEquals(19, BatteryLevel.segments(95))
-        assertEquals(20, BatteryLevel.segments(100))
     }
 
 }

@@ -7,9 +7,6 @@ data class MbbCommand(
     val commandId: Int,
     val args: Map<Int, ByteArray> = emptyMap(),
 ) {
-    fun isAbout(other: MbbCommand) =
-        serviceId == other.serviceId && commandId == other.commandId
-
     fun toPayload(): ByteArray {
         val data = ByteArrayOutputStream()
         args.forEach { (key, value) ->

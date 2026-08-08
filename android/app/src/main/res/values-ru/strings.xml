@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">FreeBuddy</string><string name="settings">Настройки ⚙️</string><string name="about">О FreeBuddy ℹ️</string>
+    <string name="app_name">FreeBuddy</string><string name="about">О FreeBuddy ℹ️</string>
     <string name="about_text">Независимое приложение с открытым исходным кодом для управления поддерживаемыми Huawei FreeBuds.</string><string name="version_text">Версия %1$s</string>
     <string name="connected">Наушники подключены 🎧</string><string name="disconnected">Наушники не подключены 🙅</string><string name="disconnected_desc">Подключите наушники к телефону через Bluetooth.</string>
     <string name="connecting">Подключение… 🔄</string><string name="connecting_desc">Устанавливается соединение с наушниками.</string>
@@ -9,14 +9,14 @@
     <string name="bluetooth_disabled">Bluetooth выключен 📶</string><string name="bluetooth_disabled_desc">Включите Bluetooth, чтобы подключиться к наушникам.</string>
     <string name="not_paired">Поддерживаемые наушники не сопряжены 😿</string><string name="not_paired_desc">Сопрягите Huawei FreeBuds 5i в настройках Android.</string>
     <string name="open_bluetooth_settings">Открыть настройки Bluetooth 💙</string><string name="retry">Повторить 🔄</string>
-    <string name="battery">Заряд</string><string name="left_bud">Левый наушник</string><string name="right_bud">Правый наушник</string><string name="case_label">Кейс</string><string name="left_bud_short">Левый</string><string name="right_bud_short">Правый</string>
+    <string name="case_label">Кейс</string><string name="left_bud_short">Левый</string><string name="right_bud_short">Правый</string>
     <string name="headphones_settings">Настройки наушников 🔧</string><string name="anc_title">Управление шумоподавлением</string><string name="anc_off">Выключено</string><string name="anc_noise">Шумоподавление</string><string name="anc_transparency">Прозрачность</string>
     <string name="anc_level_title">Уровень шумоподавления</string><string name="anc_normal">Обычный</string><string name="anc_comfort">Комфортный</string><string name="anc_ultra">Максимальный</string><string name="anc_dynamic">Динамический</string>
     <string name="dual_connect">Двойное подключение 🔗</string><string name="expand">Развернуть</string><string name="collapse">Свернуть</string><string name="dual_connect_no_devices">Сопряжённые устройства не найдены</string><string name="dual_connect_playing">Воспроизводит</string><string name="dual_connect_connected">Подключено</string><string name="dual_connect_disconnected">Не подключено</string><string name="dual_connect_auto_connect">Автоподключение</string><string name="dual_connect_preferred">Приоритетное устройство</string><string name="dual_connect_connect">Подключить</string><string name="dual_connect_disconnect">Отключить</string><string name="dual_connect_unpair">Удалить сопряжение</string><string name="dual_connect_unpair_confirmation">Удалить сопряжение с устройством «%1$s»?</string><string name="equalizer">Эквалайзер 🎚️</string><string name="eq_default">Стандартный</string><string name="eq_bass">Усиление басов</string><string name="eq_treble">Усиление высоких</string><string name="eq_voices">Вокал</string>
     <string name="auto_pause">Автоматическая пауза ⏸️</string><string name="low_latency">Низкая задержка 🎮</string><string name="ldac">Кодек LDAC 🎵</string><string name="gestures">Управление жестами 👆</string>
     <string name="double_tap">Двойное касание</string><string name="triple_tap">Тройное касание</string><string name="hold">Касание и удержание</string><string name="hold_modes">Режимы при удержании</string><string name="swipe">Смахивание</string>
     <string name="action_none">Нет</string><string name="action_assistant">Ассистент</string><string name="action_play_pause">Старт/пауза</string><string name="action_next">Вперёд</string><string name="action_previous">Назад</string><string name="action_cycle_anc">Смена ANC</string><string name="action_volume">Громкость</string>
-    <string name="widget_buds">Наушники</string><string name="widget_left_earbud">Левый</string><string name="widget_right_earbud">Правый</string><string name="widget_case">Кейс</string><string name="widget_device_icon">%1$s: %2$s</string><string name="widget_battery_level">%1$d%%</string><string name="widget_battery_unknown">—</string><string name="widget_description">Уровень заряда наушников</string>
+    <string name="widget_left_earbud">Левый</string><string name="widget_right_earbud">Правый</string><string name="widget_case">Кейс</string><string name="widget_device_icon">%1$s: %2$s</string><string name="widget_battery_level">%1$d%%</string><string name="widget_battery_unknown">—</string>
     <string name="cancel">Отмена</string>
     <string name="widget_columns_name">Заряд · 3 столбца</string>
     <string name="widget_rows_name">Заряд · 3 строки</string>
@@ -36,4 +36,15 @@
     <string name="theme_system">Как в системе</string>
     <string name="theme_light">Светлая</string>
     <string name="theme_dark">Тёмная</string>
+    <string name="device_info_title">Информация об устройстве</string>
+    <string name="device_info_model">Модель</string>
+    <string name="device_info_submodel">Подмодель</string>
+    <string name="device_info_firmware">Прошивка</string>
+    <string name="device_info_hardware">Аппаратная версия</string>
+    <string name="device_info_serial">Серийный номер кейса</string>
+    <string name="device_info_left_serial">Серийный номер левого</string>
+    <string name="device_info_right_serial">Серийный номер правого</string>
+    <string name="close">Закрыть</string>
+    <string name="show_emojis">Показывать эмодзи</string>
+    <string name="show_emojis_description">Отображать декоративные эмодзи в тексте интерфейса</string>
 </resources>

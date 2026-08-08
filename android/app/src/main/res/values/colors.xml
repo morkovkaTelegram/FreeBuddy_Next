@@ -5,7 +5,7 @@
     <!-- There they were, hidden in some documentation for vendors system implementations?? Or something?? -->
     <!-- https://source.android.com/docs/core/display/dynamic-color -->
     <color name="battery_widget_text_color">#003549</color>
-    <color name="battery_widget_bar_color">#76D1FF</color>
+    <color name="battery_widget_bar_color">#1598D0</color>
     <color name="battery_widget_bar_background">#C1E8FF</color>
-    <color name="battery_widget_empty_color">#A8D9F4</color>
+    <color name="battery_widget_empty_color">#D6E5ED</color>
 </resources>

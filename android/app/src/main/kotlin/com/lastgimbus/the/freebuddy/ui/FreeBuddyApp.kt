@@ -57,10 +57,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,7 +70,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -89,8 +90,11 @@ import com.lastgimbus.the.freebuddy.protocol.BatteryLevel
 import com.lastgimbus.the.freebuddy.protocol.BatteryLevels
 import com.lastgimbus.the.freebuddy.protocol.DoubleTap
 import com.lastgimbus.the.freebuddy.protocol.DualConnectDevice
+import com.lastgimbus.the.freebuddy.protocol.DeviceColor
+import com.lastgimbus.the.freebuddy.protocol.DeviceInfo
 import com.lastgimbus.the.freebuddy.protocol.DualConnectionState
 import com.lastgimbus.the.freebuddy.protocol.EqPreset
+import com.lastgimbus.the.freebuddy.protocol.detectColor
 import com.lastgimbus.the.freebuddy.protocol.FreeBudsSettings
 import com.lastgimbus.the.freebuddy.protocol.HeadphonesSnapshot
 import com.lastgimbus.the.freebuddy.protocol.Hold
@@ -102,16 +106,38 @@ private enum class Screen { HOME, HEADPHONES_SETTINGS, ABOUT }
 private val AncSymbols = FontFamily(Font(R.font.material_symbols_anc))
 
 private val AppCardShape = RoundedCornerShape(16.dp)
+private val LocalShowEmojis = staticCompositionLocalOf { true }
+private val EmojiRegex = Regex(
+    """[\x{1F000}-\x{1FAFF}\x{2100}-\x{214F}\x{2300}-\x{23FF}\x{2600}-\x{27BF}\uFE0E\uFE0F\u200D]+""",
+)
+
+private fun String.withoutEmojis(): String =
+    replace(EmojiRegex, "").replace(Regex(" {2,}"), " ").trim()
+
+@Composable
+private fun stringResource(@StringRes id: Int, vararg formatArgs: Any): String {
+    val value = if (formatArgs.isEmpty()) {
+        androidx.compose.ui.res.stringResource(id)
+    } else {
+        androidx.compose.ui.res.stringResource(id, *formatArgs)
+    }
+    return if (LocalShowEmojis.current) value else value.withoutEmojis()
+}
 
 @Composable
 fun FreeBuddyApp(repository: HeadphonesRepository, requestBluetoothPermission: () -> Unit) {
-    FreeBuddyTheme {
-        var screen by remember { mutableStateOf(Screen.HOME) }
-        val state by repository.state.collectAsStateWithLifecycle()
-        when (screen) {
-            Screen.HOME -> HomeScreen(state, repository, requestBluetoothPermission, { screen = Screen.HEADPHONES_SETTINGS }, { screen = Screen.ABOUT })
-            Screen.HEADPHONES_SETTINGS -> HeadphonesSettingsScreen(state, repository) { screen = Screen.HOME }
-            Screen.ABOUT -> AboutScreen { screen = Screen.HOME }
+    val context = LocalContext.current
+    val showEmojis by ThemeStore.showEmojis(context)
+        .collectAsStateWithLifecycle(initialValue = true)
+    CompositionLocalProvider(LocalShowEmojis provides showEmojis) {
+        FreeBuddyTheme {
+            var screen by remember { mutableStateOf(Screen.HOME) }
+            val state by repository.state.collectAsStateWithLifecycle()
+            when (screen) {
+                Screen.HOME -> HomeScreen(state, repository, requestBluetoothPermission, { screen = Screen.HEADPHONES_SETTINGS }, { screen = Screen.ABOUT })
+                Screen.HEADPHONES_SETTINGS -> HeadphonesSettingsScreen(state, repository) { screen = Screen.HOME }
+                Screen.ABOUT -> AboutScreen { screen = Screen.HOME }
+            }
         }
     }
 }
@@ -176,20 +202,70 @@ private fun ConnectedContent(snapshot: HeadphonesSnapshot, repository: Headphone
             }
         }
         item {
+            var showInfo by remember { mutableStateOf(false) }
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Image(
-                    painter = painterResource(R.drawable.freebuds_5i),
+                    painter = painterResource(headphonesImage(snapshot.deviceInfo)),
                     contentDescription = snapshot.name,
-                    modifier = Modifier.size(width = 260.dp, height = 180.dp),
+                    modifier = Modifier
+                        .size(width = 260.dp, height = 180.dp)
+                        .clickable { showInfo = true },
                     contentScale = ContentScale.Fit,
                 )
             }
+            if (showInfo) DeviceInfoDialog(snapshot, onDismiss = { showInfo = false })
         }
         item { BatteryCard(snapshot.battery) }
         item { AncCard(snapshot, repository) }
         item { DualConnectCard(snapshot, repository) }
         item { Button(onClick = openSettings, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.headphones_settings)) } }
         item { Spacer(Modifier.height(24.dp)) }
+    }
+}
+
+@DrawableRes
+private fun headphonesImage(info: DeviceInfo?): Int = when (info?.detectColor()) {
+    DeviceColor.WHITE -> R.drawable.freebuds_5i_w
+    DeviceColor.BLUE -> R.drawable.freebuds_5i_bl
+    DeviceColor.BLACK, null -> R.drawable.freebuds_5i_b
+}
+
+@Composable
+private fun DeviceInfoDialog(snapshot: HeadphonesSnapshot, onDismiss: () -> Unit) {
+    val info = snapshot.deviceInfo
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.device_info_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                DeviceInfoRow(R.string.device_info_model, info?.model ?: snapshot.name)
+                DeviceInfoRow(R.string.device_info_submodel, info?.subModel)
+                DeviceInfoRow(R.string.device_info_firmware, info?.firmware)
+                DeviceInfoRow(R.string.device_info_hardware, info?.hardwareVersion)
+                DeviceInfoRow(R.string.device_info_serial, info?.serialNumber)
+                DeviceInfoRow(R.string.device_info_left_serial, info?.leftSerial)
+                DeviceInfoRow(R.string.device_info_right_serial, info?.rightSerial)
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
+        shape = AppCardShape,
+    )
+}
+
+@Composable
+private fun DeviceInfoRow(@StringRes label: Int, value: String?) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            stringResource(label),
+            modifier = Modifier.weight(0.8f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            value ?: "—",
+            modifier = Modifier.weight(1.6f),
+            textAlign = TextAlign.End,
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
 }
 
@@ -683,6 +759,8 @@ private fun AboutScreen(back: () -> Unit) {
     val scope = rememberCoroutineScope()
     val themeMode by ThemeStore.themeMode(context)
         .collectAsStateWithLifecycle(initialValue = ThemeStore.ThemeMode.SYSTEM)
+    val showEmojis by ThemeStore.showEmojis(context)
+        .collectAsStateWithLifecycle(initialValue = true)
     var showThemeDialog by remember { mutableStateOf(false) }
 
     Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.about)) }, navigationIcon = { IconButton(back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } }) }) { padding ->
@@ -704,6 +782,27 @@ private fun AboutScreen(back: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+            Row(
+                Modifier.fillMaxWidth()
+                    .clickable { scope.launch { ThemeStore.setShowEmojis(context, !showEmojis) } }
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.show_emojis), style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        stringResource(R.string.show_emojis_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = showEmojis,
+                    onCheckedChange = { show ->
+                        scope.launch { ThemeStore.setShowEmojis(context, show) }
+                    },
+                )
             }
             HorizontalDivider()
             Text("FreeBuddy", style = MaterialTheme.typography.headlineMedium)

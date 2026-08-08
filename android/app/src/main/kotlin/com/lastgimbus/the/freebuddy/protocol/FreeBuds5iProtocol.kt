@@ -6,8 +6,12 @@ object FreeBuds5iCommands {
         MbbCommand(1, 32), MbbCommand(1, 38), MbbCommand(43, 23),
         MbbCommand(43, 25), MbbCommand(43, 31), MbbCommand(43, 108, mapOf(2 to byteArrayOf())),
         MbbCommand(43, 74), MbbCommand(43, 163), MbbCommand(43, 47),
+        deviceInfoRequest(),
         dualConnectEnumeration(),
     )
+
+    /** MBB 1/7: read device info TLVs 0..31 (model, sub-model, firmware, serials). */
+    fun deviceInfoRequest() = MbbCommand(1, 7, (0..31).associateWith { byteArrayOf() })
 
     fun ancMode(mode: AncMode) = MbbCommand(43, 4, mapOf(1 to intBytes(mode.code, if (mode == AncMode.OFF) 0 else 255)))
     fun ancLevel(mode: AncMode, level: AncLevel) = MbbCommand(43, 4, mapOf(1 to intBytes(mode.code, level.code)))
@@ -93,6 +97,34 @@ fun HeadphonesSnapshot.apply(command: MbbCommand): HeadphonesSnapshot {
             eqPreset = EqPreset.entries.firstOrNull { it.code == arg(2) },
         ))
         command.serviceId == 43 && command.commandId == 163 -> copy(settings = settings.copy(ldac = arg(2) == 1))
+        command.serviceId == 1 && command.commandId == 7 -> {
+            fun text(id: Int): String? = command.args[id]
+                ?.takeIf { it.isNotEmpty() }
+                ?.toString(Charsets.UTF_8)
+                ?.trim { c -> c <= ' ' || c == '\u0000' }
+                ?.takeIf { it.isNotEmpty() && it.all { c -> c.code in 32..126 } }
+
+            var left: String? = null
+            var right: String? = null
+            text(24)?.takeIf { it.startsWith("L-") && it.contains(',') }?.let { pair ->
+                pair.split(',').let {
+                    left = it.getOrNull(0)?.removePrefix("L-")
+                    right = it.getOrNull(1)?.removePrefix("R-")
+                }
+            }
+            fun hex(id: Int): String? =
+                command.args[id]?.takeIf { it.isNotEmpty() }?.joinToString("") { "%02X".format(it) }
+            val info = DeviceInfo(
+                model = text(15),
+                subModel = text(10) ?: hex(10),
+                firmware = text(7),
+                serialNumber = text(9),
+                hardwareVersion = text(3),
+                leftSerial = left,
+                rightSerial = right,
+            )
+            if (info == DeviceInfo()) this else copy(deviceInfo = info)
+        }
         command.serviceId == 43 && command.commandId == 47 -> copy(dualConnectEnabled = arg(1) == 1)
         command.serviceId == 43 && command.commandId == 49 -> {
             val rawMac = command.args[4] ?: return this

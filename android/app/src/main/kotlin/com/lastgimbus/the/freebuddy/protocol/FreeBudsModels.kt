@@ -20,6 +20,35 @@ enum class Swipe(val code: Int) { NONE(255), VOLUME(0) }
 enum class EqPreset(val code: Int) { DEFAULT(1), BASS(2), TREBLE(3), VOICES(9) }
 enum class DualConnectionState { DISCONNECTED, CONNECTED, PLAYING }
 
+data class DeviceInfo(
+    val model: String? = null,
+    val subModel: String? = null,
+    val firmware: String? = null,
+    val serialNumber: String? = null,
+    val hardwareVersion: String? = null,
+    val leftSerial: String? = null,
+    val rightSerial: String? = null,
+)
+
+/** FreeBuds 5i retail colors: Nebula Black, Ceramic White, Isle Blue. */
+enum class DeviceColor { BLACK, WHITE, BLUE }
+
+/**
+ * Best-effort color detection from the factory sub-model (MBB 1/7, TLV 10).
+ * Exact codes are collected from real devices; unknown values return null
+ * so the UI can fall back to the default (black) artwork.
+ */
+fun DeviceInfo.detectColor(): DeviceColor? {
+    val sub = subModel?.uppercase() ?: return null
+    return when {
+        sub == "BTFT0014-000145" -> DeviceColor.BLACK
+        "BLACK" in sub -> DeviceColor.BLACK
+        "WHITE" in sub -> DeviceColor.WHITE
+        "BLUE" in sub -> DeviceColor.BLUE
+        else -> null
+    }
+}
+
 data class DualConnectDevice(
     val name: String,
     val address: String,
@@ -51,4 +80,5 @@ data class HeadphonesSnapshot(
     val settings: FreeBudsSettings = FreeBudsSettings(),
     val dualConnectEnabled: Boolean? = null,
     val dualConnectDevices: List<DualConnectDevice> = emptyList(),
+    val deviceInfo: DeviceInfo? = null,
 )

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FreeBuddy</string>
-    <string name="settings">Einstellungen ⚙️</string><string name="about">Über FreeBuddy ℹ️</string>
+    <string name="about">Über FreeBuddy ℹ️</string>
     <string name="about_text">Eine unabhängige Open-Source-App zur Steuerung unterstützter Huawei FreeBuds.</string><string name="version_text">Version %1$s</string>
     <string name="connected">Kopfhörer verbunden 🎧</string><string name="disconnected">Kopfhörer sind nicht verbunden 🙅</string><string name="disconnected_desc">Verbinden Sie die Kopfhörer über Bluetooth mit Ihrem Telefon.</string>
     <string name="connecting">Verbinden… 🔄</string><string name="connecting_desc">Sichere Verbindung mit den Kopfhörern wird hergestellt.</string>
@@ -10,14 +10,14 @@
     <string name="bluetooth_disabled">Bluetooth ist deaktiviert 📶</string><string name="bluetooth_disabled_desc">Aktivieren Sie Bluetooth, um sich mit den Kopfhörern zu verbinden.</string>
     <string name="not_paired">Keine unterstützten Kopfhörer gekoppelt 😿</string><string name="not_paired_desc">Koppeln Sie Huawei FreeBuds 5i in den Android-Einstellungen.</string>
     <string name="open_bluetooth_settings">Bluetooth-Einstellungen öffnen 💙</string><string name="retry">Erneut versuchen 🔄</string>
-    <string name="battery">Akku</string><string name="left_bud">Linker Ohrhörer</string><string name="right_bud">Rechter Ohrhörer</string><string name="case_label">Case</string><string name="left_bud_short">Links</string><string name="right_bud_short">Rechts</string>
+    <string name="case_label">Case</string><string name="left_bud_short">Links</string><string name="right_bud_short">Rechts</string>
     <string name="headphones_settings">Kopfhörer-Einstellungen 🔧</string><string name="anc_title">Geräuschunterdrückung</string><string name="anc_off">Aus</string><string name="anc_noise">Geräuschunterdrückung</string><string name="anc_transparency">Transparenz</string>
     <string name="anc_level_title">Stufe der Geräuschunterdrückung</string><string name="anc_normal">Normal</string><string name="anc_comfort">Komfort</string><string name="anc_ultra">Ultra</string><string name="anc_dynamic">Dynamisch</string>
     <string name="dual_connect">Doppelverbindung 🔗</string><string name="expand">Ausklappen</string><string name="collapse">Einklappen</string><string name="dual_connect_no_devices">Keine gekoppelten Geräte gefunden</string><string name="dual_connect_playing">Spielt ab</string><string name="dual_connect_connected">Verbunden</string><string name="dual_connect_disconnected">Nicht verbunden</string><string name="dual_connect_auto_connect">Automatisch verbinden</string><string name="dual_connect_preferred">Bevorzugtes Gerät</string><string name="dual_connect_connect">Verbinden</string><string name="dual_connect_disconnect">Trennen</string><string name="dual_connect_unpair">Entkoppeln</string><string name="dual_connect_unpair_confirmation">„%1$s“ entkoppeln?</string><string name="equalizer">Equalizer 🎚️</string><string name="eq_default">Standard</string><string name="eq_bass">Bassverstärkung</string><string name="eq_treble">Höhenverstärkung</string><string name="eq_voices">Gesang</string>
     <string name="auto_pause">Auto-Pause ⏸️</string><string name="low_latency">Niedrige Latenz 🎮</string><string name="ldac">LDAC-Codec 🎵</string><string name="gestures">Gestensteuerung 👆</string>
     <string name="double_tap">Doppeltippen</string><string name="triple_tap">Dreifachtippen</string><string name="hold">Berühren und halten</string><string name="hold_modes">Modi beim Halten</string><string name="swipe">Wischen</string>
     <string name="action_none">Keine</string><string name="action_assistant">Assistent</string><string name="action_play_pause">Wiedergabe/Pause</string><string name="action_next">Weiter</string><string name="action_previous">Zurück</string><string name="action_cycle_anc">ANC umschalten</string><string name="action_volume">Lautstärke</string>
-    <string name="widget_buds">Ohrhörer</string><string name="widget_left_earbud">Links</string><string name="widget_right_earbud">Rechts</string><string name="widget_case">Case</string><string name="widget_device_icon">%1$s: %2$s</string><string name="widget_battery_level">%1$d%%</string><string name="widget_battery_unknown">—</string><string name="widget_description">Akkustand der Ohrhörer</string>
+    <string name="widget_left_earbud">Links</string><string name="widget_right_earbud">Rechts</string><string name="widget_case">Case</string><string name="widget_device_icon">%1$s: %2$s</string><string name="widget_battery_level">%1$d%%</string><string name="widget_battery_unknown">—</string>
     <string name="cancel">Abbrechen</string>
     <string name="widget_columns_name">Akku · 3 Spalten</string>
     <string name="widget_rows_name">Akku · 3 Zeilen</string>
@@ -37,4 +37,15 @@
     <string name="theme_system">Systemstandard</string>
     <string name="theme_light">Hell</string>
     <string name="theme_dark">Dunkel</string>
+    <string name="device_info_title">Geräteinformationen</string>
+    <string name="device_info_model">Modell</string>
+    <string name="device_info_submodel">Untermodell</string>
+    <string name="device_info_firmware">Firmware</string>
+    <string name="device_info_hardware">Hardwareversion</string>
+    <string name="device_info_serial">Seriennummer des Ladeetuis</string>
+    <string name="device_info_left_serial">Seriennummer links</string>
+    <string name="device_info_right_serial">Seriennummer rechts</string>
+    <string name="close">Schließen</string>
+    <string name="show_emojis">Emojis anzeigen</string>
+    <string name="show_emojis_description">Dekorative Emojis in Oberflächentexten anzeigen</string>
 </resources>
