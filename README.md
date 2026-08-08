@@ -1,59 +1,47 @@
-# FreeBuddy 🎧💞
+# FreeBuddy Native 🎧
 
-[![total Github Releases downloads](https://img.shields.io/github/downloads/TheLastGimbus/FreeBuddy/total?label=total%20Github%20Releases%20downloads)](https://github.com/TheLastGimbus/FreeBuddy/releases/)
-[![latest version downloads](https://img.shields.io/github/downloads/TheLastGimbus/FreeBuddy/latest/total?label=latest%20version%20downloads)](https://github.com/TheLastGimbus/FreeBuddy/releases/latest)
-[![resolved Github issues](https://img.shields.io/github/issues-closed/TheLastGimbus/FreeBuddy?label=resolved%20issues)](https://github.com/TheLastGimbus/FreeBuddy/issues)
-[![commit activity](https://img.shields.io/github/commit-activity/y/TheLastGimbus/FreeBuddy)](https://github.com/TheLastGimbus/FreeBuddy/graphs/contributors)
+Нативное Android-приложение для управления **Huawei FreeBuds 5i**.
 
-Free <sup>(and open source)</sup> buddy app for bluetooth headphones 🎧
+## Технологии
 
-## Why 🧐
+- Kotlin 2.2.20
+- Jetpack Compose + Material 3
+- Kotlin Coroutines / StateFlow
+- Android Bluetooth RFCOMM
+- Glance App Widget
+- Gradle 8.14.3 / AGP 8.11.1
+- Android 7.0+ (minSdk 24), targetSdk 36
 
-I wanted to quickly switch ANC modes on my headphones... but official apps are usually bloated as hell 😑 (at least Huawei's was - enough to motivate me to create *this*)
+Flutter и Dart больше не используются. Bluetooth broadcast-обработчики не вызывают
+пользовательский код синхронно и не блокируют Android main thread. Все операции
+RFCOMM (`connect`, `read`, `write`, `close`) выполняются на `Dispatchers.IO`.
 
-Also, they sometimes lack features that *are possible* to implement - like "find lost headphones", etc...
+## Возможности
 
-So I got mad and decided to make my own... and here it is 🌈
+- автоматическое подключение к сопряжённым FreeBuds 5i;
+- заряд левого/правого наушника и футляра;
+- ANC, прозрачность и уровни шумоподавления;
+- эквалайзер;
+- автопауза, низкая задержка и LDAC;
+- настройка двойного/тройного касания, удержания и смахивания;
+- Dual Connect;
+- Android-виджет заряда;
+- английская, русская и польская локализации.
 
-<img alt="Freebuddy main screen light mode" src="https://github.com/TheLastGimbus/FreeBuddy/assets/40139196/e463717e-f427-48f3-91fc-79f9a313359b"  width=250px> <img alt="Freebuddy main screen dark mode" src="https://github.com/TheLastGimbus/FreeBuddy/assets/40139196/15914349-921a-4c59-b1cf-4ed443c09823" width=250px>
+## Сборка
 
-<img alt="Freebuddy home widget light mode" src="https://github.com/TheLastGimbus/FreeBuddy/assets/40139196/a7c46a10-ebb6-45c8-a4c3-5b2597ab2d3f"  width=250px> <img alt="Freebuddy home widget dark mode" src="https://github.com/TheLastGimbus/FreeBuddy/assets/40139196/348ae011-ab18-4ff4-a497-30d3f2fecc8b" width=250px>
+```bash
+cd android
+./gradlew test assembleDebug
+./gradlew bundleRelease
+```
 
-## Supported headphones 🗂️
+Для подписи создайте `android/key.properties`. Файл и ключи игнорируются Git.
 
-Right now FreeBuddy only supports handful of models, but this is ment to expand in future 🤞 (psst, if you would like to help, head over to [the.lastgimbus.com/freebuddy/dev/](https://the.lastgimbus.com/freebuddy/dev/))
+## Миграция
 
-- Huawei FreeBuds 4i
-- Huawei FreeBuds 5i
+Нативная версия сохраняет package ID `com.lastgimbus.the.freebuddy` и подписывается
+тем же ключом, поэтому устанавливается как обновление Flutter-версии. Первая
+нативная версия: `0.3.0` (`versionCode 16`).
 
-## Features 🔨
-
-FreeBuddy can already do everything that stock apps can, while adding own features:
- - Home screen widget with battery charge 🔋
-
-## Download 📦
-
-| Platform | Installation        |
-|----------|---------------------|
-| Any      | [Github Releases](https://github.com/TheLastGimbus/FreeBuddy/releases)<br/>(Note: signed with debug keys) |
-| Android  | [<img alt="google-play-badge" src="https://user-images.githubusercontent.com/40139196/190448286-f0ac43a6-ba7e-4f92-9ad5-78728651b027.png" width="220px">](https://play.google.com/store/apps/details?id=com.lastgimbus.the.freebuddy) |
-| Windoza  | TODO: Windoza build |
-| Linux    | TODO: L00nix build  |
-
-## Feedback and contact 📞
-
-If you have *ANY* questions, suggestions, or just want to chat, feel free to join FreeBuddy Discord and chat!
-
-[![Discord](https://img.shields.io/badge/Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/fYS98UE5Cu)
-
-If something doesn't work, you can report it at [the issues tab](https://github.com/TheLastGimbus/FreeBuddy/issues/) 👍
-
-## Donating 👛
-
-I've spent a lot of time and love making this app 💖 if you like it, you can give me a tip 😇
-
-[![Donate using ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/A0A6HO71P)
-[![Donate using Liberapay](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/TheLastGimbus/donate)
-[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg?logo=paypal&style=for-the-badge)](https://www.paypal.com/donate/?hosted_button_id=B8LS5DS92EPQE)
-
-<sub>Google Play and the Google Play logo are trademarks of Google LLC.</sub>
+Старая Flutter-реализация сохранена в Git-коммите `5d9ed35`.

@@ -1,12 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FreeBuddy</string>
-    <string name="widget_buds">Buds</string>
-    <string name="widget_left_earbud">Left</string>
-    <string name="widget_right_earbud">Right</string>
-    <string name="widget_case">Case</string>
-    <string name="widget_device_icon">%1$s icon</string>
-    <string name="widget_battery_level">%1$d%%</string>
-    <string name="widget_battery_unknown">—</string>
-    <string name="widget_description">Earbuds battery level</string>
+    <string name="settings">Settings ⚙️</string><string name="about">About FreeBuddy ℹ️</string>
+    <string name="about_text">An independent open-source application for controlling supported Huawei FreeBuds.</string><string name="version_text">Version %1$s</string>
+    <string name="connected">Headphones connected 🎧</string><string name="disconnected">Headphones are not connected 🙅</string><string name="disconnected_desc">Connect the headphones to your phone via Bluetooth.</string>
+    <string name="connecting">Connecting… 🔄</string><string name="connecting_desc">Establishing a secure connection with the headphones.</string>
+    <string name="connection_failed">Could not connect 🤨</string><string name="connection_failed_desc">The connection may be used by another application. Close it and try again.</string>
+    <string name="page_home_no_permission">No Bluetooth access 😢</string><string name="page_home_no_permission_desc">Bluetooth permission is required to communicate with paired headphones.</string><string name="grant_access">Grant access 🔑</string>
+    <string name="bluetooth_disabled">Bluetooth is disabled 📶</string><string name="bluetooth_disabled_desc">Enable Bluetooth to connect to the headphones.</string>
+    <string name="not_paired">No supported headphones are paired 😿</string><string name="not_paired_desc">Pair Huawei FreeBuds 5i in Android settings.</string>
+    <string name="open_bluetooth_settings">Open Bluetooth settings 💙</string><string name="retry">Try again 🔄</string>
+    <string name="battery">Battery</string><string name="left_bud">Left earbud</string><string name="right_bud">Right earbud</string><string name="case_label">Case</string><string name="left_bud_short">Left</string><string name="right_bud_short">Right</string>
+    <string name="headphones_settings">Headphones settings 🔧</string><string name="anc_title">Noise cancellation control</string><string name="anc_off">Off</string><string name="anc_noise">Noise cancelling</string><string name="anc_transparency">Transparency</string>
+    <string name="anc_level_title">Noise cancellation level</string><string name="anc_normal">Normal</string><string name="anc_comfort">Comfort</string><string name="anc_ultra">Ultra</string><string name="anc_dynamic">Dynamic</string>
+    <string name="dual_connect">Dual connection 🔗</string><string name="expand">Expand</string><string name="collapse">Collapse</string><string name="dual_connect_no_devices">No paired devices found</string><string name="dual_connect_playing">Playing</string><string name="dual_connect_connected">Connected</string><string name="dual_connect_disconnected">Disconnected</string><string name="dual_connect_auto_connect">Auto-connect</string><string name="dual_connect_preferred">Preferred device</string><string name="dual_connect_connect">Connect</string><string name="dual_connect_disconnect">Disconnect</string><string name="dual_connect_unpair">Unpair</string><string name="dual_connect_unpair_confirmation">Unpair “%1$s”?</string><string name="equalizer">Equalizer 🎚️</string><string name="eq_default">Default</string><string name="eq_bass">Bass boost</string><string name="eq_treble">Treble boost</string><string name="eq_voices">Vocals</string>
+    <string name="auto_pause">Auto-pause ⏸️</string><string name="low_latency">Low latency 🎮</string><string name="ldac">LDAC codec 🎵</string><string name="gestures">Gesture controls 👆</string>
+    <string name="double_tap">Double tap</string><string name="triple_tap">Triple tap</string><string name="hold">Touch and hold</string><string name="hold_modes">Modes switched by holding</string><string name="swipe">Swipe</string>
+    <string name="action_none">None</string><string name="action_assistant">Assistant</string><string name="action_play_pause">Play/pause</string><string name="action_next">Next</string><string name="action_previous">Previous</string><string name="action_cycle_anc">Switch ANC</string><string name="action_volume">Volume</string>
+    <string name="widget_buds">Buds</string><string name="widget_left_earbud">Left</string><string name="widget_right_earbud">Right</string><string name="widget_case">Case</string><string name="widget_device_icon">%1$s: %2$s</string><string name="widget_battery_level">%1$d%%</string><string name="widget_battery_unknown">—</string><string name="widget_description">Earbuds battery level</string>
+    <string name="cancel">Cancel</string>
+    <string name="widget_columns_name">Battery · 3 columns</string>
+    <string name="widget_rows_name">Battery · 3 rows</string>
+    <string name="widget_columns_description">Earbuds battery in three vertical columns</string>
+    <string name="widget_rows_description">Earbuds battery in three horizontal rows</string>
+    <string name="auto_pause_desc">Music pauses automatically when you take an earbud out</string>
+    <string name="low_latency_desc">Minimizes audio delay, useful for games</string>
+    <string name="ldac_desc">Better sound quality, but may cause stutters</string>
+    <string name="anc_noise_desc">Reduces surrounding noise</string>
+    <string name="anc_off_desc">Turns ANC off</string>
+    <string name="anc_transparency_desc">Lets you hear your surroundings</string>
+    <string name="save">Save</string>
+    <string name="widget_transparency_title">Widget background transparency</string>
+    <string name="widget_transparency_hint" formatted="false">0% — opaque, 100% — fully transparent. Text and icons always stay visible.</string>
+    <string name="appearance">Appearance</string>
+    <string name="theme">Theme</string>
+    <string name="theme_system">System default</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
 </resources>

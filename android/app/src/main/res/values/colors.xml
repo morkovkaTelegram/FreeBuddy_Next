@@ -7,4 +7,5 @@
     <color name="battery_widget_text_color">#003549</color>
     <color name="battery_widget_bar_color">#76D1FF</color>
     <color name="battery_widget_bar_background">#C1E8FF</color>
+    <color name="battery_widget_empty_color">#A8D9F4</color>
 </resources>

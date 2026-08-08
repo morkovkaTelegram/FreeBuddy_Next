@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FreeBuddy</string><string name="settings">Ustawienia ⚙️</string><string name="about">O FreeBuddy ℹ️</string>
+    <string name="about_text">Niezależna aplikacja open source do sterowania obsługiwanymi słuchawkami Huawei FreeBuds.</string><string name="version_text">Wersja %1$s</string>
+    <string name="connected">Słuchawki połączone 🎧</string><string name="disconnected">Słuchawki nie są połączone 🙅</string><string name="disconnected_desc">Połącz słuchawki z telefonem przez Bluetooth.</string>
+    <string name="connecting">Łączenie… 🔄</string><string name="connecting_desc">Nawiązywanie połączenia ze słuchawkami.</string>
+    <string name="connection_failed">Nie udało się połączyć 🤨</string><string name="connection_failed_desc">Połączenie może być używane przez inną aplikację. Zamknij ją i spróbuj ponownie.</string>
+    <string name="page_home_no_permission">Brak dostępu do Bluetooth 😢</string><string name="page_home_no_permission_desc">Uprawnienie Bluetooth jest wymagane do komunikacji ze słuchawkami.</string><string name="grant_access">Zezwól 🔑</string>
+    <string name="bluetooth_disabled">Bluetooth jest wyłączony 📶</string><string name="bluetooth_disabled_desc">Włącz Bluetooth, aby połączyć słuchawki.</string>
+    <string name="not_paired">Brak sparowanych obsługiwanych słuchawek 😿</string><string name="not_paired_desc">Sparuj Huawei FreeBuds 5i w ustawieniach Androida.</string>
+    <string name="open_bluetooth_settings">Otwórz ustawienia Bluetooth 💙</string><string name="retry">Spróbuj ponownie 🔄</string>
+    <string name="battery">Bateria</string><string name="left_bud">Lewa słuchawka</string><string name="right_bud">Prawa słuchawka</string><string name="case_label">Etui</string><string name="left_bud_short">Lewa</string><string name="right_bud_short">Prawa</string>
+    <string name="headphones_settings">Ustawienia słuchawek 🔧</string><string name="anc_title">Sterowanie redukcją hałasu</string><string name="anc_off">Wyłączone</string><string name="anc_noise">Redukcja hałasu</string><string name="anc_transparency">Przepuszczanie dźwięku</string>
+    <string name="anc_level_title">Poziom redukcji hałasu</string><string name="anc_normal">Normalny</string><string name="anc_comfort">Komfortowy</string><string name="anc_ultra">Maksymalny</string><string name="anc_dynamic">Dynamiczny</string>
+    <string name="dual_connect">Podwójne połączenie 🔗</string><string name="expand">Rozwiń</string><string name="collapse">Zwiń</string><string name="dual_connect_no_devices">Nie znaleziono sparowanych urządzeń</string><string name="dual_connect_playing">Odtwarza</string><string name="dual_connect_connected">Połączono</string><string name="dual_connect_disconnected">Nie połączono</string><string name="dual_connect_auto_connect">Automatyczne łączenie</string><string name="dual_connect_preferred">Urządzenie preferowane</string><string name="dual_connect_connect">Połącz</string><string name="dual_connect_disconnect">Rozłącz</string><string name="dual_connect_unpair">Usuń parowanie</string><string name="dual_connect_unpair_confirmation">Usunąć parowanie z urządzeniem „%1$s”?</string><string name="equalizer">Korektor 🎚️</string><string name="eq_default">Domyślny</string><string name="eq_bass">Wzmocnienie basów</string><string name="eq_treble">Wzmocnienie sopranów</string><string name="eq_voices">Wokal</string>
+    <string name="auto_pause">Automatyczna pauza ⏸️</string><string name="low_latency">Niskie opóźnienie 🎮</string><string name="ldac">Kodek LDAC 🎵</string><string name="gestures">Sterowanie gestami 👆</string>
+    <string name="double_tap">Podwójne dotknięcie</string><string name="triple_tap">Potrójne dotknięcie</string><string name="hold">Dotknięcie i przytrzymanie</string><string name="hold_modes">Tryby przełączane przytrzymaniem</string><string name="swipe">Przesunięcie</string>
+    <string name="action_none">Brak</string><string name="action_assistant">Asystent</string><string name="action_play_pause">Start/pauza</string><string name="action_next">Dalej</string><string name="action_previous">Wstecz</string><string name="action_cycle_anc">Przełącz ANC</string><string name="action_volume">Głośność</string>
+    <string name="widget_buds">Słuchawki</string><string name="widget_left_earbud">Lewa</string><string name="widget_right_earbud">Prawa</string><string name="widget_case">Etui</string><string name="widget_device_icon">%1$s: %2$s</string><string name="widget_battery_level">%1$d%%</string><string name="widget_battery_unknown">—</string><string name="widget_description">Poziom baterii słuchawek</string>
+    <string name="cancel">Anuluj</string>
+    <string name="widget_columns_name">Bateria · 3 kolumny</string>
+    <string name="widget_rows_name">Bateria · 3 wiersze</string>
+    <string name="widget_columns_description">Bateria słuchawek w trzech pionowych kolumnach</string>
+    <string name="widget_rows_description">Bateria słuchawek w trzech poziomych wierszach</string>
+    <string name="auto_pause_desc">Muzyka zatrzymuje się automatycznie po wyjęciu słuchawki</string>
+    <string name="low_latency_desc">Minimalizuje opóźnienie dźwięku, przydatne w grach</string>
+    <string name="ldac_desc">Lepsza jakość dźwięku, ale możliwe przerwy</string>
+    <string name="anc_noise_desc">Redukuje otaczający hałas</string>
+    <string name="anc_off_desc">Wyłącza redukcję hałasu</string>
+    <string name="anc_transparency_desc">Pozwala słyszeć otoczenie</string>
+    <string name="save">Zapisz</string>
+    <string name="widget_transparency_title">Przezroczystość tła widżetu</string>
+    <string name="widget_transparency_hint" formatted="false">0% — nieprzezroczyste tło, 100% — całkowicie przezroczyste. Tekst i ikony zawsze pozostają widoczne.</string>
+    <string name="appearance">Wygląd</string>
+    <string name="theme">Motyw</string>
+    <string name="theme_system">Domyślny systemowy</string>
+    <string name="theme_light">Jasny</string>
+    <string name="theme_dark">Ciemny</string>
+</resources>
