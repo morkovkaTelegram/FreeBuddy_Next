@@ -32,8 +32,8 @@ data class DeviceInfo(
     val unknownFields: Map<Int, String> = emptyMap(),
 )
 
-/** FreeBuds 5i retail colors: Nebula Black, Ceramic White, Isle Blue. */
-enum class DeviceColor { BLACK, WHITE, BLUE }
+/** Retail colors supported by model profiles. */
+enum class DeviceColor { BLACK, WHITE, BLUE, PURPLE }
 
 /**
  * Best-effort color detection from MBB 1/7 device information.
@@ -43,7 +43,7 @@ enum class DeviceColor { BLACK, WHITE, BLUE }
  * (hardware version) can be identical across colors, so TLV 25 has priority.
  * Textual names are retained as a fallback for future firmware variants.
  */
-fun DeviceInfo.detectColor(): DeviceColor? {
+fun DeviceInfo.detect5iColor(): DeviceColor? {
     val variant = unknownFields[25]?.uppercase()
     val sub = subModel?.uppercase()
     return when {
@@ -62,6 +62,19 @@ data class DualConnectDevice(
     val autoConnect: Boolean,
     val preferred: Boolean,
     val connectionState: DualConnectionState,
+)
+
+data class CustomEqualizerPreset(
+    val id: Int,
+    val name: String,
+    val bands: List<Int>,
+)
+
+data class EqualizerDiagnostics(
+    val activePresetId: Int? = null,
+    val builtInPresetIds: List<Int> = emptyList(),
+    val customPresets: List<CustomEqualizerPreset> = emptyList(),
+    val rawFields: Map<Int, String> = emptyMap(),
 )
 
 data class FreeBudsSettings(
@@ -90,4 +103,6 @@ data class HeadphonesSnapshot(
     val dualConnectEnabled: Boolean? = null,
     val dualConnectDevices: List<DualConnectDevice> = emptyList(),
     val deviceInfo: DeviceInfo? = null,
+    /** FreeBuds 6i MBB 43/74 diagnostics; null for models without custom EQ. */
+    val equalizerDiagnostics: EqualizerDiagnostics? = null,
 )

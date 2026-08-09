@@ -82,6 +82,20 @@ class MbbStreamParser {
     fun clear() { pending = ByteArray(0) }
 }
 
+/** Stable, human-readable dump used by the diagnostics clipboard export. */
+fun MbbCommand.toDiagnosticString(): String {
+    val tlvs = args.entries.joinToString(" ") { (id, value) ->
+        "$id=${value.toHex()}"
+    }
+    return buildString {
+        append(serviceId).append('/').append(commandId)
+        append(" packet=").append(toPayload().toHex())
+        if (tlvs.isNotEmpty()) append(" tlv[").append(tlvs).append(']')
+    }
+}
+
+fun ByteArray.toHex(): String = joinToString("") { "%02X".format(it.toInt() and 0xFF) }
+
 private fun Byte.u() = toInt() and 0xFF
 fun ByteArray.firstUOrNull() = firstOrNull()?.toInt()?.and(0xFF)
 fun intBytes(vararg values: Int) = ByteArray(values.size) { values[it].toByte() }

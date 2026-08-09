@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.io.IOException
@@ -40,6 +42,10 @@ class RfcommClient {
 
     @Volatile private var socket: BluetoothSocket? = null
     private var reader: Job? = null
+
+    // Commands are sent from independent coroutines (fast ANC taps + delayed
+    // read-backs); interleaved OutputStream writes would corrupt MBB frames.
+    private val writeMutex = Mutex()
 
     suspend fun connect(device: BluetoothDevice, serviceUuid: UUID) = withContext(Dispatchers.IO) {
         close()
@@ -77,9 +83,11 @@ class RfcommClient {
         }
 
     suspend fun send(command: MbbCommand) = withContext(Dispatchers.IO) {
-        val active = socket ?: throw IOException("RFCOMM is not connected")
-        active.outputStream.write(command.toPayload())
-        active.outputStream.flush()
+        writeMutex.withLock {
+            val active = socket ?: throw IOException("RFCOMM is not connected")
+            active.outputStream.write(command.toPayload())
+            active.outputStream.flush()
+        }
     }
 
     suspend fun close() = withContext(Dispatchers.IO) {

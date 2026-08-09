@@ -119,8 +119,18 @@
     <string name="headphones_color_black">Schwarz</string>
     <string name="headphones_color_white">Weiß</string>
     <string name="headphones_color_blue">Blau</string>
+    <string name="headphones_color_purple">Violett</string>
     <string name="widget_labels_title">Beschriftungen</string>
     <string name="widget_labels_full">Vollständige Namen</string>
     <string name="widget_labels_short">L / R, ohne Ladeetui-Text</string>
     <string name="widget_labels_hidden">Ohne Beschriftungen</string>
+    <string name="device_info_equalizer">Equalizer-Diagnose</string>
+    <string name="device_info_eq_active">ID der aktiven Voreinstellung</string>
+    <string name="device_info_eq_built_in">IDs der integrierten Voreinstellungen</string>
+    <string name="device_info_eq_custom">Benutzerdefinierte Voreinstellungen</string>
+    <string name="device_info_eq_none">Keine</string>
+    <string name="device_info_eq_preset">Voreinstellung %1$d · %2$s</string>
+    <string name="device_info_eq_tlv">EQ-TLV %1$d</string>
+    <string name="device_info_copy_raw">Rohdaten kopieren</string>
+    <string name="device_info_clipboard_label">FreeBuddy-Diagnose</string>
 </resources>

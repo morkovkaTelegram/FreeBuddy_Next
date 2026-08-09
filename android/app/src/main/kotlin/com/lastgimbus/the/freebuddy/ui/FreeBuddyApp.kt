@@ -1,5 +1,8 @@
 package com.lastgimbus.the.freebuddy.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 import androidx.annotation.DrawableRes
@@ -95,7 +98,6 @@ import com.lastgimbus.the.freebuddy.protocol.DeviceColor
 import com.lastgimbus.the.freebuddy.protocol.DeviceInfo
 import com.lastgimbus.the.freebuddy.protocol.DualConnectionState
 import com.lastgimbus.the.freebuddy.protocol.EqPreset
-import com.lastgimbus.the.freebuddy.protocol.detectColor
 import com.lastgimbus.the.freebuddy.protocol.FreeBudsSettings
 import com.lastgimbus.the.freebuddy.protocol.HeadphonesSnapshot
 import com.lastgimbus.the.freebuddy.protocol.HeadphonesProtocolRegistry
@@ -128,7 +130,7 @@ private fun stringResource(@StringRes id: Int, vararg formatArgs: Any): String {
 @Composable
 fun FreeBuddyApp(repository: HeadphonesRepository, requestBluetoothPermission: () -> Unit) {
     val context = LocalContext.current
-    val showEmojis by ThemeStore.showEmojis(context)
+    val showEmojis by remember { ThemeStore.showEmojis(context) }
         .collectAsStateWithLifecycle(initialValue = true)
     CompositionLocalProvider(LocalShowEmojis provides showEmojis) {
         FreeBuddyTheme {
@@ -190,9 +192,12 @@ private fun StatusContent(@StringRes title: Int, @StringRes description: Int, @S
 private fun ConnectedContent(snapshot: HeadphonesSnapshot, repository: HeadphonesRepository, openSettings: () -> Unit) {
     val context = LocalContext.current
     val colorIdentity = snapshot.colorIdentity()
-    val forceColor by ThemeStore.forceHeadphonesColor(context, colorIdentity)
+    // remember(): ThemeStore builds a new Flow instance on every call, and
+    // collectAsStateWithLifecycle restarts its collector when the instance
+    // changes - without remember every recomposition re-subscribed DataStore.
+    val forceColor by remember(colorIdentity) { ThemeStore.forceHeadphonesColor(context, colorIdentity) }
         .collectAsStateWithLifecycle(initialValue = false)
-    val storedColor by ThemeStore.headphonesColor(context, colorIdentity)
+    val storedColor by remember(colorIdentity) { ThemeStore.headphonesColor(context, colorIdentity) }
         .collectAsStateWithLifecycle(initialValue = DeviceColor.BLACK.name)
     val selectedColor = storedColor.toDeviceColor()
 
@@ -219,7 +224,7 @@ private fun ConnectedContent(snapshot: HeadphonesSnapshot, repository: Headphone
             var showInfo by remember { mutableStateOf(false) }
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Image(
-                    painter = painterResource(headphonesImage(snapshot.deviceInfo, forceColor, selectedColor)),
+                    painter = painterResource(headphonesImage(snapshot, forceColor, selectedColor)),
                     contentDescription = snapshot.name,
                     modifier = Modifier
                         .size(width = 260.dp, height = 180.dp)
@@ -227,7 +232,7 @@ private fun ConnectedContent(snapshot: HeadphonesSnapshot, repository: Headphone
                     contentScale = ContentScale.Fit,
                 )
             }
-            if (showInfo) DeviceInfoDialog(snapshot, onDismiss = { showInfo = false })
+            if (showInfo) DeviceInfoDialog(snapshot, repository, onDismiss = { showInfo = false })
         }
         item { BatteryCard(snapshot.battery) }
         if (snapshot.capabilities.ancLevels) item { AncCard(snapshot, repository) }
@@ -239,18 +244,37 @@ private fun ConnectedContent(snapshot: HeadphonesSnapshot, repository: Headphone
 
 @DrawableRes
 private fun headphonesImage(
-    info: DeviceInfo?,
+    snapshot: HeadphonesSnapshot,
     forceColor: Boolean,
     selectedColor: DeviceColor,
-): Int = when (if (forceColor) selectedColor else info?.detectColor()) {
-    DeviceColor.WHITE -> R.drawable.freebuds_5i_w
-    DeviceColor.BLUE -> R.drawable.freebuds_5i_bl
-    DeviceColor.BLACK, null -> R.drawable.freebuds_5i_b
+): Int {
+    val protocol = HeadphonesProtocolRegistry.findById(snapshot.protocolId)
+        ?: HeadphonesProtocolRegistry.defaultProfile()
+    val color = if (forceColor) selectedColor else protocol.detectColor(snapshot.deviceInfo)
+    return when (protocol.id) {
+        "freebuds_6i" -> when (color) {
+            DeviceColor.WHITE -> R.drawable.freebuds_6i_w
+            DeviceColor.PURPLE -> R.drawable.freebuds_6i_v
+            DeviceColor.BLACK, DeviceColor.BLUE, null -> R.drawable.freebuds_6i_b
+        }
+        else -> when (color) {
+            DeviceColor.WHITE -> R.drawable.freebuds_5i_w
+            DeviceColor.BLUE -> R.drawable.freebuds_5i_bl
+            DeviceColor.BLACK, DeviceColor.PURPLE, null -> R.drawable.freebuds_5i_b
+        }
+    }
 }
 
 @Composable
-private fun DeviceInfoDialog(snapshot: HeadphonesSnapshot, onDismiss: () -> Unit) {
+private fun DeviceInfoDialog(
+    snapshot: HeadphonesSnapshot,
+    repository: HeadphonesRepository,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
     val info = snapshot.deviceInfo
+    val eq = snapshot.equalizerDiagnostics
+    val clipboardLabel = stringResource(R.string.device_info_clipboard_label)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.device_info_title)) },
@@ -269,24 +293,91 @@ private fun DeviceInfoDialog(snapshot: HeadphonesSnapshot, onDismiss: () -> Unit
                 DeviceInfoRow(R.string.device_info_left_serial, info?.leftSerial)
                 DeviceInfoRow(R.string.device_info_right_serial, info?.rightSerial)
                 if (!info?.unknownFields.isNullOrEmpty()) {
-                    HorizontalDivider(Modifier.padding(vertical = 6.dp))
-                    Text(
-                        stringResource(R.string.device_info_unknown_fields),
-                        style = MaterialTheme.typography.titleSmall,
-                    )
+                    DiagnosticSectionTitle(R.string.device_info_unknown_fields)
                     info?.unknownFields?.forEach { (id, value) ->
+                        DeviceInfoRow(stringResource(R.string.device_info_tlv_field, id), value)
+                    }
+                }
+                if (eq != null) {
+                    DiagnosticSectionTitle(R.string.device_info_equalizer)
+                    DeviceInfoRow(
+                        stringResource(R.string.device_info_eq_active),
+                        eq.activePresetId?.toString(),
+                    )
+                    DeviceInfoRow(
+                        stringResource(R.string.device_info_eq_built_in),
+                        eq.builtInPresetIds.takeIf { it.isNotEmpty() }?.joinToString(),
+                    )
+                    if (eq.customPresets.isEmpty()) {
                         DeviceInfoRow(
-                            stringResource(R.string.device_info_tlv_field, id),
-                            value,
+                            stringResource(R.string.device_info_eq_custom),
+                            stringResource(R.string.device_info_eq_none),
                         )
+                    } else {
+                        eq.customPresets.forEach { preset ->
+                            DeviceInfoRow(
+                                stringResource(R.string.device_info_eq_preset, preset.id, preset.name),
+                                preset.bands.joinToString(),
+                            )
+                        }
+                    }
+                    eq.rawFields.forEach { (id, value) ->
+                        DeviceInfoRow(stringResource(R.string.device_info_eq_tlv, id), value)
                     }
                 }
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
+        dismissButton = {
+            TextButton(
+                onClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(
+                        ClipData.newPlainText(
+                            clipboardLabel,
+                            snapshot.toDiagnosticDump(repository.diagnosticLog()),
+                        ),
+                    )
+                },
+            ) { Text(stringResource(R.string.device_info_copy_raw)) }
+        },
         shape = AppCardShape,
     )
 }
+
+@Composable
+private fun DiagnosticSectionTitle(@StringRes title: Int) {
+    HorizontalDivider(Modifier.padding(vertical = 6.dp))
+    Text(stringResource(title), style = MaterialTheme.typography.titleSmall)
+}
+
+private fun HeadphonesSnapshot.toDiagnosticDump(rawResponses: List<String>): String = buildString {
+    appendLine("FreeBuddy device diagnostics")
+    appendLine("protocol=$protocolId")
+    appendLine("name=$name")
+    appendLine("address=$address")
+    deviceInfo?.let { info ->
+        appendLine("model=${info.model.orEmpty()}")
+        appendLine("submodel=${info.subModel.orEmpty()}")
+        appendLine("firmware=${info.firmware.orEmpty()}")
+        appendLine("hardware=${info.hardwareVersion.orEmpty()}")
+        appendLine("caseSerial=${info.serialNumber.orEmpty()}")
+        appendLine("leftSerial=${info.leftSerial.orEmpty()}")
+        appendLine("rightSerial=${info.rightSerial.orEmpty()}")
+        info.unknownFields.forEach { (id, value) -> appendLine("deviceInfo.tlv$id=$value") }
+    }
+    equalizerDiagnostics?.let { eq ->
+        appendLine("eq.activePresetId=${eq.activePresetId ?: ""}")
+        appendLine("eq.builtInPresetIds=${eq.builtInPresetIds.joinToString()}")
+        eq.customPresets.forEach { preset ->
+            appendLine("eq.custom.${preset.id}.name=${preset.name}")
+            appendLine("eq.custom.${preset.id}.bands=${preset.bands.joinToString()}")
+        }
+        eq.rawFields.forEach { (id, value) -> appendLine("eq.tlv$id=$value") }
+    }
+    appendLine("rawResponses:")
+    rawResponses.forEach(::appendLine)
+}.trimEnd()
 
 @Composable
 private fun DeviceInfoRow(@StringRes label: Int, value: String?) =
@@ -805,19 +896,19 @@ private fun SettingSwitch(
 private fun AboutScreen(activeIdentity: HeadphonesIdentity?, back: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val themeMode by ThemeStore.themeMode(context)
+    val themeMode by remember { ThemeStore.themeMode(context) }
         .collectAsStateWithLifecycle(initialValue = ThemeStore.ThemeMode.SYSTEM)
     // Reuse the value already collected at the application UI root. Starting a second
     // DataStore collection here with `true` caused the switch to flash on every entry.
     val showEmojis = LocalShowEmojis.current
-    val lastIdentity by ThemeStore.lastHeadphonesIdentity(context)
+    val lastIdentity by remember { ThemeStore.lastHeadphonesIdentity(context) }
         .collectAsStateWithLifecycle(initialValue = HeadphonesIdentity("freebuds_5i"))
     val colorIdentity = activeIdentity ?: lastIdentity
     val colorProtocol = HeadphonesProtocolRegistry.findById(colorIdentity.protocolId)
         ?: HeadphonesProtocolRegistry.defaultProfile()
-    val forceHeadphonesColor by ThemeStore.forceHeadphonesColor(context, colorIdentity)
+    val forceHeadphonesColor by remember(colorIdentity) { ThemeStore.forceHeadphonesColor(context, colorIdentity) }
         .collectAsStateWithLifecycle(initialValue = false)
-    val storedHeadphonesColor by ThemeStore.headphonesColor(context, colorIdentity)
+    val storedHeadphonesColor by remember(colorIdentity) { ThemeStore.headphonesColor(context, colorIdentity) }
         .collectAsStateWithLifecycle(initialValue = DeviceColor.BLACK.name)
     val selectedHeadphonesColor = storedHeadphonesColor.toDeviceColor()
     var showThemeDialog by remember { mutableStateOf(false) }
@@ -957,6 +1048,7 @@ private fun DeviceColor.label() = when (this) {
     DeviceColor.BLACK -> R.string.headphones_color_black
     DeviceColor.WHITE -> R.string.headphones_color_white
     DeviceColor.BLUE -> R.string.headphones_color_blue
+    DeviceColor.PURPLE -> R.string.headphones_color_purple
 }
 
 private fun ThemeStore.ThemeMode.label() = when (this) {

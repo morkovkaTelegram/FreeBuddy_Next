@@ -5,7 +5,7 @@ object FreeBuds5iProtocol : HeadphonesProtocol {
     override val displayName = "HUAWEI FreeBuds 5i"
     override val bluetoothNamePrefixes = setOf("HUAWEI FreeBuds 5i")
     override val sppUuid: java.util.UUID = java.util.UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
-    override val availableColors = DeviceColor.entries
+    override val availableColors = listOf(DeviceColor.BLACK, DeviceColor.WHITE, DeviceColor.BLUE)
     override val capabilities = HeadphonesCapabilities(
         ancLevels = true,
         dynamicAnc = true,
@@ -22,6 +22,8 @@ object FreeBuds5iProtocol : HeadphonesProtocol {
         dualConnectAutoConnect = true,
         deviceInfo = true,
     )
+    override fun detectColor(info: DeviceInfo?): DeviceColor? = info?.detect5iColor()
+
     override val initialRequests = listOf(
         MbbCommand(1, 8), MbbCommand(43, 42), MbbCommand(43, 17),
         MbbCommand(1, 32), MbbCommand(1, 38), MbbCommand(43, 23),
@@ -156,11 +158,21 @@ private fun HeadphonesSnapshot.apply5i(command: MbbCommand): HeadphonesSnapshot 
                 ?.takeIf { it.isNotEmpty() }
                 ?.let(::hex)
             fun diagnosticValue(bytes: ByteArray): String {
-                val utf8 = bytes.toString(Charsets.UTF_8)
-                    .trim { c -> c <= ' ' || c == '\u0000' }
-                return utf8.takeIf { value ->
-                    value.isNotEmpty() && value.all { c -> c.code in 32..126 }
-                } ?: "0x${hex(bytes)}"
+                val allPrintableAscii = bytes.all { byte -> (byte.toInt() and 0xFF) in 32..126 }
+                if (allPrintableAscii) return bytes.toString(Charsets.US_ASCII)
+
+                val printablePart = buildString {
+                    bytes.forEach { byte ->
+                        val value = byte.toInt() and 0xFF
+                        if (value in 32..126) append(value.toChar())
+                    }
+                }
+                    .trim()
+                    .replace("\\", "\\\\")
+                    .replace("\"", "\\\"")
+
+                val rawHex = "0x${hex(bytes)}"
+                return if (printablePart.isEmpty()) rawHex else "$rawHex (\"$printablePart\")"
             }
             val knownFields = setOf(3, 7, 9, 10, 15, 24)
             val unknownFields = command.args

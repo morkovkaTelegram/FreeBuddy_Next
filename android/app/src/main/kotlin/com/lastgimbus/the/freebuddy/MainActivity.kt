@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
 import com.lastgimbus.the.freebuddy.ui.FreeBuddyApp
 import com.lastgimbus.the.freebuddy.widget.WidgetStorage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -20,7 +21,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) {
-            lifecycleScope.launch { WidgetStorage.updateAll(applicationContext) }
+            // Off the main thread: updateAll reads SharedPreferences and builds RemoteViews.
+            lifecycleScope.launch(Dispatchers.Default) { WidgetStorage.updateAll(applicationContext) }
         }
         enableEdgeToEdge()
         setContent {

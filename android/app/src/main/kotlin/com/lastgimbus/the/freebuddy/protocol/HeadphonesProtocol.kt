@@ -36,6 +36,9 @@ interface HeadphonesProtocol {
     val availableColors: List<DeviceColor>
     val initialRequests: List<MbbCommand>
 
+    /** Model-specific color detection; must not reuse another model's undocumented TLVs. */
+    fun detectColor(info: DeviceInfo?): DeviceColor?
+
     fun matchesBluetoothName(name: String?): Boolean =
         name != null && bluetoothNamePrefixes.any(name::startsWith)
 
@@ -75,7 +78,7 @@ interface HeadphonesProtocol {
 object HeadphonesProtocolRegistry {
     private val verifiedProfiles: List<HeadphonesProtocol> = listOf(
         FreeBuds5iProtocol,
-        // FreeBuds6iProtocol must be added only after real-device validation.
+        FreeBuds6iProtocol,
     )
 
     fun findByBluetoothName(name: String?): HeadphonesProtocol? =

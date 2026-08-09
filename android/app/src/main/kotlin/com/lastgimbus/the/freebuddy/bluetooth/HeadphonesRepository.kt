@@ -26,12 +26,15 @@ import com.lastgimbus.the.freebuddy.protocol.Hold
 import com.lastgimbus.the.freebuddy.protocol.MbbCommand
 import com.lastgimbus.the.freebuddy.protocol.Swipe
 import com.lastgimbus.the.freebuddy.protocol.TripleTap
+import com.lastgimbus.the.freebuddy.protocol.toDiagnosticString
 import com.lastgimbus.the.freebuddy.widget.WidgetStorage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,6 +43,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 sealed interface ConnectionState {
     data object PermissionRequired : ConnectionState
@@ -74,32 +78,45 @@ class HeadphonesRepository(private val context: Context) {
         override fun onReceive(context: Context?, intent: Intent?) {
             val action = intent?.action ?: return
             val device = getDevice(intent)
+            val a2dpState = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1)
             scope.launch {
-                when (action) {
-                    BluetoothAdapter.ACTION_STATE_CHANGED -> refresh()
-                    BluetoothDevice.ACTION_ACL_CONNECTED -> if (device?.protocol() != null) {
+                // BLUETOOTH_CONNECT can be revoked while the process is alive;
+                // any BluetoothDevice/proxy call then throws SecurityException,
+                // which would crash the app from an unhandled coroutine.
+                try {
+                    handleEvent(action, device, a2dpState)
+                } catch (cancel: CancellationException) {
+                    throw cancel
+                } catch (_: SecurityException) {
+                    _state.value = ConnectionState.PermissionRequired
+                }
+            }
+        }
+    }
+
+    private suspend fun handleEvent(action: String, device: BluetoothDevice?, a2dpState: Int) {
+        when (action) {
+            BluetoothAdapter.ACTION_STATE_CHANGED -> refresh()
+            BluetoothDevice.ACTION_ACL_CONNECTED -> if (device?.protocol() != null) {
+                delay(1200)
+                connectIfAvailable(device)
+            }
+            BluetoothDevice.ACTION_ACL_DISCONNECTED ->
+                if (device?.protocol() != null) handlePossibleDisconnect(device)
+            BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED -> {
+                when {
+                    // Buds placed in the case: A2DP drops immediately even
+                    // though our RFCOMM socket still pins the ACL link.
+                    a2dpState == BluetoothProfile.STATE_DISCONNECTED &&
+                        device?.protocol() != null -> handlePossibleDisconnect(device)
+                    a2dpState == BluetoothProfile.STATE_CONNECTED &&
+                        device?.protocol() != null -> {
                         delay(1200)
                         connectIfAvailable(device)
                     }
-                    BluetoothDevice.ACTION_ACL_DISCONNECTED ->
-                        if (device?.protocol() != null) handlePossibleDisconnect(device)
-                    BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED -> {
-                        val a2dpState = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1)
-                        when {
-                            // Buds placed in the case: A2DP drops immediately even
-                            // though our RFCOMM socket still pins the ACL link.
-                            a2dpState == BluetoothProfile.STATE_DISCONNECTED &&
-                                device?.protocol() != null -> handlePossibleDisconnect(device)
-                            a2dpState == BluetoothProfile.STATE_CONNECTED &&
-                                device?.protocol() != null -> {
-                                delay(1200)
-                                connectIfAvailable(device)
-                            }
-                        }
-                    }
-                    BluetoothDevice.ACTION_BOND_STATE_CHANGED -> refresh()
                 }
             }
+            BluetoothDevice.ACTION_BOND_STATE_CHANGED -> refresh()
         }
     }
 
@@ -120,19 +137,34 @@ class HeadphonesRepository(private val context: Context) {
         }
     }
 
+    // Raw diagnostics live outside the StateFlow: putting them into the
+    // snapshot forced a UI recomposition for every incoming packet (including
+    // unchanged battery re-sends), plus a payload+CRC re-serialization each time.
+    private val diagnosticLog = ArrayDeque<MbbCommand>()
+
+    private fun recordDiagnostic(command: MbbCommand) = synchronized(diagnosticLog) {
+        diagnosticLog.addLast(command)
+        while (diagnosticLog.size > RAW_RESPONSE_LIMIT) diagnosticLog.removeFirst()
+    }
+
+    /** Formatted lazily, only when the diagnostics dialog/clipboard needs it. */
+    fun diagnosticLog(): List<String> = synchronized(diagnosticLog) {
+        diagnosticLog.map { it.toDiagnosticString() }
+    }
+
     init {
         scope.launch {
             client.commands.collect { command ->
+                recordDiagnostic(command)
                 var batteryChanged = false
                 var ancChanged = false
                 _state.update { state ->
                     val current = (state as? ConnectionState.Connected)?.snapshot ?: return@update state
                     val protocol = activeProtocol ?: return@update state
                     val updated = protocol.reduce(current, command)
-                    if (updated == current) return@update state
                     batteryChanged = updated.battery != current.battery
                     ancChanged = updated.ancMode != current.ancMode
-                    ConnectionState.Connected(updated)
+                    if (updated == current) state else ConnectionState.Connected(updated)
                 }
                 if (batteryChanged) {
                     ((_state.value as? ConnectionState.Connected)?.snapshot?.battery)?.let {
@@ -268,6 +300,10 @@ class HeadphonesRepository(private val context: Context) {
                     if (a2dp?.getConnectionState(device) == BluetoothProfile.STATE_CONNECTED) {
                         _state.value = ConnectionState.Failed(name, error.message)
                     } else {
+                        // refresh() ignores the Disconnected branch while the state
+                        // is still Connecting - reset it first, or the UI would be
+                        // stuck on "Connecting..." until the next Bluetooth event.
+                        _state.value = ConnectionState.Disconnected(pairedSupportedNames())
                         refresh()
                     }
                 }
@@ -287,7 +323,9 @@ class HeadphonesRepository(private val context: Context) {
         livenessJob = scope.launch {
             while (true) {
                 delay(4000)
-                if (_state.value !is ConnectionState.Connected) continue
+                // The watch is restarted on every successful connect; keeping an
+                // orphaned loop alive after Failed/Disconnected would poll forever.
+                if (_state.value !is ConnectionState.Connected) break
                 ensureProfileProxy()
                 val proxy = a2dp
                 if (proxy == null) continue
@@ -318,14 +356,21 @@ class HeadphonesRepository(private val context: Context) {
     }.getOrDefault(emptyList())
 
     private suspend fun disconnectActive() {
-        livenessJob?.cancel()
+        // This may run inside connectJob or livenessJob itself (onFailure /
+        // liveness-detected drop); cancelling the calling job would make the
+        // follow-up refresh() throw CancellationException and skip silently.
+        val self = currentCoroutineContext()[Job]
+        livenessJob?.takeIf { it !== self }?.cancel()
         livenessJob = null
-        connectJob?.cancel()
+        connectJob?.takeIf { it !== self }?.cancel()
         connectJob = null
         activeDevice = null
         activeProtocol = null
-        client.close()
-        WidgetStorage.saveAncAndUpdate(context, mode = null, connected = false)
+        synchronized(diagnosticLog) { diagnosticLog.clear() }
+        withContext(NonCancellable) {
+            client.close()
+            WidgetStorage.saveAncAndUpdate(context, mode = null, connected = false)
+        }
     }
 
     fun setAncMode(mode: AncMode): Boolean {
@@ -427,6 +472,10 @@ class HeadphonesRepository(private val context: Context) {
 
     fun hasPermission(): Boolean = Build.VERSION.SDK_INT < 31 ||
         ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+
+    private companion object {
+        const val RAW_RESPONSE_LIMIT = 32
+    }
 
     private fun BluetoothDevice.protocol(): HeadphonesProtocol? =
         HeadphonesProtocolRegistry.findByBluetoothName(name)

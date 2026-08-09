@@ -119,8 +119,18 @@
     <string name="headphones_color_black">Czarny</string>
     <string name="headphones_color_white">Biały</string>
     <string name="headphones_color_blue">Niebieski</string>
+    <string name="headphones_color_purple">Fioletowy</string>
     <string name="widget_labels_title">Etykiety</string>
     <string name="widget_labels_full">Pełne nazwy</string>
     <string name="widget_labels_short">L / R, bez etykiety etui</string>
     <string name="widget_labels_hidden">Bez etykiet</string>
+    <string name="device_info_equalizer">Diagnostyka korektora</string>
+    <string name="device_info_eq_active">ID aktywnego presetu</string>
+    <string name="device_info_eq_built_in">ID wbudowanych presetów</string>
+    <string name="device_info_eq_custom">Własne presety</string>
+    <string name="device_info_eq_none">Brak</string>
+    <string name="device_info_eq_preset">Preset %1$d · %2$s</string>
+    <string name="device_info_eq_tlv">EQ TLV %1$d</string>
+    <string name="device_info_copy_raw">Kopiuj surowe dane</string>
+    <string name="device_info_clipboard_label">Diagnostyka FreeBuddy</string>
 </resources>
