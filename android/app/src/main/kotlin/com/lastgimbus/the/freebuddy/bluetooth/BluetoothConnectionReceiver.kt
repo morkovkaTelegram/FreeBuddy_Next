@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.lastgimbus.the.freebuddy.FreeBuddyApplication
+import com.lastgimbus.the.freebuddy.protocol.HeadphonesProtocolRegistry
 
 class BluetoothConnectionReceiver : BroadcastReceiver() {
     // Reading device.name is guarded with runCatching; the repository re-checks
@@ -16,7 +17,7 @@ class BluetoothConnectionReceiver : BroadcastReceiver() {
         if (intent?.action != BluetoothDevice.ACTION_ACL_CONNECTED) return
         // Skip process wake-ups for unrelated devices (watches, cars, speakers).
         val name = runCatching { getDevice(intent)?.name }.getOrNull()
-        if (name != null && !name.startsWith("HUAWEI FreeBuds 5i")) return
+        if (name != null && HeadphonesProtocolRegistry.findByBluetoothName(name) == null) return
         // Never block BroadcastReceiver/main thread: all work starts on Dispatchers.IO.
         (context.applicationContext as? FreeBuddyApplication)
             ?.headphonesRepository

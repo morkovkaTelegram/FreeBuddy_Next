@@ -79,8 +79,10 @@ data class FreeBudsSettings(
 )
 
 data class HeadphonesSnapshot(
-    val name: String = "FreeBuds 5i",
+    val protocolId: String = "",
+    val name: String = "FreeBuds",
     val address: String = "",
+    val capabilities: HeadphonesCapabilities = HeadphonesCapabilities(),
     val battery: BatteryLevels = BatteryLevels(),
     val ancMode: AncMode? = null,
     val ancLevel: AncLevel? = null,

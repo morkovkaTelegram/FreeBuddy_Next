@@ -115,6 +115,7 @@
     <string name="force_headphones_color">Kopfhörerfarbe erzwingen</string>
     <string name="force_headphones_color_description">Ausgewählte Farbe statt automatischer Erkennung verwenden</string>
     <string name="headphones_color">Kopfhörerfarbe</string>
+    <string name="headphones_color_for_model">Farbeinstellungen für %1$s</string>
     <string name="headphones_color_black">Schwarz</string>
     <string name="headphones_color_white">Weiß</string>
     <string name="headphones_color_blue">Blau</string>

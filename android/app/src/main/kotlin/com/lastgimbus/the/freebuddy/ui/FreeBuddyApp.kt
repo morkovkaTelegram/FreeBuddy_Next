@@ -80,6 +80,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lastgimbus.the.freebuddy.BuildConfig
 import com.lastgimbus.the.freebuddy.R
+import com.lastgimbus.the.freebuddy.data.HeadphonesIdentity
 import com.lastgimbus.the.freebuddy.data.ThemeStore
 import kotlinx.coroutines.launch
 import com.lastgimbus.the.freebuddy.bluetooth.ConnectionState
@@ -97,6 +98,7 @@ import com.lastgimbus.the.freebuddy.protocol.EqPreset
 import com.lastgimbus.the.freebuddy.protocol.detectColor
 import com.lastgimbus.the.freebuddy.protocol.FreeBudsSettings
 import com.lastgimbus.the.freebuddy.protocol.HeadphonesSnapshot
+import com.lastgimbus.the.freebuddy.protocol.HeadphonesProtocolRegistry
 import com.lastgimbus.the.freebuddy.protocol.Hold
 import com.lastgimbus.the.freebuddy.protocol.Swipe
 import com.lastgimbus.the.freebuddy.protocol.TripleTap
@@ -132,10 +134,15 @@ fun FreeBuddyApp(repository: HeadphonesRepository, requestBluetoothPermission: (
         FreeBuddyTheme {
             var screen by remember { mutableStateOf(Screen.HOME) }
             val state by repository.state.collectAsStateWithLifecycle()
+            val activeSnapshot = (state as? ConnectionState.Connected)?.snapshot
+            val activeIdentity = activeSnapshot?.colorIdentity()
+            LaunchedEffect(activeIdentity) {
+                activeIdentity?.let { ThemeStore.registerHeadphones(context, it) }
+            }
             when (screen) {
                 Screen.HOME -> HomeScreen(state, repository, requestBluetoothPermission, { screen = Screen.HEADPHONES_SETTINGS }, { screen = Screen.ABOUT })
                 Screen.HEADPHONES_SETTINGS -> HeadphonesSettingsScreen(state, repository) { screen = Screen.HOME }
-                Screen.ABOUT -> AboutScreen { screen = Screen.HOME }
+                Screen.ABOUT -> AboutScreen(activeIdentity) { screen = Screen.HOME }
             }
         }
     }
@@ -182,9 +189,10 @@ private fun StatusContent(@StringRes title: Int, @StringRes description: Int, @S
 @Composable
 private fun ConnectedContent(snapshot: HeadphonesSnapshot, repository: HeadphonesRepository, openSettings: () -> Unit) {
     val context = LocalContext.current
-    val forceColor by ThemeStore.forceHeadphonesColor(context)
+    val colorIdentity = snapshot.colorIdentity()
+    val forceColor by ThemeStore.forceHeadphonesColor(context, colorIdentity)
         .collectAsStateWithLifecycle(initialValue = false)
-    val storedColor by ThemeStore.headphonesColor(context)
+    val storedColor by ThemeStore.headphonesColor(context, colorIdentity)
         .collectAsStateWithLifecycle(initialValue = DeviceColor.BLACK.name)
     val selectedColor = storedColor.toDeviceColor()
 
@@ -222,8 +230,8 @@ private fun ConnectedContent(snapshot: HeadphonesSnapshot, repository: Headphone
             if (showInfo) DeviceInfoDialog(snapshot, onDismiss = { showInfo = false })
         }
         item { BatteryCard(snapshot.battery) }
-        item { AncCard(snapshot, repository) }
-        item { DualConnectCard(snapshot, repository) }
+        if (snapshot.capabilities.ancLevels) item { AncCard(snapshot, repository) }
+        if (snapshot.capabilities.dualConnect) item { DualConnectCard(snapshot, repository) }
         item { Button(onClick = openSettings, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.headphones_settings)) } }
         item { Spacer(Modifier.height(24.dp)) }
     }
@@ -365,6 +373,7 @@ private fun DualConnectCard(snapshot: HeadphonesSnapshot, repository: Headphones
     selectedDevice?.let { device ->
         DualDeviceSheet(
             device = device,
+            autoConnectSupported = snapshot.capabilities.dualConnectAutoConnect,
             repository = repository,
             onDismiss = { selectedAddress = null },
         )
@@ -405,6 +414,7 @@ private fun DualDeviceCard(device: DualConnectDevice, onClick: () -> Unit) {
 @Composable
 private fun DualDeviceSheet(
     device: DualConnectDevice,
+    autoConnectSupported: Boolean,
     repository: HeadphonesRepository,
     onDismiss: () -> Unit,
 ) {
@@ -416,11 +426,13 @@ private fun DualDeviceSheet(
         ) {
             Text(device.name, style = MaterialTheme.typography.headlineSmall)
             Text(device.address, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            SettingSwitch(
-                stringResource(R.string.dual_connect_auto_connect),
-                device.autoConnect,
-                true,
-            ) { repository.setDualDeviceAutoConnect(device, it) }
+            if (autoConnectSupported) {
+                SettingSwitch(
+                    stringResource(R.string.dual_connect_auto_connect),
+                    device.autoConnect,
+                    true,
+                ) { repository.setDualDeviceAutoConnect(device, it) }
+            }
             SettingSwitch(
                 stringResource(R.string.dual_connect_preferred),
                 device.preferred,
@@ -641,17 +653,22 @@ private fun HeadphonesSettingsScreen(state: ConnectionState, repository: Headpho
             return@Scaffold
         }
         val s = snapshot.settings
+        val features = snapshot.capabilities
         LazyColumn(Modifier.padding(padding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            item { EnumDropdown(R.string.equalizer, EqPreset.entries, s.eqPreset, { it.eqLabel() }, repository::setEq) }
-            item { CardSwitch(stringResource(R.string.auto_pause), s.autoPause ?: false, s.autoPause != null, stringResource(R.string.auto_pause_desc), repository::setAutoPause) }
-            item { CardSwitch(stringResource(R.string.low_latency), s.lowLatency ?: false, s.lowLatency != null, stringResource(R.string.low_latency_desc), repository::setLowLatency) }
-            item { CardSwitch(stringResource(R.string.ldac), s.ldac ?: false, s.ldac != null, stringResource(R.string.ldac_desc), repository::setLdac) }
-            item { Text(stringResource(R.string.gestures), style = MaterialTheme.typography.titleLarge) }
-            item { GesturePair(R.string.double_tap, DoubleTap.entries, s.doubleTapLeft, s.doubleTapRight, { it.doubleTapLabel() }, { repository.setDoubleTap(left = it) }, { repository.setDoubleTap(right = it) }) }
-            item { GesturePair(R.string.triple_tap, TripleTap.entries, s.tripleTapLeft, s.tripleTapRight, { it.tripleTapLabel() }, { repository.setTripleTap(left = it) }, { repository.setTripleTap(right = it) }) }
-            item { EnumDropdown(R.string.hold, Hold.entries, s.hold, { it.holdLabel() }, repository::setHold) }
-            item { HoldModesCard(s, repository) }
-            item { EnumDropdown(R.string.swipe, Swipe.entries, s.swipe, { it.swipeLabel() }, repository::setSwipe) }
+            if (features.equalizer) item { EnumDropdown(R.string.equalizer, EqPreset.entries, s.eqPreset, { it.eqLabel() }, repository::setEq) }
+            if (features.autoPause) item { CardSwitch(stringResource(R.string.auto_pause), s.autoPause ?: false, s.autoPause != null, stringResource(R.string.auto_pause_desc), repository::setAutoPause) }
+            if (features.lowLatency) item { CardSwitch(stringResource(R.string.low_latency), s.lowLatency ?: false, s.lowLatency != null, stringResource(R.string.low_latency_desc), repository::setLowLatency) }
+            if (features.ldac) item { CardSwitch(stringResource(R.string.ldac), s.ldac ?: false, s.ldac != null, stringResource(R.string.ldac_desc), repository::setLdac) }
+            if (features.doubleTap || features.tripleTap || features.splitHold || features.swipe) {
+                item { Text(stringResource(R.string.gestures), style = MaterialTheme.typography.titleLarge) }
+            }
+            if (features.doubleTap) item { GesturePair(R.string.double_tap, DoubleTap.entries, s.doubleTapLeft, s.doubleTapRight, { it.doubleTapLabel() }, { repository.setDoubleTap(left = it) }, { repository.setDoubleTap(right = it) }) }
+            if (features.tripleTap) item { GesturePair(R.string.triple_tap, TripleTap.entries, s.tripleTapLeft, s.tripleTapRight, { it.tripleTapLabel() }, { repository.setTripleTap(left = it) }, { repository.setTripleTap(right = it) }) }
+            if (features.splitHold) {
+                item { EnumDropdown(R.string.hold, Hold.entries, s.hold, { it.holdLabel() }, repository::setHold) }
+                item { HoldModesCard(s, repository) }
+            }
+            if (features.swipe) item { EnumDropdown(R.string.swipe, Swipe.entries, s.swipe, { it.swipeLabel() }, repository::setSwipe) }
             item { Spacer(Modifier.height(32.dp)) }
         }
     }
@@ -785,7 +802,7 @@ private fun SettingSwitch(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AboutScreen(back: () -> Unit) {
+private fun AboutScreen(activeIdentity: HeadphonesIdentity?, back: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val themeMode by ThemeStore.themeMode(context)
@@ -793,9 +810,14 @@ private fun AboutScreen(back: () -> Unit) {
     // Reuse the value already collected at the application UI root. Starting a second
     // DataStore collection here with `true` caused the switch to flash on every entry.
     val showEmojis = LocalShowEmojis.current
-    val forceHeadphonesColor by ThemeStore.forceHeadphonesColor(context)
+    val lastIdentity by ThemeStore.lastHeadphonesIdentity(context)
+        .collectAsStateWithLifecycle(initialValue = HeadphonesIdentity("freebuds_5i"))
+    val colorIdentity = activeIdentity ?: lastIdentity
+    val colorProtocol = HeadphonesProtocolRegistry.findById(colorIdentity.protocolId)
+        ?: HeadphonesProtocolRegistry.defaultProfile()
+    val forceHeadphonesColor by ThemeStore.forceHeadphonesColor(context, colorIdentity)
         .collectAsStateWithLifecycle(initialValue = false)
-    val storedHeadphonesColor by ThemeStore.headphonesColor(context)
+    val storedHeadphonesColor by ThemeStore.headphonesColor(context, colorIdentity)
         .collectAsStateWithLifecycle(initialValue = DeviceColor.BLACK.name)
     val selectedHeadphonesColor = storedHeadphonesColor.toDeviceColor()
     var showThemeDialog by remember { mutableStateOf(false) }
@@ -841,11 +863,16 @@ private fun AboutScreen(back: () -> Unit) {
                     },
                 )
             }
+            Text(
+                stringResource(R.string.headphones_color_for_model, colorProtocol.displayName),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
             Row(
                 Modifier.fillMaxWidth()
                     .clickable {
                         scope.launch {
-                            ThemeStore.setForceHeadphonesColor(context, !forceHeadphonesColor)
+                            ThemeStore.setForceHeadphonesColor(context, colorIdentity, !forceHeadphonesColor)
                         }
                     }
                     .padding(vertical = 8.dp),
@@ -865,18 +892,18 @@ private fun AboutScreen(back: () -> Unit) {
                 Switch(
                     checked = forceHeadphonesColor,
                     onCheckedChange = { force ->
-                        scope.launch { ThemeStore.setForceHeadphonesColor(context, force) }
+                        scope.launch { ThemeStore.setForceHeadphonesColor(context, colorIdentity, force) }
                     },
                 )
             }
             if (forceHeadphonesColor) {
                 EnumDropdown(
                     title = R.string.headphones_color,
-                    values = DeviceColor.entries,
+                    values = colorProtocol.availableColors,
                     selected = selectedHeadphonesColor,
                     label = { stringResource(it.label()) },
                     choose = { color ->
-                        scope.launch { ThemeStore.setHeadphonesColor(context, color.name) }
+                        scope.launch { ThemeStore.setHeadphonesColor(context, colorIdentity, color.name) }
                     },
                 )
             }
@@ -916,6 +943,12 @@ private fun AboutScreen(back: () -> Unit) {
         )
     }
 }
+
+private fun HeadphonesSnapshot.colorIdentity() = HeadphonesIdentity(
+    protocolId = protocolId.ifBlank { "freebuds_5i" },
+    address = address,
+    caseSerial = deviceInfo?.serialNumber,
+)
 
 private fun String.toDeviceColor(): DeviceColor =
     runCatching { DeviceColor.valueOf(this) }.getOrDefault(DeviceColor.BLACK)

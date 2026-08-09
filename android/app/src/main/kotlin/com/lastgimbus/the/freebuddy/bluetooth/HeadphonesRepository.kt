@@ -19,13 +19,13 @@ import com.lastgimbus.the.freebuddy.protocol.AncMode
 import com.lastgimbus.the.freebuddy.protocol.DoubleTap
 import com.lastgimbus.the.freebuddy.protocol.DualConnectDevice
 import com.lastgimbus.the.freebuddy.protocol.EqPreset
-import com.lastgimbus.the.freebuddy.protocol.FreeBuds5iCommands
+import com.lastgimbus.the.freebuddy.protocol.HeadphonesProtocol
+import com.lastgimbus.the.freebuddy.protocol.HeadphonesProtocolRegistry
 import com.lastgimbus.the.freebuddy.protocol.HeadphonesSnapshot
 import com.lastgimbus.the.freebuddy.protocol.Hold
 import com.lastgimbus.the.freebuddy.protocol.MbbCommand
 import com.lastgimbus.the.freebuddy.protocol.Swipe
 import com.lastgimbus.the.freebuddy.protocol.TripleTap
-import com.lastgimbus.the.freebuddy.protocol.apply
 import com.lastgimbus.the.freebuddy.widget.WidgetStorage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -62,6 +62,7 @@ class HeadphonesRepository(private val context: Context) {
     private var a2dp: BluetoothA2dp? = null
     private var profileProxyRequested = false
     private var activeDevice: BluetoothDevice? = null
+    private var activeProtocol: HeadphonesProtocol? = null
     private var connectJob: Job? = null
     private var livenessJob: Job? = null
     private var receiverRegistered = false
@@ -76,21 +77,21 @@ class HeadphonesRepository(private val context: Context) {
             scope.launch {
                 when (action) {
                     BluetoothAdapter.ACTION_STATE_CHANGED -> refresh()
-                    BluetoothDevice.ACTION_ACL_CONNECTED -> if (device?.isSupported() == true) {
+                    BluetoothDevice.ACTION_ACL_CONNECTED -> if (device?.protocol() != null) {
                         delay(1200)
                         connectIfAvailable(device)
                     }
                     BluetoothDevice.ACTION_ACL_DISCONNECTED ->
-                        if (device?.isSupported() == true) handlePossibleDisconnect(device)
+                        if (device?.protocol() != null) handlePossibleDisconnect(device)
                     BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED -> {
                         val a2dpState = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1)
                         when {
                             // Buds placed in the case: A2DP drops immediately even
                             // though our RFCOMM socket still pins the ACL link.
                             a2dpState == BluetoothProfile.STATE_DISCONNECTED &&
-                                device?.isSupported() == true -> handlePossibleDisconnect(device)
+                                device?.protocol() != null -> handlePossibleDisconnect(device)
                             a2dpState == BluetoothProfile.STATE_CONNECTED &&
-                                device?.isSupported() == true -> {
+                                device?.protocol() != null -> {
                                 delay(1200)
                                 connectIfAvailable(device)
                             }
@@ -126,7 +127,8 @@ class HeadphonesRepository(private val context: Context) {
                 var ancChanged = false
                 _state.update { state ->
                     val current = (state as? ConnectionState.Connected)?.snapshot ?: return@update state
-                    val updated = current.apply(command)
+                    val protocol = activeProtocol ?: return@update state
+                    val updated = protocol.reduce(current, command)
                     if (updated == current) return@update state
                     batteryChanged = updated.battery != current.battery
                     ancChanged = updated.ancMode != current.ancMode
@@ -141,8 +143,8 @@ class HeadphonesRepository(private val context: Context) {
                     val mode = (_state.value as? ConnectionState.Connected)?.snapshot?.ancMode
                     WidgetStorage.saveAncAndUpdate(context, mode, connected = true)
                 }
-                if (command.serviceId == 43 && command.commandId == 54) {
-                    send(MbbCommand(43, 47))
+                activeProtocol?.takeIf { it.isDualConnectChangeEvent(command) }?.let { protocol ->
+                    send(protocol.dualConnectStateRequest())
                     refreshDualConnectDevices()
                 }
             }
@@ -199,13 +201,13 @@ class HeadphonesRepository(private val context: Context) {
             return
         }
         ensureProfileProxy()
-        val paired = bt.bondedDevices.filter { it.isSupported() }.sortedBy { it.address }
+        val paired = bt.bondedDevices.filter { it.protocol() != null }.sortedBy { it.address }
         if (paired.isEmpty()) {
             disconnectActive()
             _state.value = ConnectionState.NoSupportedDevices
             return
         }
-        val connected = a2dp?.connectedDevices.orEmpty().filter { it.isSupported() }
+        val connected = a2dp?.connectedDevices.orEmpty().filter { it.protocol() != null }
         val selected = connected.firstOrNull { it.sameAs(activeDevice) } ?: connected.firstOrNull()
         if (selected != null) connectIfAvailable(selected)
         else if (_state.value !is ConnectionState.Connecting) {
@@ -220,6 +222,7 @@ class HeadphonesRepository(private val context: Context) {
     }
 
     private suspend fun connect(device: BluetoothDevice, force: Boolean) {
+        val protocol = device.protocol() ?: return
         connectionMutex.withLock {
             if (!force && connectJob?.isActive == true) return
             if (!force && activeDevice.sameAs(device) && _state.value is ConnectionState.Connected) return
@@ -238,15 +241,21 @@ class HeadphonesRepository(private val context: Context) {
                 }
                 _state.value = ConnectionState.Connecting(name)
                 runCatching {
-                    client.connect(device)
+                    client.connect(device, protocol.sppUuid)
                     activeDevice = device
+                    activeProtocol = protocol
                     _state.value = ConnectionState.Connected(
-                        HeadphonesSnapshot(name = name, address = device.address)
+                        HeadphonesSnapshot(
+                            protocolId = protocol.id,
+                            name = name,
+                            address = device.address,
+                            capabilities = protocol.capabilities,
+                        )
                     )
                     WidgetStorage.saveAncAndUpdate(context, mode = null, connected = true)
                     // MBB pushes updates on its own (battery 1/39, ANC 43/42,
                     // dual-connect 43/54), so no periodic polling is needed.
-                    FreeBuds5iCommands.initialRequests.forEach {
+                    protocol.initialRequests.forEach {
                         client.send(it)
                         delay(35)
                     }
@@ -255,6 +264,7 @@ class HeadphonesRepository(private val context: Context) {
                     if (error is CancellationException) throw error
                     client.close()
                     activeDevice = null
+                    activeProtocol = null
                     if (a2dp?.getConnectionState(device) == BluetoothProfile.STATE_CONNECTED) {
                         _state.value = ConnectionState.Failed(name, error.message)
                     } else {
@@ -303,7 +313,7 @@ class HeadphonesRepository(private val context: Context) {
     }
 
     private fun pairedSupportedNames(): List<String> = runCatching {
-        adapter?.bondedDevices.orEmpty().filter { it.isSupported() }
+        adapter?.bondedDevices.orEmpty().filter { it.protocol() != null }
             .sortedBy { it.address }.map { it.displayName() }
     }.getOrDefault(emptyList())
 
@@ -313,44 +323,51 @@ class HeadphonesRepository(private val context: Context) {
         connectJob?.cancel()
         connectJob = null
         activeDevice = null
+        activeProtocol = null
         client.close()
         WidgetStorage.saveAncAndUpdate(context, mode = null, connected = false)
     }
 
     fun setAncMode(mode: AncMode): Boolean {
+        val protocol = activeProtocol ?: return false
         if (_state.value !is ConnectionState.Connected) return false
         _state.update { state ->
             val connected = state as? ConnectionState.Connected ?: return@update state
             connected.copy(snapshot = connected.snapshot.copy(ancMode = mode))
         }
         scope.launch { WidgetStorage.saveAncAndUpdate(context, mode, connected = true) }
-        send(FreeBuds5iCommands.ancMode(mode))
+        send(protocol.ancMode(mode))
         return true
     }
-    fun setAncLevel(level: AncLevel) {
-        val mode = (_state.value as? ConnectionState.Connected)?.snapshot?.ancMode ?: AncMode.NOISE_CANCELLING
-        send(FreeBuds5iCommands.ancLevel(mode, level))
+
+    fun setAncLevel(level: AncLevel) = withProtocol { protocol ->
+        val mode = (_state.value as? ConnectionState.Connected)?.snapshot?.ancMode
+            ?: AncMode.NOISE_CANCELLING
+        send(protocol.ancLevel(mode, level))
     }
-    fun setEq(value: EqPreset) = sendAndRefresh(FreeBuds5iCommands.equalizer(value), MbbCommand(43, 74))
-    fun setAutoPause(value: Boolean) = sendAndRefresh(FreeBuds5iCommands.autoPause(value), MbbCommand(43, 17))
-    fun setLowLatency(value: Boolean) = sendAndRefresh(FreeBuds5iCommands.lowLatency(value), MbbCommand(43, 108, mapOf(2 to byteArrayOf())))
-    fun setLdac(value: Boolean) = sendAndRefresh(FreeBuds5iCommands.ldac(value), MbbCommand(43, 163))
-    fun setDualConnect(value: Boolean) = sendAndRefresh(FreeBuds5iCommands.dualConnect(value), MbbCommand(43, 47))
-    fun refreshDualConnectDevices() {
-        if (_state.value !is ConnectionState.Connected) return
-        // Entries are merged by MAC as 43/49 responses arrive, so the current
-        // list stays on screen instead of flashing an empty state.
-        send(FreeBuds5iCommands.dualConnectEnumeration())
+
+    fun setEq(value: EqPreset) = withProtocol { sendAndRefresh(it.equalizer(value), it.equalizerStateRequest()) }
+    fun setAutoPause(value: Boolean) = withProtocol { sendAndRefresh(it.autoPause(value), it.autoPauseStateRequest()) }
+    fun setLowLatency(value: Boolean) = withProtocol { sendAndRefresh(it.lowLatency(value), it.lowLatencyStateRequest()) }
+    fun setLdac(value: Boolean) = withProtocol { sendAndRefresh(it.ldac(value), it.ldacStateRequest()) }
+    fun setDualConnect(value: Boolean) = withProtocol { sendAndRefresh(it.dualConnect(value), it.dualConnectStateRequest()) }
+
+    fun refreshDualConnectDevices() = withProtocol { protocol ->
+        if (_state.value is ConnectionState.Connected) send(protocol.dualConnectEnumeration())
     }
-    fun setDualDeviceConnected(device: DualConnectDevice, connected: Boolean) =
-        sendAndRefreshDual(FreeBuds5iCommands.dualConnectAction(device, if (connected) 1 else 2))
-    fun setDualDeviceAutoConnect(device: DualConnectDevice, enabled: Boolean) =
-        sendAndRefreshDual(FreeBuds5iCommands.dualConnectAction(device, if (enabled) 4 else 5))
-    fun setDualDevicePreferred(device: DualConnectDevice, enabled: Boolean) =
-        sendAndRefreshDual(FreeBuds5iCommands.dualConnectPreferred(device, enabled))
+
+    fun setDualDeviceConnected(device: DualConnectDevice, connected: Boolean) = withProtocol {
+        sendAndRefreshDual(it.dualConnectAction(device, if (connected) 1 else 2))
+    }
+    fun setDualDeviceAutoConnect(device: DualConnectDevice, enabled: Boolean) = withProtocol {
+        if (it.capabilities.dualConnectAutoConnect) {
+            sendAndRefreshDual(it.dualConnectAction(device, if (enabled) 4 else 5))
+        }
+    }
+    fun setDualDevicePreferred(device: DualConnectDevice, enabled: Boolean) = withProtocol {
+        sendAndRefreshDual(it.dualConnectPreferred(device, enabled))
+    }
     fun unpairDualDevice(device: DualConnectDevice) {
-        // Remove locally right away: enumeration only merges entries by MAC
-        // and would otherwise keep the unpaired device on screen.
         _state.update { state ->
             val connected = state as? ConnectionState.Connected ?: return@update state
             connected.copy(
@@ -360,13 +377,23 @@ class HeadphonesRepository(private val context: Context) {
                 ),
             )
         }
-        sendAndRefreshDual(FreeBuds5iCommands.dualConnectAction(device, 3))
+        withProtocol { sendAndRefreshDual(it.dualConnectAction(device, 3)) }
     }
-    fun setDoubleTap(left: DoubleTap? = null, right: DoubleTap? = null) = sendAndRefresh(FreeBuds5iCommands.doubleTap(left, right), MbbCommand(1, 32))
-    fun setTripleTap(left: TripleTap? = null, right: TripleTap? = null) = sendAndRefresh(FreeBuds5iCommands.tripleTap(left, right), MbbCommand(1, 38))
-    fun setHold(value: Hold) = sendAndRefresh(FreeBuds5iCommands.hold(value), MbbCommand(43, 23))
-    fun setHoldModes(value: Set<AncMode>) = sendAndRefresh(FreeBuds5iCommands.holdModes(value), MbbCommand(43, 25))
-    fun setSwipe(value: Swipe) = sendAndRefresh(FreeBuds5iCommands.swipe(value), MbbCommand(43, 31))
+    fun setDoubleTap(left: DoubleTap? = null, right: DoubleTap? = null) = withProtocol {
+        sendAndRefresh(it.doubleTap(left, right), it.doubleTapStateRequest())
+    }
+    fun setTripleTap(left: TripleTap? = null, right: TripleTap? = null) = withProtocol {
+        sendAndRefresh(it.tripleTap(left, right), it.tripleTapStateRequest())
+    }
+    fun setHold(value: Hold) = withProtocol { sendAndRefresh(it.hold(value), it.holdStateRequest()) }
+    fun setHoldModes(value: Set<AncMode>) = withProtocol {
+        sendAndRefresh(it.holdModes(value), it.holdModesStateRequest())
+    }
+    fun setSwipe(value: Swipe) = withProtocol { sendAndRefresh(it.swipe(value), it.swipeStateRequest()) }
+
+    private inline fun withProtocol(block: (HeadphonesProtocol) -> Unit) {
+        activeProtocol?.let(block)
+    }
 
     private fun send(command: MbbCommand) { scope.launch { runCatching { client.send(command) } } }
     private fun sendAndRefreshDual(command: MbbCommand) {
@@ -401,8 +428,9 @@ class HeadphonesRepository(private val context: Context) {
     fun hasPermission(): Boolean = Build.VERSION.SDK_INT < 31 ||
         ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
 
-    private fun BluetoothDevice.isSupported(): Boolean =
-        name?.startsWith("HUAWEI FreeBuds 5i") == true
+    private fun BluetoothDevice.protocol(): HeadphonesProtocol? =
+        HeadphonesProtocolRegistry.findByBluetoothName(name)
+
     private fun BluetoothDevice.displayName(): String {
         val deviceAlias = if (Build.VERSION.SDK_INT >= 30) alias else null
         return deviceAlias?.takeIf { it.isNotBlank() } ?: name ?: "FreeBuds"

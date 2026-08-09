@@ -36,7 +36,7 @@ class MbbProtocolTest {
                 9 to "Phone".toByteArray(),
             ),
         )
-        val device = HeadphonesSnapshot().apply(command).dualConnectDevices.single()
+        val device = FreeBuds5iProtocol.reduce(HeadphonesSnapshot(), command).dualConnectDevices.single()
         assertEquals("Phone", device.name)
         assertEquals("01:23:45:67:89:AB", device.address)
         assertEquals(DualConnectionState.PLAYING, device.connectionState)
@@ -45,7 +45,8 @@ class MbbProtocolTest {
     }
 
     @Test fun deviceInfoResponseIsParsed() {
-        val snapshot = HeadphonesSnapshot().apply(
+        val snapshot = FreeBuds5iProtocol.reduce(
+            HeadphonesSnapshot(),
             MbbCommand(
                 1,
                 7,
@@ -95,14 +96,30 @@ class MbbProtocolTest {
     }
 
     @Test fun partialDeviceInfoResponsesAreMergedWithoutLosingVariant() {
-        val withVariant = HeadphonesSnapshot().apply(
+        val withVariant = FreeBuds5iProtocol.reduce(
+            HeadphonesSnapshot(),
             MbbCommand(1, 7, mapOf(25 to byteArrayOf(0x01))),
         )
-        val completed = withVariant.apply(
+        val completed = FreeBuds5iProtocol.reduce(
+            withVariant,
             MbbCommand(1, 7, mapOf(3 to "HL1OTEM2_VA".toByteArray(), 15 to "BTFT0014".toByteArray())),
         )
         assertEquals("0x01", completed.deviceInfo?.unknownFields?.get(25))
         assertEquals(DeviceColor.WHITE, completed.deviceInfo?.detectColor())
+    }
+
+    @Test fun protocolRegistryMatchesOnlyVerifiedModels() {
+        assertEquals(FreeBuds5iProtocol, HeadphonesProtocolRegistry.findByBluetoothName("HUAWEI FreeBuds 5i"))
+        assertNull(HeadphonesProtocolRegistry.findByBluetoothName("HUAWEI FreeBuds 6i"))
+        assertNull(HeadphonesProtocolRegistry.findByBluetoothName("Random headset"))
+    }
+
+    @Test fun freeBuds5iCapabilitiesAreExplicit() {
+        val features = FreeBuds5iProtocol.capabilities
+        assertEquals(true, features.ancLevels)
+        assertEquals(true, features.dynamicAnc)
+        assertEquals(true, features.dualConnectAutoConnect)
+        assertEquals(false, features.customEqualizer)
     }
 
     @Test(expected = IllegalArgumentException::class)
@@ -120,7 +137,7 @@ class MbbProtocolTest {
                 3 to byteArrayOf(0, 1, 0),
             ),
         )
-        val battery = HeadphonesSnapshot().apply(command).battery
+        val battery = FreeBuds5iProtocol.reduce(HeadphonesSnapshot(), command).battery
         assertEquals(null, battery.left)
         assertEquals(100, battery.right)
         assertEquals(null, battery.case)

@@ -1,7 +1,28 @@
 package com.lastgimbus.the.freebuddy.protocol
 
-object FreeBuds5iCommands {
-    val initialRequests = listOf(
+object FreeBuds5iProtocol : HeadphonesProtocol {
+    override val id = "freebuds_5i"
+    override val displayName = "HUAWEI FreeBuds 5i"
+    override val bluetoothNamePrefixes = setOf("HUAWEI FreeBuds 5i")
+    override val sppUuid: java.util.UUID = java.util.UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+    override val availableColors = DeviceColor.entries
+    override val capabilities = HeadphonesCapabilities(
+        ancLevels = true,
+        dynamicAnc = true,
+        doubleTap = true,
+        tripleTap = true,
+        splitHold = true,
+        swipe = true,
+        autoPause = true,
+        lowLatency = true,
+        ldac = true,
+        equalizer = true,
+        customEqualizer = false,
+        dualConnect = true,
+        dualConnectAutoConnect = true,
+        deviceInfo = true,
+    )
+    override val initialRequests = listOf(
         MbbCommand(1, 8), MbbCommand(43, 42), MbbCommand(43, 17),
         MbbCommand(1, 32), MbbCommand(1, 38), MbbCommand(43, 23),
         MbbCommand(43, 25), MbbCommand(43, 31), MbbCommand(43, 108, mapOf(2 to byteArrayOf())),
@@ -13,14 +34,14 @@ object FreeBuds5iCommands {
     /** MBB 1/7: read device info TLVs 0..31 (model, sub-model, firmware, serials). */
     fun deviceInfoRequest() = MbbCommand(1, 7, (0..31).associateWith { byteArrayOf() })
 
-    fun ancMode(mode: AncMode) = MbbCommand(43, 4, mapOf(1 to intBytes(mode.code, if (mode == AncMode.OFF) 0 else 255)))
-    fun ancLevel(mode: AncMode, level: AncLevel) = MbbCommand(43, 4, mapOf(1 to intBytes(mode.code, level.code)))
-    fun doubleTap(left: DoubleTap? = null, right: DoubleTap? = null) =
+    override fun ancMode(mode: AncMode) = MbbCommand(43, 4, mapOf(1 to intBytes(mode.code, if (mode == AncMode.OFF) 0 else 255)))
+    override fun ancLevel(mode: AncMode, level: AncLevel) = MbbCommand(43, 4, mapOf(1 to intBytes(mode.code, level.code)))
+    override fun doubleTap(left: DoubleTap?, right: DoubleTap?) =
         MbbCommand(1, 31, buildMap { left?.let { put(1, intBytes(it.code)) }; right?.let { put(2, intBytes(it.code)) } })
-    fun tripleTap(left: TripleTap? = null, right: TripleTap? = null) =
+    override fun tripleTap(left: TripleTap?, right: TripleTap?) =
         MbbCommand(1, 37, buildMap { left?.let { put(1, intBytes(it.code)) }; right?.let { put(2, intBytes(it.code)) } })
-    fun hold(value: Hold) = MbbCommand(43, 22, mapOf(1 to intBytes(value.code)))
-    fun holdModes(modes: Set<AncMode>): MbbCommand {
+    override fun hold(value: Hold) = MbbCommand(43, 22, mapOf(1 to intBytes(value.code)))
+    override fun holdModes(modes: Set<AncMode>): MbbCommand {
         val value = when (modes) {
             setOf(AncMode.OFF, AncMode.NOISE_CANCELLING) -> 1
             AncMode.entries.toSet() -> 2
@@ -30,26 +51,43 @@ object FreeBuds5iCommands {
         }
         return MbbCommand(43, 24, mapOf(1 to intBytes(value), 2 to intBytes(value)))
     }
-    fun swipe(value: Swipe) = MbbCommand(43, 30, mapOf(1 to intBytes(value.code)))
-    fun autoPause(enabled: Boolean) = MbbCommand(43, 16, mapOf(1 to intBytes(enabled.asCode())))
-    fun lowLatency(enabled: Boolean) = MbbCommand(43, 108, mapOf(1 to intBytes(enabled.asCode())))
-    fun equalizer(value: EqPreset) = MbbCommand(43, 73, mapOf(1 to intBytes(value.code)))
-    fun ldac(enabled: Boolean) = MbbCommand(43, 162, mapOf(1 to intBytes(enabled.asCode())))
-    fun dualConnect(enabled: Boolean) = MbbCommand(43, 46, mapOf(1 to intBytes(enabled.asCode())))
-    fun dualConnectEnumeration() = MbbCommand(43, 49, mapOf(1 to byteArrayOf()))
-    fun dualConnectPreferred(device: DualConnectDevice, enabled: Boolean) = MbbCommand(
+    override fun swipe(value: Swipe) = MbbCommand(43, 30, mapOf(1 to intBytes(value.code)))
+    override fun autoPause(enabled: Boolean) = MbbCommand(43, 16, mapOf(1 to intBytes(enabled.asCode())))
+    override fun lowLatency(enabled: Boolean) = MbbCommand(43, 108, mapOf(1 to intBytes(enabled.asCode())))
+    override fun equalizer(value: EqPreset) = MbbCommand(43, 73, mapOf(1 to intBytes(value.code)))
+    override fun ldac(enabled: Boolean) = MbbCommand(43, 162, mapOf(1 to intBytes(enabled.asCode())))
+    override fun dualConnect(enabled: Boolean) = MbbCommand(43, 46, mapOf(1 to intBytes(enabled.asCode())))
+    override fun dualConnectEnumeration() = MbbCommand(43, 49, mapOf(1 to byteArrayOf()))
+    override fun dualConnectPreferred(device: DualConnectDevice, enabled: Boolean) = MbbCommand(
         43,
         50,
         mapOf(1 to if (enabled) device.address.toMacBytes() else ByteArray(6)),
     )
-    fun dualConnectAction(device: DualConnectDevice, action: Int) =
+    override fun dualConnectAction(device: DualConnectDevice, action: Int) =
         MbbCommand(43, 51, mapOf(action to device.address.toMacBytes()))
 
     private fun String.toMacBytes(): ByteArray = split(':').map { it.toInt(16).toByte() }.toByteArray()
     private fun Boolean.asCode() = if (this) 1 else 0
+
+    override fun reduce(snapshot: HeadphonesSnapshot, command: MbbCommand): HeadphonesSnapshot = snapshot.apply5i(command)
+
+    override fun isDualConnectChangeEvent(command: MbbCommand): Boolean =
+        command.serviceId == 43 && command.commandId == 54
+
+    override fun ancStateRequest() = MbbCommand(43, 42)
+    override fun equalizerStateRequest() = MbbCommand(43, 74)
+    override fun autoPauseStateRequest() = MbbCommand(43, 17)
+    override fun lowLatencyStateRequest() = MbbCommand(43, 108, mapOf(2 to byteArrayOf()))
+    override fun ldacStateRequest() = MbbCommand(43, 163)
+    override fun dualConnectStateRequest() = MbbCommand(43, 47)
+    override fun doubleTapStateRequest() = MbbCommand(1, 32)
+    override fun tripleTapStateRequest() = MbbCommand(1, 38)
+    override fun holdStateRequest() = MbbCommand(43, 23)
+    override fun holdModesStateRequest() = MbbCommand(43, 25)
+    override fun swipeStateRequest() = MbbCommand(43, 31)
 }
 
-fun HeadphonesSnapshot.apply(command: MbbCommand): HeadphonesSnapshot {
+private fun HeadphonesSnapshot.apply5i(command: MbbCommand): HeadphonesSnapshot {
     fun arg(id: Int) = command.args[id]?.firstUOrNull()
     var settings = settings
     return when {

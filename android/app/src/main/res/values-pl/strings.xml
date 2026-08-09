@@ -115,6 +115,7 @@
     <string name="force_headphones_color">Wymuś kolor słuchawek</string>
     <string name="force_headphones_color_description">Użyj wybranego koloru zamiast automatycznego wykrywania</string>
     <string name="headphones_color">Kolor słuchawek</string>
+    <string name="headphones_color_for_model">Ustawienia koloru dla %1$s</string>
     <string name="headphones_color_black">Czarny</string>
     <string name="headphones_color_white">Biały</string>
     <string name="headphones_color_blue">Niebieski</string>

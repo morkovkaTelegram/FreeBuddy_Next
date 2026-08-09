@@ -26,7 +26,6 @@ import kotlin.coroutines.resumeWithException
 @SuppressLint("MissingPermission")
 class RfcommClient {
     companion object {
-        private val SPP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
         private const val CONNECT_TIMEOUT_MS = 10_000L
     }
 
@@ -42,9 +41,9 @@ class RfcommClient {
     @Volatile private var socket: BluetoothSocket? = null
     private var reader: Job? = null
 
-    suspend fun connect(device: BluetoothDevice) = withContext(Dispatchers.IO) {
+    suspend fun connect(device: BluetoothDevice, serviceUuid: UUID) = withContext(Dispatchers.IO) {
         close()
-        val candidate = device.createRfcommSocketToServiceRecord(SPP_UUID)
+        val candidate = device.createRfcommSocketToServiceRecord(serviceUuid)
         socket = candidate
         try {
             try {

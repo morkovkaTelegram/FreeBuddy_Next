@@ -115,6 +115,7 @@
     <string name="force_headphones_color">Override headphones color</string>
     <string name="force_headphones_color_description">Use the selected color instead of automatic detection</string>
     <string name="headphones_color">Headphones color</string>
+    <string name="headphones_color_for_model">Color settings for %1$s</string>
     <string name="headphones_color_black">Black</string>
     <string name="headphones_color_white">White</string>
     <string name="headphones_color_blue">Blue</string>

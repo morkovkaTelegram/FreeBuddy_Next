@@ -115,6 +115,7 @@
     <string name="force_headphones_color">Принудительно выбрать цвет наушников</string>
     <string name="force_headphones_color_description">Использовать выбранный цвет вместо автоматического определения</string>
     <string name="headphones_color">Цвет наушников</string>
+    <string name="headphones_color_for_model">Настройки цвета для %1$s</string>
     <string name="headphones_color_black">Чёрный</string>
     <string name="headphones_color_white">Белый</string>
     <string name="headphones_color_blue">Голубой</string>
