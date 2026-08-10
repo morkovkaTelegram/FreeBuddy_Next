@@ -202,4 +202,89 @@ class MbbProtocolTest {
         assertEquals(true, "tlv[2=01 8=FF]" in line)
     }
 
+    @Test fun holdRequestsAndResponsesMatchOpenFreebudsTraffic() {
+        assertEquals(
+            "5A0007002B170100020030A7",
+            FreeBuds5iProtocol.holdStateRequest().toPayload().toHex(),
+        )
+        assertEquals(
+            "5A0007002B1901000200FF0F",
+            FreeBuds5iProtocol.holdModesStateRequest().toPayload().toHex(),
+        )
+
+        val response = MbbCommand.parse(
+            "5A0015002B19010102020102030A0102030405060708090A7D45".hexBytes(),
+        )
+        val settings = FreeBuds5iProtocol.reduce(HeadphonesSnapshot(), response).settings
+        assertEquals(AncMode.entries.toSet(), settings.holdModes)
+    }
+
+    @Test fun holdModeWriteTargetsBothEarbuds() {
+        val command = FreeBuds5iProtocol.holdModes(
+            setOf(AncMode.OFF, AncMode.TRANSPARENCY),
+        )
+        assertArrayEquals(byteArrayOf(4), command.args[1])
+        assertArrayEquals(byteArrayOf(4), command.args[2])
+
+        val base = FreeBuds5iProtocol.hold(Hold.CYCLE_ANC)
+        assertArrayEquals(byteArrayOf(10), base.args[1])
+        assertArrayEquals(byteArrayOf(10), base.args[2])
+    }
+
+    @Test fun commonReadRequestsMatchOpenfreebudsTraffic() {
+        val initialByCommand = FreeBuds5iProtocol.initialRequests.associateBy {
+            it.serviceId to it.commandId
+        }
+        assertEquals(
+            "5A0009000108010002000300FBB9",
+            initialByCommand.getValue(1 to 8).toPayload().toHex(),
+        )
+        assertEquals(
+            "5A0005002B110100772A",
+            FreeBuds5iProtocol.autoPauseStateRequest().toPayload().toHex(),
+        )
+        assertEquals(
+            "5A000700012001000200E897",
+            FreeBuds5iProtocol.doubleTapStateRequest().toPayload().toHex(),
+        )
+        assertEquals(
+            "5A0007002B1F01000200328A",
+            FreeBuds5iProtocol.swipeStateRequest().toPayload().toHex(),
+        )
+        assertEquals(
+            "5A0005002B6C0200B820",
+            FreeBuds5iProtocol.lowLatencyStateRequest().toPayload().toHex(),
+        )
+    }
+
+    @Test fun commonWritesMatchOpenfreebudsTraffic() {
+        assertEquals(
+            "5A0006002B10010101A956",
+            FreeBuds5iProtocol.autoPause(true).toPayload().toHex(),
+        )
+        assertEquals(
+            "5A000600011F01010203C1",
+            FreeBuds5iProtocol.doubleTap(left = DoubleTap.NEXT, right = null).toPayload().toHex(),
+        )
+        assertEquals(
+            "5A0009002B1E0101FF0201FF9D9B",
+            FreeBuds5iProtocol.swipe(Swipe.NONE).toPayload().toHex(),
+        )
+        assertEquals(
+            "5A0006002B6C010101A411",
+            FreeBuds5iProtocol.lowLatency(true).toPayload().toHex(),
+        )
+    }
+
+    @Test fun allStructuredReadsDeclareExpectedTlvFields() {
+        assertEquals(setOf(1, 2), FreeBuds5iProtocol.ancStateRequest().args.keys)
+        assertEquals(setOf(1, 2), FreeBuds5iProtocol.tripleTapStateRequest().args.keys)
+        assertEquals((1..8).toSet(), FreeBuds5iProtocol.equalizerStateRequest().args.keys)
+        assertEquals(setOf(1), FreeBuds5iProtocol.dualConnectStateRequest().args.keys)
+        assertEquals(true, FreeBuds5iProtocol.ancStateRequest().args.values.all { it.isEmpty() })
+        assertEquals(true, FreeBuds5iProtocol.equalizerStateRequest().args.values.all { it.isEmpty() })
+    }
+
 }
+
+private fun String.hexBytes(): ByteArray = chunked(2).map { it.toInt(16).toByte() }.toByteArray()

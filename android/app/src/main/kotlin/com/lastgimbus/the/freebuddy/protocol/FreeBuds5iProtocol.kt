@@ -25,12 +25,11 @@ object FreeBuds5iProtocol : HeadphonesProtocol {
     override fun detectColor(info: DeviceInfo?): DeviceColor? = info?.detect5iColor()
 
     override val initialRequests = listOf(
-        MbbCommand(1, 8), MbbCommand(43, 42), MbbCommand(43, 17),
-        MbbCommand(1, 32), MbbCommand(1, 38), MbbCommand(43, 23),
-        MbbCommand(43, 25), MbbCommand(43, 31), MbbCommand(43, 108, mapOf(2 to byteArrayOf())),
-        MbbCommand(43, 74), MbbCommand(43, 163), MbbCommand(43, 47),
-        deviceInfoRequest(),
-        dualConnectEnumeration(),
+        batteryStateRequest(), ancStateRequest(), autoPauseStateRequest(),
+        doubleTapStateRequest(), tripleTapStateRequest(), holdStateRequest(),
+        holdModesStateRequest(), swipeStateRequest(), lowLatencyStateRequest(),
+        equalizerStateRequest(), ldacStateRequest(), dualConnectStateRequest(),
+        deviceInfoRequest(), dualConnectEnumeration(),
     )
 
     /** MBB 1/7: read device info TLVs 0..31 (model, sub-model, firmware, serials). */
@@ -42,7 +41,11 @@ object FreeBuds5iProtocol : HeadphonesProtocol {
         MbbCommand(1, 31, buildMap { left?.let { put(1, intBytes(it.code)) }; right?.let { put(2, intBytes(it.code)) } })
     override fun tripleTap(left: TripleTap?, right: TripleTap?) =
         MbbCommand(1, 37, buildMap { left?.let { put(1, intBytes(it.code)) }; right?.let { put(2, intBytes(it.code)) } })
-    override fun hold(value: Hold) = MbbCommand(43, 22, mapOf(1 to intBytes(value.code)))
+    override fun hold(value: Hold) = MbbCommand(
+        43,
+        22,
+        mapOf(1 to intBytes(value.code), 2 to intBytes(value.code)),
+    )
     override fun holdModes(modes: Set<AncMode>): MbbCommand {
         val value = when (modes) {
             setOf(AncMode.OFF, AncMode.NOISE_CANCELLING) -> 1
@@ -53,7 +56,11 @@ object FreeBuds5iProtocol : HeadphonesProtocol {
         }
         return MbbCommand(43, 24, mapOf(1 to intBytes(value), 2 to intBytes(value)))
     }
-    override fun swipe(value: Swipe) = MbbCommand(43, 30, mapOf(1 to intBytes(value.code)))
+    override fun swipe(value: Swipe) = MbbCommand(
+        43,
+        30,
+        mapOf(1 to intBytes(value.code), 2 to intBytes(value.code)),
+    )
     override fun autoPause(enabled: Boolean) = MbbCommand(43, 16, mapOf(1 to intBytes(enabled.asCode())))
     override fun lowLatency(enabled: Boolean) = MbbCommand(43, 108, mapOf(1 to intBytes(enabled.asCode())))
     override fun equalizer(value: EqPreset) = MbbCommand(43, 73, mapOf(1 to intBytes(value.code)))
@@ -76,17 +83,47 @@ object FreeBuds5iProtocol : HeadphonesProtocol {
     override fun isDualConnectChangeEvent(command: MbbCommand): Boolean =
         command.serviceId == 43 && command.commandId == 54
 
-    override fun ancStateRequest() = MbbCommand(43, 42)
-    override fun equalizerStateRequest() = MbbCommand(43, 74)
-    override fun autoPauseStateRequest() = MbbCommand(43, 17)
+    private fun batteryStateRequest() = MbbCommand(
+        1,
+        8,
+        mapOf(1 to byteArrayOf(), 2 to byteArrayOf(), 3 to byteArrayOf()),
+    )
+    override fun ancStateRequest() = MbbCommand(
+        43,
+        42,
+        mapOf(1 to byteArrayOf(), 2 to byteArrayOf()),
+    )
+    override fun equalizerStateRequest() =
+        MbbCommand(43, 74, (1..8).associateWith { byteArrayOf() })
+    override fun autoPauseStateRequest() = MbbCommand(43, 17, mapOf(1 to byteArrayOf()))
     override fun lowLatencyStateRequest() = MbbCommand(43, 108, mapOf(2 to byteArrayOf()))
     override fun ldacStateRequest() = MbbCommand(43, 163)
-    override fun dualConnectStateRequest() = MbbCommand(43, 47)
-    override fun doubleTapStateRequest() = MbbCommand(1, 32)
-    override fun tripleTapStateRequest() = MbbCommand(1, 38)
-    override fun holdStateRequest() = MbbCommand(43, 23)
-    override fun holdModesStateRequest() = MbbCommand(43, 25)
-    override fun swipeStateRequest() = MbbCommand(43, 31)
+    override fun dualConnectStateRequest() = MbbCommand(43, 47, mapOf(1 to byteArrayOf()))
+    override fun doubleTapStateRequest() = MbbCommand(
+        1,
+        32,
+        mapOf(1 to byteArrayOf(), 2 to byteArrayOf()),
+    )
+    override fun tripleTapStateRequest() = MbbCommand(
+        1,
+        38,
+        mapOf(1 to byteArrayOf(), 2 to byteArrayOf()),
+    )
+    override fun holdStateRequest() = MbbCommand(
+        43,
+        23,
+        mapOf(1 to byteArrayOf(), 2 to byteArrayOf()),
+    )
+    override fun holdModesStateRequest() = MbbCommand(
+        43,
+        25,
+        mapOf(1 to byteArrayOf(), 2 to byteArrayOf()),
+    )
+    override fun swipeStateRequest() = MbbCommand(
+        43,
+        31,
+        mapOf(1 to byteArrayOf(), 2 to byteArrayOf()),
+    )
 }
 
 private fun HeadphonesSnapshot.apply5i(command: MbbCommand): HeadphonesSnapshot {
@@ -120,9 +157,9 @@ private fun HeadphonesSnapshot.apply5i(command: MbbCommand): HeadphonesSnapshot 
             tripleTapRight = TripleTap.entries.firstOrNull { it.code == arg(2) },
         ))
         command.serviceId == 43 && command.commandId == 23 -> copy(settings = settings.copy(
-            hold = Hold.entries.firstOrNull { it.code == arg(1) },
+            hold = Hold.entries.firstOrNull { it.code == (arg(1) ?: arg(2)) },
         ))
-        command.serviceId == 43 && command.commandId == 25 -> copy(settings = settings.copy(holdModes = when (arg(1)) {
+        command.serviceId == 43 && command.commandId == 25 -> copy(settings = settings.copy(holdModes = when (arg(1) ?: arg(2)) {
             1 -> setOf(AncMode.OFF, AncMode.NOISE_CANCELLING)
             2 -> AncMode.entries.toSet()
             3 -> setOf(AncMode.NOISE_CANCELLING, AncMode.TRANSPARENCY)

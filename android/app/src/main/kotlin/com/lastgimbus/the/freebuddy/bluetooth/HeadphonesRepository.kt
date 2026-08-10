@@ -393,7 +393,9 @@ class HeadphonesRepository(private val context: Context) {
 
     fun setEq(value: EqPreset) = withProtocol { sendAndRefresh(it.equalizer(value), it.equalizerStateRequest()) }
     fun setAutoPause(value: Boolean) = withProtocol { sendAndRefresh(it.autoPause(value), it.autoPauseStateRequest()) }
-    fun setLowLatency(value: Boolean) = withProtocol { sendAndRefresh(it.lowLatency(value), it.lowLatencyStateRequest()) }
+    fun setLowLatency(value: Boolean) = withProtocol {
+        sendAndRefresh(it.lowLatency(value), it.lowLatencyStateRequest(), refreshDelayMs = 1_000)
+    }
     fun setLdac(value: Boolean) = withProtocol { sendAndRefresh(it.ldac(value), it.ldacStateRequest()) }
     fun setDualConnect(value: Boolean) = withProtocol { sendAndRefresh(it.dualConnect(value), it.dualConnectStateRequest()) }
 
@@ -431,8 +433,13 @@ class HeadphonesRepository(private val context: Context) {
         sendAndRefresh(it.tripleTap(left, right), it.tripleTapStateRequest())
     }
     fun setHold(value: Hold) = withProtocol { sendAndRefresh(it.hold(value), it.holdStateRequest()) }
-    fun setHoldModes(value: Set<AncMode>) = withProtocol {
-        sendAndRefresh(it.holdModes(value), it.holdModesStateRequest())
+    fun setHoldModes(value: Set<AncMode>) = withProtocol { protocol ->
+        if (value.size < 2) return@withProtocol
+        _state.update { state ->
+            val connected = state as? ConnectionState.Connected ?: return@update state
+            connected.copy(snapshot = connected.snapshot.copy(settings = connected.snapshot.settings.copy(holdModes = value)))
+        }
+        sendAndRefresh(protocol.holdModes(value), protocol.holdModesStateRequest(), refreshDelayMs = 500)
     }
     fun setSwipe(value: Swipe) = withProtocol { sendAndRefresh(it.swipe(value), it.swipeStateRequest()) }
 
@@ -450,11 +457,15 @@ class HeadphonesRepository(private val context: Context) {
             }
         }
     }
-    private fun sendAndRefresh(command: MbbCommand, refresh: MbbCommand) {
+    private fun sendAndRefresh(
+        command: MbbCommand,
+        refresh: MbbCommand,
+        refreshDelayMs: Long = 250,
+    ) {
         scope.launch {
             runCatching {
                 client.send(command)
-                delay(250)
+                delay(refreshDelayMs)
                 client.send(refresh)
             }
         }
