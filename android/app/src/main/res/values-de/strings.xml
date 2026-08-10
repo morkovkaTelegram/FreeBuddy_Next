@@ -145,4 +145,7 @@
     <string name="eq_custom_delete_title">Preset löschen?</string>
     <string name="eq_custom_delete_confirmation">„%1$s“ aus dem Kopfhörerspeicher löschen?</string>
     <string name="eq_custom_default_name">Mein Klangeffekt</string>
+    <string name="back">Zurück</string>
+    <string name="device_info_button">Geräteinformationen für %1$s</string>
+    <string name="eq_band_accessibility">Equalizer-Band %1$d Hz</string>
 </resources>

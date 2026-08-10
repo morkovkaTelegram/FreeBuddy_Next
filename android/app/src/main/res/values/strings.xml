@@ -145,4 +145,7 @@
     <string name="eq_custom_delete_title">Delete preset?</string>
     <string name="eq_custom_delete_confirmation">Delete “%1$s” from the headphones?</string>
     <string name="eq_custom_default_name">My sound effect</string>
+    <string name="back">Back</string>
+    <string name="device_info_button">Device information for %1$s</string>
+    <string name="eq_band_accessibility">Equalizer band %1$d Hz</string>
 </resources>

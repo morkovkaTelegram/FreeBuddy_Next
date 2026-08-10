@@ -145,4 +145,7 @@
     <string name="eq_custom_delete_title">Удалить пресет?</string>
     <string name="eq_custom_delete_confirmation">Удалить «%1$s» из памяти наушников?</string>
     <string name="eq_custom_default_name">Мой звуковой эффект</string>
+    <string name="back">Назад</string>
+    <string name="device_info_button">Информация об устройстве %1$s</string>
+    <string name="eq_band_accessibility">Полоса эквалайзера %1$d Гц</string>
 </resources>

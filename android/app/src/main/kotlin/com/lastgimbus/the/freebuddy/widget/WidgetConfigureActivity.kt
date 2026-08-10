@@ -54,6 +54,10 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -166,6 +170,7 @@ private fun ConfigureScreen(
         ) {
             Text(
                 stringResource(R.string.widget_transparency_title),
+                modifier = Modifier.semantics { heading() },
                 style = MaterialTheme.typography.titleLarge,
                 textAlign = TextAlign.Center,
             )
@@ -238,6 +243,7 @@ private fun TransparencyControl(
             fontWeight = FontWeight.Bold,
         )
     }
+    val transparencyState = stringResource(R.string.widget_battery_level, transparency)
     Slider(
         value = transparency.toFloat(),
         onValueChange = {
@@ -245,7 +251,12 @@ private fun TransparencyControl(
         },
         valueRange = 0f..100f,
         steps = 19,
-        modifier = Modifier.widthIn(max = 400.dp),
+        modifier = Modifier
+            .widthIn(max = 400.dp)
+            .semantics {
+                contentDescription = label
+                stateDescription = transparencyState
+            },
     )
 }
 

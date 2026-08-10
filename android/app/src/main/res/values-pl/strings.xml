@@ -145,4 +145,7 @@
     <string name="eq_custom_delete_title">Usunąć preset?</string>
     <string name="eq_custom_delete_confirmation">Usunąć „%1$s” z pamięci słuchawek?</string>
     <string name="eq_custom_default_name">Mój efekt dźwiękowy</string>
+    <string name="back">Wstecz</string>
+    <string name="device_info_button">Informacje o urządzeniu %1$s</string>
+    <string name="eq_band_accessibility">Pasmo korektora %1$d Hz</string>
 </resources>

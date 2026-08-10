@@ -13,6 +13,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -78,6 +80,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -188,7 +199,15 @@ private fun HomeScreen(
 @Composable
 private fun StatusContent(@StringRes title: Int, @StringRes description: Int, @StringRes action: Int? = null, onClick: () -> Unit = {}) {
     Column(Modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text(stringResource(title), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+        Text(
+            stringResource(title),
+            modifier = Modifier.semantics {
+                heading()
+                liveRegion = LiveRegionMode.Polite
+            },
+            style = MaterialTheme.typography.headlineSmall,
+            textAlign = TextAlign.Center,
+        )
         Text(stringResource(description), textAlign = TextAlign.Center)
         action?.let { Button(onClick = onClick) { Text(stringResource(it)) } }
     }
@@ -215,11 +234,13 @@ private fun ConnectedContent(snapshot: HeadphonesSnapshot, repository: Headphone
             ) {
                 Text(
                     stringResource(R.string.connected),
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
                 )
                 Text(
                     snapshot.name,
+                    modifier = Modifier.semantics { heading() },
                     color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.titleLarge,
                     textAlign = TextAlign.Center,
@@ -229,11 +250,16 @@ private fun ConnectedContent(snapshot: HeadphonesSnapshot, repository: Headphone
         item {
             var showInfo by remember { mutableStateOf(false) }
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                val deviceInfoDescription = stringResource(R.string.device_info_button, snapshot.name)
                 Image(
                     painter = painterResource(headphonesImage(snapshot, forceColor, selectedColor)),
-                    contentDescription = snapshot.name,
+                    contentDescription = null,
                     modifier = Modifier
                         .size(width = 260.dp, height = 180.dp)
+                        .semantics {
+                            contentDescription = deviceInfoDescription
+                            role = Role.Button
+                        }
                         .clickable { showInfo = true },
                     contentScale = ContentScale.Fit,
                 )
@@ -354,7 +380,11 @@ private fun DeviceInfoDialog(
 @Composable
 private fun DiagnosticSectionTitle(@StringRes title: Int) {
     HorizontalDivider(Modifier.padding(vertical = 6.dp))
-    Text(stringResource(title), style = MaterialTheme.typography.titleSmall)
+    Text(
+        stringResource(title),
+        modifier = Modifier.semantics { heading() },
+        style = MaterialTheme.typography.titleSmall,
+    )
 }
 
 private fun HeadphonesSnapshot.toDiagnosticDump(rawResponses: List<String>): String = buildString {
@@ -489,7 +519,13 @@ private fun DualDeviceCard(device: DualConnectDevice, onClick: () -> Unit) {
         DualConnectionState.CONNECTED -> Icons.Default.Bluetooth
         DualConnectionState.DISCONNECTED -> Icons.Default.BluetoothDisabled
     }
-    Card(Modifier.width(112.dp).clickable(onClick = onClick), shape = AppCardShape) {
+    Card(
+        Modifier
+            .width(112.dp)
+            .semantics(mergeDescendants = true) { role = Role.Button }
+            .clickable(onClick = onClick),
+        shape = AppCardShape,
+    ) {
         Column(
             Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 7.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -691,9 +727,17 @@ private fun AncModeButton(mode: AncMode, selectedMode: AncMode?, @DrawableRes ic
         )
     }
     if (mode == selectedMode) {
-        FilledIconButton(onClick = onClick, modifier = Modifier.size(64.dp), content = content)
+        FilledIconButton(
+            onClick = onClick,
+            modifier = Modifier.size(64.dp).semantics { selected = true },
+            content = content,
+        )
     } else {
-        FilledTonalIconButton(onClick = onClick, modifier = Modifier.size(64.dp), content = content)
+        FilledTonalIconButton(
+            onClick = onClick,
+            modifier = Modifier.size(64.dp).semantics { selected = false },
+            content = content,
+        )
     }
 }
 
@@ -743,7 +787,7 @@ private fun AncLevelMenu(selected: AncLevel?, choose: (AncLevel) -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HeadphonesSettingsScreen(state: ConnectionState, repository: HeadphonesRepository, back: () -> Unit) {
-    Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.headphones_settings)) }, navigationIcon = { IconButton(back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } }) }) { padding ->
+    Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.headphones_settings), Modifier.semantics { heading() }) }, navigationIcon = { IconButton(back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) } }) }) { padding ->
         val snapshot = (state as? ConnectionState.Connected)?.snapshot
         if (snapshot == null) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { Text(stringResource(R.string.disconnected)) }
@@ -763,7 +807,13 @@ private fun HeadphonesSettingsScreen(state: ConnectionState, repository: Headpho
             if (features.lowLatency) item { CardSwitch(stringResource(R.string.low_latency), s.lowLatency ?: false, s.lowLatency != null, stringResource(R.string.low_latency_desc), repository::setLowLatency) }
             if (features.ldac) item { CardSwitch(stringResource(R.string.ldac), s.ldac ?: false, s.ldac != null, stringResource(R.string.ldac_desc), repository::setLdac) }
             if (features.doubleTap || features.tripleTap || features.splitHold || features.swipe) {
-                item { Text(stringResource(R.string.gestures), style = MaterialTheme.typography.titleLarge) }
+                item {
+                    Text(
+                        stringResource(R.string.gestures),
+                        modifier = Modifier.semantics { heading() },
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                }
             }
             if (features.doubleTap) item { GesturePair(R.string.double_tap, DoubleTap.entries, s.doubleTapLeft, s.doubleTapRight, { it.doubleTapLabel() }, { repository.setDoubleTap(left = it) }, { repository.setDoubleTap(right = it) }) }
             if (features.tripleTap) item { GesturePair(R.string.triple_tap, TripleTap.entries, s.tripleTapLeft, s.tripleTapRight, { it.tripleTapLabel() }, { repository.setTripleTap(left = it) }, { repository.setTripleTap(right = it) }) }
@@ -913,6 +963,7 @@ private fun CustomEqualizerEditor(
     val nameBytes = name.trim().toByteArray(Charsets.UTF_8).size
     val validName = name.isNotBlank() && nameBytes <= FreeBuds6iProtocol.CUSTOM_EQ_NAME_MAX_BYTES
     val frequencies = listOf("60", "125", "250", "500", "1K", "2K", "4K", "8K", "12K", "16K")
+    val frequenciesHz = listOf(60, 125, 250, 500, 1_000, 2_000, 4_000, 8_000, 12_000, 16_000)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -946,8 +997,14 @@ private fun CustomEqualizerEditor(
                             Text(stringResource(R.string.eq_custom_frequency, frequency))
                             Text(stringResource(R.string.eq_custom_db_value, raw / 10f))
                         }
+                        val bandDescription = stringResource(R.string.eq_band_accessibility, frequenciesHz[index])
+                        val bandState = stringResource(R.string.eq_custom_db_value, raw / 10f)
                         Slider(
                             value = raw.toFloat(),
+                            modifier = Modifier.semantics {
+                                contentDescription = bandDescription
+                                stateDescription = bandState
+                            },
                             onValueChange = { value ->
                                 val snapped = ((value / FreeBuds6iProtocol.CUSTOM_EQ_STEP).roundToInt() * FreeBuds6iProtocol.CUSTOM_EQ_STEP)
                                     .coerceIn(FreeBuds6iProtocol.CUSTOM_EQ_MIN, FreeBuds6iProtocol.CUSTOM_EQ_MAX)
@@ -990,7 +1047,11 @@ private fun CustomEqualizerEditor(
 @Composable
 private fun <T> GesturePair(@StringRes title: Int, values: List<T>, left: T?, right: T?, label: @Composable (T) -> String, setLeft: (T) -> Unit, setRight: (T) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(stringResource(title), style = MaterialTheme.typography.titleMedium)
+        Text(
+            stringResource(title),
+            modifier = Modifier.semantics { heading() },
+            style = MaterialTheme.typography.titleMedium,
+        )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             GestureColumn(R.string.left_bud_short, values, left, label, setLeft, Modifier.weight(1f))
             GestureColumn(R.string.right_bud_short, values, right, label, setRight, Modifier.weight(1f))
@@ -1005,9 +1066,19 @@ private fun <T> GestureColumn(@StringRes title: Int, values: List<T>, selected: 
             Text(stringResource(title), fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             values.forEach { value ->
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                val isSelected = selected == value
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .selectable(
+                            selected = isSelected,
+                            role = Role.RadioButton,
+                            onClick = { choose(value) },
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(label(value), Modifier.weight(1f), maxLines = 2)
-                    RadioButton(selected == value, { choose(value) })
+                    RadioButton(selected = isSelected, onClick = null)
                 }
             }
         }
@@ -1062,7 +1133,11 @@ private fun HoldModesCard(settings: FreeBudsSettings, repository: HeadphonesRepo
     val current = settings.holdModes ?: emptySet()
     Card(Modifier.fillMaxWidth(), shape = AppCardShape) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(stringResource(R.string.hold_modes), style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.hold_modes),
+                modifier = Modifier.semantics { heading() },
+                style = MaterialTheme.typography.titleMedium,
+            )
             Column {
                 AncMode.entries.forEach { mode ->
                     SettingSwitch(stringResource(mode.label()), mode in current, settings.holdModes != null, stringResource(mode.description())) { enabled ->
@@ -1098,7 +1173,18 @@ private fun SettingSwitch(
     description: String? = null,
     onChange: (Boolean) -> Unit,
 ) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .toggleable(
+                value = checked,
+                enabled = enabled,
+                role = Role.Switch,
+                onValueChange = onChange,
+            )
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Column(Modifier.weight(1f)) {
             Text(label)
             if (description != null) {
@@ -1109,7 +1195,7 @@ private fun SettingSwitch(
                 )
             }
         }
-        Switch(checked, onChange, enabled = enabled)
+        Switch(checked, onCheckedChange = null, enabled = enabled)
     }
 }
 
@@ -1135,15 +1221,16 @@ private fun AboutScreen(activeIdentity: HeadphonesIdentity?, back: () -> Unit) {
     val selectedHeadphonesColor = storedHeadphonesColor.toDeviceColor()
     var showThemeDialog by remember { mutableStateOf(false) }
 
-    Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.about)) }, navigationIcon = { IconButton(back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } }) }) { padding ->
+    Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.about), Modifier.semantics { heading() }) }, navigationIcon = { IconButton(back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) } }) }) { padding ->
         Column(Modifier.padding(padding).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
                 stringResource(R.string.appearance),
+                modifier = Modifier.semantics { heading() },
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
             Row(
-                Modifier.fillMaxWidth().clickable { showThemeDialog = true }.padding(vertical = 8.dp),
+                Modifier.fillMaxWidth().clickable(role = Role.Button) { showThemeDialog = true }.padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
@@ -1157,7 +1244,13 @@ private fun AboutScreen(activeIdentity: HeadphonesIdentity?, back: () -> Unit) {
             }
             Row(
                 Modifier.fillMaxWidth()
-                    .clickable { scope.launch { ThemeStore.setShowEmojis(context, !showEmojis) } }
+                    .toggleable(
+                        value = showEmojis,
+                        role = Role.Switch,
+                        onValueChange = { show ->
+                            scope.launch { ThemeStore.setShowEmojis(context, show) }
+                        },
+                    )
                     .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -1169,12 +1262,7 @@ private fun AboutScreen(activeIdentity: HeadphonesIdentity?, back: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Switch(
-                    checked = showEmojis,
-                    onCheckedChange = { show ->
-                        scope.launch { ThemeStore.setShowEmojis(context, show) }
-                    },
-                )
+                Switch(checked = showEmojis, onCheckedChange = null)
             }
             Text(
                 stringResource(R.string.headphones_color_for_model, colorProtocol.displayName),
@@ -1183,11 +1271,15 @@ private fun AboutScreen(activeIdentity: HeadphonesIdentity?, back: () -> Unit) {
             )
             Row(
                 Modifier.fillMaxWidth()
-                    .clickable {
-                        scope.launch {
-                            ThemeStore.setForceHeadphonesColor(context, colorIdentity, !forceHeadphonesColor)
-                        }
-                    }
+                    .toggleable(
+                        value = forceHeadphonesColor,
+                        role = Role.Switch,
+                        onValueChange = { force ->
+                            scope.launch {
+                                ThemeStore.setForceHeadphonesColor(context, colorIdentity, force)
+                            }
+                        },
+                    )
                     .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -1202,12 +1294,7 @@ private fun AboutScreen(activeIdentity: HeadphonesIdentity?, back: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Switch(
-                    checked = forceHeadphonesColor,
-                    onCheckedChange = { force ->
-                        scope.launch { ThemeStore.setForceHeadphonesColor(context, colorIdentity, force) }
-                    },
-                )
+                Switch(checked = forceHeadphonesColor, onCheckedChange = null)
             }
             if (forceHeadphonesColor) {
                 EnumDropdown(
@@ -1236,10 +1323,14 @@ private fun AboutScreen(activeIdentity: HeadphonesIdentity?, back: () -> Unit) {
                     ThemeStore.ThemeMode.entries.forEach { mode ->
                         Row(
                             Modifier.fillMaxWidth()
-                                .clickable {
-                                    scope.launch { ThemeStore.setThemeMode(context, mode) }
-                                    showThemeDialog = false
-                                }
+                                .selectable(
+                                    selected = themeMode == mode,
+                                    role = Role.RadioButton,
+                                    onClick = {
+                                        scope.launch { ThemeStore.setThemeMode(context, mode) }
+                                        showThemeDialog = false
+                                    },
+                                )
                                 .padding(vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
