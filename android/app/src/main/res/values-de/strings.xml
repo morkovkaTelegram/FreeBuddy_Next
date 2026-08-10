@@ -133,4 +133,16 @@
     <string name="device_info_eq_tlv">EQ-TLV %1$d</string>
     <string name="device_info_copy_raw">Rohdaten kopieren</string>
     <string name="device_info_clipboard_label">FreeBuddy-Diagnose</string>
+    <string name="eq_custom_create">Preset erstellen</string>
+    <string name="eq_custom_edit">Bearbeiten</string>
+    <string name="eq_custom_editor_title">Benutzerdefinierter Equalizer</string>
+    <string name="eq_custom_name">Effektname</string>
+    <string name="eq_custom_name_bytes">%1$d / %2$d UTF-8-Bytes</string>
+    <string name="eq_custom_reset">Zurücksetzen</string>
+    <string name="eq_custom_frequency">%1$s Hz</string>
+    <string name="eq_custom_db_value">%1$.1f dB</string>
+    <string name="eq_custom_delete">Löschen</string>
+    <string name="eq_custom_delete_title">Preset löschen?</string>
+    <string name="eq_custom_delete_confirmation">„%1$s“ aus dem Kopfhörerspeicher löschen?</string>
+    <string name="eq_custom_default_name">Mein Klangeffekt</string>
 </resources>

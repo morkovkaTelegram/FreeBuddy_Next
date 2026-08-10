@@ -133,4 +133,16 @@
     <string name="device_info_eq_tlv">EQ TLV %1$d</string>
     <string name="device_info_copy_raw">Copy raw data</string>
     <string name="device_info_clipboard_label">FreeBuddy diagnostics</string>
+    <string name="eq_custom_create">Create preset</string>
+    <string name="eq_custom_edit">Edit</string>
+    <string name="eq_custom_editor_title">Custom equalizer</string>
+    <string name="eq_custom_name">Effect name</string>
+    <string name="eq_custom_name_bytes">%1$d / %2$d UTF-8 bytes</string>
+    <string name="eq_custom_reset">Reset</string>
+    <string name="eq_custom_frequency">%1$s Hz</string>
+    <string name="eq_custom_db_value">%1$.1f dB</string>
+    <string name="eq_custom_delete">Delete</string>
+    <string name="eq_custom_delete_title">Delete preset?</string>
+    <string name="eq_custom_delete_confirmation">Delete “%1$s” from the headphones?</string>
+    <string name="eq_custom_default_name">My sound effect</string>
 </resources>

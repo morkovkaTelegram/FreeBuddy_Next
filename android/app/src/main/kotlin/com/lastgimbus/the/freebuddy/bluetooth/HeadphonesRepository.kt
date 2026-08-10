@@ -19,6 +19,8 @@ import com.lastgimbus.the.freebuddy.protocol.AncMode
 import com.lastgimbus.the.freebuddy.protocol.DoubleTap
 import com.lastgimbus.the.freebuddy.protocol.DualConnectDevice
 import com.lastgimbus.the.freebuddy.protocol.EqPreset
+import com.lastgimbus.the.freebuddy.protocol.CustomEqualizerPreset
+import com.lastgimbus.the.freebuddy.protocol.EqualizerDiagnostics
 import com.lastgimbus.the.freebuddy.protocol.HeadphonesProtocol
 import com.lastgimbus.the.freebuddy.protocol.HeadphonesProtocolRegistry
 import com.lastgimbus.the.freebuddy.protocol.HeadphonesSnapshot
@@ -392,6 +394,48 @@ class HeadphonesRepository(private val context: Context) {
     }
 
     fun setEq(value: EqPreset) = withProtocol { sendAndRefresh(it.equalizer(value), it.equalizerStateRequest()) }
+    fun saveCustomEq(preset: CustomEqualizerPreset) = withProtocol { protocol ->
+        if (!protocol.capabilities.customEqualizer) return@withProtocol
+        _state.update { state ->
+            val connected = state as? ConnectionState.Connected ?: return@update state
+            val diagnostics = connected.snapshot.equalizerDiagnostics ?: EqualizerDiagnostics()
+            connected.copy(
+                snapshot = connected.snapshot.copy(
+                    equalizerDiagnostics = diagnostics.copy(
+                        activePresetId = preset.id,
+                        customPresets = (diagnostics.customPresets.filterNot { it.id == preset.id } + preset)
+                            .sortedBy { it.id },
+                    ),
+                ),
+            )
+        }
+        sendAndRefresh(
+            protocol.customEqualizerSave(preset),
+            protocol.equalizerStateRequest(),
+            refreshDelayMs = 500,
+        )
+    }
+
+    fun deleteCustomEq(preset: CustomEqualizerPreset) = withProtocol { protocol ->
+        if (!protocol.capabilities.customEqualizer) return@withProtocol
+        _state.update { state ->
+            val connected = state as? ConnectionState.Connected ?: return@update state
+            val diagnostics = connected.snapshot.equalizerDiagnostics ?: return@update state
+            connected.copy(
+                snapshot = connected.snapshot.copy(
+                    equalizerDiagnostics = diagnostics.copy(
+                        activePresetId = if (diagnostics.activePresetId == preset.id) 1 else diagnostics.activePresetId,
+                        customPresets = diagnostics.customPresets.filterNot { it.id == preset.id },
+                    ),
+                ),
+            )
+        }
+        sendAndRefresh(
+            protocol.customEqualizerDelete(preset),
+            protocol.equalizerStateRequest(),
+            refreshDelayMs = 500,
+        )
+    }
     fun setAutoPause(value: Boolean) = withProtocol { sendAndRefresh(it.autoPause(value), it.autoPauseStateRequest()) }
     fun setLowLatency(value: Boolean) = withProtocol {
         sendAndRefresh(it.lowLatency(value), it.lowLatencyStateRequest(), refreshDelayMs = 1_000)

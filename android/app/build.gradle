@@ -20,8 +20,8 @@ android {
         applicationId "com.lastgimbus.the.freebuddy"
         minSdk 28
         targetSdk 36
-        versionCode 26
-        versionName "0.3.5"
+        versionCode 27
+        versionName "0.3.6"
         ndk {
             abiFilters "armeabi-v7a", "arm64-v8a"
         }

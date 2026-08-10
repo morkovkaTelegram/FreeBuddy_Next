@@ -34,6 +34,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BluetoothAudio
 import androidx.compose.material.icons.filled.BluetoothDisabled
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
@@ -57,6 +59,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -86,6 +89,7 @@ import com.lastgimbus.the.freebuddy.R
 import com.lastgimbus.the.freebuddy.data.HeadphonesIdentity
 import com.lastgimbus.the.freebuddy.data.ThemeStore
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import com.lastgimbus.the.freebuddy.bluetooth.ConnectionState
 import com.lastgimbus.the.freebuddy.bluetooth.HeadphonesRepository
 import com.lastgimbus.the.freebuddy.protocol.AncLevel
@@ -93,6 +97,8 @@ import com.lastgimbus.the.freebuddy.protocol.AncMode
 import com.lastgimbus.the.freebuddy.protocol.BatteryLevel
 import com.lastgimbus.the.freebuddy.protocol.BatteryLevels
 import com.lastgimbus.the.freebuddy.protocol.DoubleTap
+import com.lastgimbus.the.freebuddy.protocol.CustomEqualizerPreset
+import com.lastgimbus.the.freebuddy.protocol.FreeBuds6iProtocol
 import com.lastgimbus.the.freebuddy.protocol.DualConnectDevice
 import com.lastgimbus.the.freebuddy.protocol.DeviceColor
 import com.lastgimbus.the.freebuddy.protocol.DeviceInfo
@@ -746,7 +752,13 @@ private fun HeadphonesSettingsScreen(state: ConnectionState, repository: Headpho
         val s = snapshot.settings
         val features = snapshot.capabilities
         LazyColumn(Modifier.padding(padding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            if (features.equalizer) item { EnumDropdown(R.string.equalizer, EqPreset.entries, s.eqPreset, { it.eqLabel() }, repository::setEq) }
+            if (features.equalizer) item {
+                if (features.customEqualizer) {
+                    CustomEqualizerSection(snapshot, repository)
+                } else {
+                    EnumDropdown(R.string.equalizer, EqPreset.entries, s.eqPreset, { it.eqLabel() }, repository::setEq)
+                }
+            }
             if (features.autoPause) item { CardSwitch(stringResource(R.string.auto_pause), s.autoPause ?: false, s.autoPause != null, stringResource(R.string.auto_pause_desc), repository::setAutoPause) }
             if (features.lowLatency) item { CardSwitch(stringResource(R.string.low_latency), s.lowLatency ?: false, s.lowLatency != null, stringResource(R.string.low_latency_desc), repository::setLowLatency) }
             if (features.ldac) item { CardSwitch(stringResource(R.string.ldac), s.ldac ?: false, s.ldac != null, stringResource(R.string.ldac_desc), repository::setLdac) }
@@ -762,6 +774,216 @@ private fun HeadphonesSettingsScreen(state: ConnectionState, repository: Headpho
             if (features.swipe) item { EnumDropdown(R.string.swipe, Swipe.entries, s.swipe, { it.swipeLabel() }, repository::setSwipe) }
             item { Spacer(Modifier.height(32.dp)) }
         }
+    }
+}
+
+private sealed interface EqualizerChoice {
+    data class BuiltIn(val preset: EqPreset) : EqualizerChoice
+    data class Custom(val preset: CustomEqualizerPreset) : EqualizerChoice
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CustomEqualizerSection(
+    snapshot: HeadphonesSnapshot,
+    repository: HeadphonesRepository,
+) {
+    val diagnostics = snapshot.equalizerDiagnostics
+    val customPresets = diagnostics?.customPresets.orEmpty()
+    val builtIns = EqPreset.entries.map { EqualizerChoice.BuiltIn(it) }
+    val customs = customPresets.map { EqualizerChoice.Custom(it) }
+    val choices = builtIns + customs
+    val activeId = diagnostics?.activePresetId
+    val selected = choices.firstOrNull {
+        when (it) {
+            is EqualizerChoice.BuiltIn -> it.preset.code == activeId
+            is EqualizerChoice.Custom -> it.preset.id == activeId
+        }
+    }
+    var expanded by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<CustomEqualizerPreset?>(null) }
+    val canCreate = customPresets.size < 3
+    val defaultCustomName = stringResource(R.string.eq_custom_default_name)
+    val currentLabel = when (selected) {
+        is EqualizerChoice.BuiltIn -> selected.preset.eqLabel()
+        is EqualizerChoice.Custom -> selected.preset.name
+        null -> activeId?.toString().orEmpty()
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            OutlinedTextField(
+                value = currentLabel,
+                onValueChange = {},
+                readOnly = true,
+                singleLine = true,
+                label = { Text(stringResource(R.string.equalizer)) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                shape = AppCardShape,
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
+            )
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                shape = AppCardShape,
+            ) {
+                choices.forEach { choice ->
+                    val label = when (choice) {
+                        is EqualizerChoice.BuiltIn -> choice.preset.eqLabel()
+                        is EqualizerChoice.Custom -> choice.preset.name
+                    }
+                    DropdownMenuItem(
+                        text = { Text(label) },
+                        trailingIcon = {
+                            if (choice == selected) Icon(Icons.Default.Check, null)
+                        },
+                        onClick = {
+                            expanded = false
+                            when (choice) {
+                                is EqualizerChoice.BuiltIn -> repository.setEq(choice.preset)
+                                is EqualizerChoice.Custom -> repository.saveCustomEq(choice.preset)
+                            }
+                        },
+                    )
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+            val activeCustom = (selected as? EqualizerChoice.Custom)?.preset
+            if (activeCustom != null) {
+                TextButton(onClick = { editing = activeCustom }) {
+                    Icon(Icons.Default.Edit, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.eq_custom_edit))
+                }
+            }
+            if (canCreate) {
+                TextButton(
+                    onClick = {
+                        val used = customPresets.mapTo(mutableSetOf()) { it.id }
+                        val id = (FreeBuds6iProtocol.CUSTOM_EQ_FIRST_ID..FreeBuds6iProtocol.CUSTOM_EQ_LAST_ID)
+                            .first { it !in used }
+                        editing = CustomEqualizerPreset(
+                            id = id,
+                            name = "$defaultCustomName ${id - 99}",
+                            bands = List(FreeBuds6iProtocol.CUSTOM_EQ_BAND_COUNT) { 0 },
+                        )
+                    },
+                ) {
+                    Icon(Icons.Default.Add, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.eq_custom_create))
+                }
+            }
+        }
+    }
+
+    editing?.let { preset ->
+        CustomEqualizerEditor(
+            original = preset,
+            allowDelete = customPresets.any { it.id == preset.id },
+            onDismiss = { editing = null },
+            onSave = {
+                repository.saveCustomEq(it)
+                editing = null
+            },
+            onDelete = {
+                repository.deleteCustomEq(preset)
+                editing = null
+            },
+        )
+    }
+}
+
+@Composable
+private fun CustomEqualizerEditor(
+    original: CustomEqualizerPreset,
+    allowDelete: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (CustomEqualizerPreset) -> Unit,
+    onDelete: () -> Unit,
+) {
+    var name by remember(original.id) { mutableStateOf(original.name) }
+    var bands by remember(original.id) { mutableStateOf(original.bands) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    val nameBytes = name.trim().toByteArray(Charsets.UTF_8).size
+    val validName = name.isNotBlank() && nameBytes <= FreeBuds6iProtocol.CUSTOM_EQ_NAME_MAX_BYTES
+    val frequencies = listOf("60", "125", "250", "500", "1K", "2K", "4K", "8K", "12K", "16K")
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.eq_custom_editor_title)) },
+        text = {
+            Column(
+                Modifier.fillMaxWidth().heightIn(max = 560.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.eq_custom_name)) },
+                    supportingText = {
+                        Text(stringResource(R.string.eq_custom_name_bytes, nameBytes, FreeBuds6iProtocol.CUSTOM_EQ_NAME_MAX_BYTES))
+                    },
+                    isError = !validName,
+                    singleLine = true,
+                    shape = AppCardShape,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = { bands = List(10) { 0 } }) {
+                        Text(stringResource(R.string.eq_custom_reset))
+                    }
+                }
+                frequencies.forEachIndexed { index, frequency ->
+                    val raw = bands.getOrElse(index) { 0 }
+                    Column {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(stringResource(R.string.eq_custom_frequency, frequency))
+                            Text(stringResource(R.string.eq_custom_db_value, raw / 10f))
+                        }
+                        Slider(
+                            value = raw.toFloat(),
+                            onValueChange = { value ->
+                                val snapped = ((value / FreeBuds6iProtocol.CUSTOM_EQ_STEP).roundToInt() * FreeBuds6iProtocol.CUSTOM_EQ_STEP)
+                                    .coerceIn(FreeBuds6iProtocol.CUSTOM_EQ_MIN, FreeBuds6iProtocol.CUSTOM_EQ_MAX)
+                                bands = bands.toMutableList().also { it[index] = snapped }
+                            },
+                            valueRange = FreeBuds6iProtocol.CUSTOM_EQ_MIN.toFloat()..FreeBuds6iProtocol.CUSTOM_EQ_MAX.toFloat(),
+                            steps = 23,
+                        )
+                    }
+                }
+                if (allowDelete) {
+                    TextButton(onClick = { confirmDelete = true }) {
+                        Icon(Icons.Default.Delete, null)
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.eq_custom_delete))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(original.copy(name = name.trim(), bands = bands)) },
+                enabled = validName,
+            ) { Text(stringResource(R.string.save)) }
+        },
+        dismissButton = { TextButton(onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text(stringResource(R.string.eq_custom_delete_title)) },
+            text = { Text(stringResource(R.string.eq_custom_delete_confirmation, original.name)) },
+            confirmButton = { TextButton(onDelete) { Text(stringResource(R.string.eq_custom_delete)) } },
+            dismissButton = { TextButton({ confirmDelete = false }) { Text(stringResource(R.string.cancel)) } },
+        )
     }
 }
 

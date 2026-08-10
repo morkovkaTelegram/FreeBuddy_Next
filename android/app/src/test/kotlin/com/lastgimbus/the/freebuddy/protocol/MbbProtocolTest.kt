@@ -163,7 +163,22 @@ class MbbProtocolTest {
             listOf(DeviceColor.BLACK, DeviceColor.WHITE, DeviceColor.PURPLE),
             FreeBuds6iProtocol.availableColors,
         )
+        assertEquals(
+            DeviceColor.BLACK,
+            FreeBuds6iProtocol.detectColor(DeviceInfo(unknownFields = mapOf(25 to "0x02"))),
+        )
         assertNull(FreeBuds6iProtocol.detectColor(DeviceInfo(unknownFields = mapOf(25 to "0x01"))))
+    }
+
+    @Test fun realBlackFreeBuds6iDeviceInfoDetectsBlackColor() {
+        val response = MbbCommand.parse(
+            "5A0092000107020201530308484C324F52434D5207204861726D6F6E794F5320362E302E302E323932284630303148303033433930290910324E47545132344330363031323934360A0F42544654303031392D3030303135330F08425446543030313918254C2D545134383730323442573030363534372C522D5451343837333234424B3032303030351901021B065E2A00F78A3093C5".hexBytes(),
+        )
+        val snapshot = FreeBuds6iProtocol.reduce(HeadphonesSnapshot(), response)
+        assertEquals("BTFT0019", snapshot.deviceInfo?.model)
+        assertEquals("BTFT0019-000153", snapshot.deviceInfo?.subModel)
+        assertEquals("0x02", snapshot.deviceInfo?.unknownFields?.get(25))
+        assertEquals(DeviceColor.BLACK, FreeBuds6iProtocol.detectColor(snapshot.deviceInfo))
     }
 
     @Test fun freeBuds6iEqualizerReadRequestsAllKnownFields() {
@@ -283,6 +298,42 @@ class MbbProtocolTest {
         assertEquals(setOf(1), FreeBuds5iProtocol.dualConnectStateRequest().args.keys)
         assertEquals(true, FreeBuds5iProtocol.ancStateRequest().args.values.all { it.isEmpty() })
         assertEquals(true, FreeBuds5iProtocol.equalizerStateRequest().args.values.all { it.isEmpty() })
+    }
+
+    @Test fun freeBuds6iCustomEqualizerSaveUsesVerifiedPayload() {
+        val command = FreeBuds6iProtocol.customEqualizerSave(
+            CustomEqualizerPreset(
+                id = 101,
+                name = "My sound effect 2",
+                bands = List(10) { 60 },
+            ),
+        )
+        assertEquals(43, command.serviceId)
+        assertEquals(73, command.commandId)
+        assertArrayEquals(intBytes(101), command.args[1])
+        assertArrayEquals(intBytes(10), command.args[2])
+        assertArrayEquals(ByteArray(10) { 60 }, command.args[3])
+        assertArrayEquals("My sound effect 2".toByteArray(), command.args[4])
+        assertArrayEquals(intBytes(1), command.args[5])
+    }
+
+    @Test fun freeBuds6iCustomEqualizerDeleteUsesActionTwoAndSignedBands() {
+        val command = FreeBuds6iProtocol.customEqualizerDelete(
+            CustomEqualizerPreset(
+                id = 102,
+                name = "My sound effect 3",
+                bands = List(10) { -60 },
+            ),
+        )
+        assertArrayEquals(ByteArray(10) { (-60).toByte() }, command.args[3])
+        assertArrayEquals(intBytes(2), command.args[5])
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun freeBuds6iCustomEqualizerRejectsOutOfRangeBand() {
+        FreeBuds6iProtocol.customEqualizerSave(
+            CustomEqualizerPreset(100, "Invalid", List(10) { 65 }),
+        )
     }
 
 }

@@ -48,6 +48,10 @@ interface HeadphonesProtocol {
     fun ancMode(mode: AncMode): MbbCommand
     fun ancLevel(mode: AncMode, level: AncLevel): MbbCommand
     fun equalizer(value: EqPreset): MbbCommand
+    fun customEqualizerSave(preset: CustomEqualizerPreset): MbbCommand =
+        error("Custom equalizer is not supported by $displayName")
+    fun customEqualizerDelete(preset: CustomEqualizerPreset): MbbCommand =
+        error("Custom equalizer is not supported by $displayName")
     fun autoPause(enabled: Boolean): MbbCommand
     fun lowLatency(enabled: Boolean): MbbCommand
     fun ldac(enabled: Boolean): MbbCommand

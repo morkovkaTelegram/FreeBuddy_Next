@@ -133,4 +133,16 @@
     <string name="device_info_eq_tlv">EQ TLV %1$d</string>
     <string name="device_info_copy_raw">Копировать сырые данные</string>
     <string name="device_info_clipboard_label">Диагностика FreeBuddy</string>
+    <string name="eq_custom_create">Создать пресет</string>
+    <string name="eq_custom_edit">Изменить</string>
+    <string name="eq_custom_editor_title">Пользовательский эквалайзер</string>
+    <string name="eq_custom_name">Название эффекта</string>
+    <string name="eq_custom_name_bytes">%1$d / %2$d байт UTF-8</string>
+    <string name="eq_custom_reset">Сброс</string>
+    <string name="eq_custom_frequency">%1$s Гц</string>
+    <string name="eq_custom_db_value">%1$.1f дБ</string>
+    <string name="eq_custom_delete">Удалить</string>
+    <string name="eq_custom_delete_title">Удалить пресет?</string>
+    <string name="eq_custom_delete_confirmation">Удалить «%1$s» из памяти наушников?</string>
+    <string name="eq_custom_default_name">Мой звуковой эффект</string>
 </resources>
