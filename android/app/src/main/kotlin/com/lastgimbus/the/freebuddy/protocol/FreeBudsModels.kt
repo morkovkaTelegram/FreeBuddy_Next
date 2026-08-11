@@ -10,6 +10,31 @@ data class BatteryLevels(
 )
 
 enum class AncMode(val code: Int) { OFF(0), NOISE_CANCELLING(1), TRANSPARENCY(2) }
+
+/**
+ * Huawei stores hold-to-cycle ANC as one of four combinations: any pair of
+ * modes or all three modes. A single mode cannot be encoded. When the user
+ * disables one of the last two selected modes, replace it with the third mode
+ * instead of silently ignoring the action.
+ */
+fun toggleHoldMode(
+    current: Set<AncMode>,
+    mode: AncMode,
+    enabled: Boolean,
+): Set<AncMode> {
+    if (enabled) {
+        val changed = current + mode
+        if (changed.size >= 2) return changed
+        val companion = AncMode.entries.first { it != mode }
+        return changed + companion
+    }
+
+    if (mode !in current) return current
+    val remaining = current - mode
+    if (remaining.size >= 2) return remaining
+    val replacement = AncMode.entries.first { it !in remaining && it != mode }
+    return remaining + replacement
+}
 enum class AncLevel(val code: Int) { NORMAL(0), COMFORT(1), ULTRA(2), DYNAMIC(3) }
 enum class DoubleTap(val code: Int) {
     NONE(255), ASSISTANT(0), PLAY_PAUSE(1), NEXT(2), PREVIOUS(7)

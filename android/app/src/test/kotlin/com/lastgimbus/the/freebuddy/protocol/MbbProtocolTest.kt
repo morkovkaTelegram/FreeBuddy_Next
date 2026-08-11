@@ -353,6 +353,26 @@ class MbbProtocolTest {
         )
     }
 
+    @Test fun holdModeToggleAlwaysProducesProtocolSupportedCombination() {
+        val offAndAnc = setOf(AncMode.OFF, AncMode.NOISE_CANCELLING)
+        assertEquals(
+            setOf(AncMode.NOISE_CANCELLING, AncMode.TRANSPARENCY),
+            toggleHoldMode(offAndAnc, AncMode.OFF, enabled = false),
+        )
+        assertEquals(
+            setOf(AncMode.OFF, AncMode.TRANSPARENCY),
+            toggleHoldMode(offAndAnc, AncMode.NOISE_CANCELLING, enabled = false),
+        )
+        assertEquals(
+            AncMode.entries.toSet(),
+            toggleHoldMode(offAndAnc, AncMode.TRANSPARENCY, enabled = true),
+        )
+        assertEquals(
+            setOf(AncMode.NOISE_CANCELLING, AncMode.TRANSPARENCY),
+            toggleHoldMode(AncMode.entries.toSet(), AncMode.OFF, enabled = false),
+        )
+    }
+
 }
 
 private fun String.hexBytes(): ByteArray = chunked(2).map { it.toInt(16).toByte() }.toByteArray()

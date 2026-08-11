@@ -108,6 +108,7 @@ import kotlin.math.roundToInt
 import com.lastgimbus.the.freebuddy.bluetooth.ConnectionState
 import com.lastgimbus.the.freebuddy.bluetooth.HeadphonesRepository
 import com.lastgimbus.the.freebuddy.protocol.productionDate
+import com.lastgimbus.the.freebuddy.protocol.toggleHoldMode
 import com.lastgimbus.the.freebuddy.protocol.SerialComponent
 import com.lastgimbus.the.freebuddy.protocol.ProductionDate
 import com.lastgimbus.the.freebuddy.protocol.AncLevel
@@ -1207,6 +1208,7 @@ private fun <T> EnumDropdown(@StringRes title: Int, values: List<T>, selected: T
 @Composable
 private fun HoldModesCard(settings: FreeBudsSettings, repository: HeadphonesRepository) {
     val current = settings.holdModes ?: emptySet()
+    val enabled = settings.hold == Hold.CYCLE_ANC && settings.holdModes != null
     Card(Modifier.fillMaxWidth(), shape = AppCardShape) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
@@ -1214,11 +1216,23 @@ private fun HoldModesCard(settings: FreeBudsSettings, repository: HeadphonesRepo
                 modifier = Modifier.semantics { heading() },
                 style = MaterialTheme.typography.titleMedium,
             )
+            Text(
+                stringResource(
+                    if (enabled) R.string.hold_modes_minimum_hint
+                    else R.string.hold_modes_disabled_hint,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
             Column {
                 AncMode.entries.forEach { mode ->
-                    SettingSwitch(stringResource(mode.label()), mode in current, settings.holdModes != null, stringResource(mode.description())) { enabled ->
-                        val changed = if (enabled) current + mode else current - mode
-                        if (changed.size >= 2) repository.setHoldModes(changed)
+                    SettingSwitch(
+                        stringResource(mode.label()),
+                        mode in current,
+                        enabled,
+                        stringResource(mode.description()),
+                    ) { checked ->
+                        repository.setHoldModes(toggleHoldMode(current, mode, checked))
                     }
                 }
             }

@@ -59,6 +59,8 @@
     <string name="triple_tap">Triple tap</string>
     <string name="hold">Touch and hold</string>
     <string name="hold_modes">Modes switched by holding</string>
+    <string name="hold_modes_minimum_hint">At least two modes must be selected</string>
+    <string name="hold_modes_disabled_hint">Select “Switch ANC” above to configure the modes</string>
     <string name="swipe">Swipe</string>
     <string name="action_none">None</string>
     <string name="action_assistant">Assistant</string>

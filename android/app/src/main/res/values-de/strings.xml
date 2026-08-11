@@ -59,6 +59,8 @@
     <string name="triple_tap">Dreifachtippen</string>
     <string name="hold">Berühren und halten</string>
     <string name="hold_modes">Modi beim Halten</string>
+    <string name="hold_modes_minimum_hint">Mindestens zwei Modi müssen ausgewählt sein</string>
+    <string name="hold_modes_disabled_hint">Wähle oben „ANC wechseln“, um die Modi einzustellen</string>
     <string name="swipe">Wischen</string>
     <string name="action_none">Keine</string>
     <string name="action_assistant">Assistent</string>

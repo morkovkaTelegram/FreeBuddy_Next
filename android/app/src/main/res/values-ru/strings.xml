@@ -59,6 +59,8 @@
     <string name="triple_tap">Тройное касание</string>
     <string name="hold">Касание и удержание</string>
     <string name="hold_modes">Режимы при удержании</string>
+    <string name="hold_modes_minimum_hint">Должно быть выбрано не менее двух режимов</string>
+    <string name="hold_modes_disabled_hint">Выберите «Смена ANC» выше, чтобы настроить режимы</string>
     <string name="swipe">Смахивание</string>
     <string name="action_none">Нет</string>
     <string name="action_assistant">Ассистент</string>

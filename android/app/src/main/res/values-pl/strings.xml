@@ -59,6 +59,8 @@
     <string name="triple_tap">Potrójne dotknięcie</string>
     <string name="hold">Dotknięcie i przytrzymanie</string>
     <string name="hold_modes">Tryby przełączane przytrzymaniem</string>
+    <string name="hold_modes_minimum_hint">Należy wybrać co najmniej dwa tryby</string>
+    <string name="hold_modes_disabled_hint">Wybierz powyżej „Przełącz ANC”, aby skonfigurować tryby</string>
     <string name="swipe">Przesunięcie</string>
     <string name="action_none">Brak</string>
     <string name="action_assistant">Asystent</string>
