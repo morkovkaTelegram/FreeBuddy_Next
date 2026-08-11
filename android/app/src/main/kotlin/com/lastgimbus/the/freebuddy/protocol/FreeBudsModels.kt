@@ -39,7 +39,8 @@ enum class DeviceColor { BLACK, WHITE, BLUE, PURPLE }
  * Best-effort color detection from MBB 1/7 device information.
  *
  * Confirmed retail samples use TLV 25 as the variant identifier:
- * 0x01 = Ceramic White, 0x0C = Nebula Black. TLV 10 (sub-model) and TLV 3
+ * 0x01 = Ceramic White, 0x07 = Isle Blue, 0x0C = Nebula Black. TLV 10
+ * (sub-model) and TLV 3
  * (hardware version) can be identical across colors, so TLV 25 has priority.
  * Textual names are retained as a fallback for future firmware variants.
  */
@@ -48,6 +49,7 @@ fun DeviceInfo.detect5iColor(): DeviceColor? {
     val sub = subModel?.uppercase()
     return when {
         variant == "0X01" -> DeviceColor.WHITE
+        variant == "0X07" -> DeviceColor.BLUE
         variant == "0X0C" -> DeviceColor.BLACK
         sub?.contains("BLACK") == true -> DeviceColor.BLACK
         sub?.contains("WHITE") == true -> DeviceColor.WHITE

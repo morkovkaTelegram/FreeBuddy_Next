@@ -94,6 +94,14 @@ class MbbProtocolTest {
                 unknownFields = mapOf(25 to "0x01"),
             ).detect5iColor(),
         )
+        assertEquals(
+            DeviceColor.BLUE,
+            DeviceInfo(
+                subModel = commonSubModel,
+                hardwareVersion = commonHardware,
+                unknownFields = mapOf(25 to "0x07"),
+            ).detect5iColor(),
+        )
         assertNull(DeviceInfo(subModel = commonSubModel, hardwareVersion = commonHardware).detect5iColor())
     }
 
