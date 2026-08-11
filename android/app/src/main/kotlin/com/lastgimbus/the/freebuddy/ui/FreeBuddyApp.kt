@@ -93,6 +93,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalConfiguration
+import java.time.Month
+import java.time.format.TextStyle
+import java.util.Locale
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lastgimbus.the.freebuddy.BuildConfig
@@ -103,6 +107,9 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import com.lastgimbus.the.freebuddy.bluetooth.ConnectionState
 import com.lastgimbus.the.freebuddy.bluetooth.HeadphonesRepository
+import com.lastgimbus.the.freebuddy.protocol.productionDate
+import com.lastgimbus.the.freebuddy.protocol.SerialComponent
+import com.lastgimbus.the.freebuddy.protocol.ProductionDate
 import com.lastgimbus.the.freebuddy.protocol.AncLevel
 import com.lastgimbus.the.freebuddy.protocol.AncMode
 import com.lastgimbus.the.freebuddy.protocol.BatteryLevel
@@ -306,6 +313,12 @@ private fun DeviceInfoDialog(
     val context = LocalContext.current
     val info = snapshot.deviceInfo
     val eq = snapshot.equalizerDiagnostics
+    val locale = LocalConfiguration.current.locales[0]
+    val caseProduction = info?.serialNumber?.productionDate(SerialComponent.CASE)
+    val leftProduction = info?.leftSerial?.productionDate(SerialComponent.EARBUD)
+    val rightProduction = info?.rightSerial?.productionDate(SerialComponent.EARBUD)
+    val earbudsProductionMismatch = leftProduction != null && rightProduction != null &&
+        leftProduction != rightProduction
     val clipboardLabel = stringResource(R.string.device_info_clipboard_label)
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -321,9 +334,28 @@ private fun DeviceInfoDialog(
                 DeviceInfoRow(R.string.device_info_submodel, info?.subModel)
                 DeviceInfoRow(R.string.device_info_firmware, info?.firmware)
                 DeviceInfoRow(R.string.device_info_hardware, info?.hardwareVersion)
-                DeviceInfoRow(R.string.device_info_serial, info?.serialNumber)
-                DeviceInfoRow(R.string.device_info_left_serial, info?.leftSerial)
-                DeviceInfoRow(R.string.device_info_right_serial, info?.rightSerial)
+                DeviceSerialRow(
+                    label = stringResource(R.string.case_label),
+                    serial = info?.serialNumber,
+                    productionDate = caseProduction?.formatProductionDate(locale),
+                )
+                DeviceSerialRow(
+                    label = stringResource(R.string.left_bud_short),
+                    serial = info?.leftSerial,
+                    productionDate = leftProduction?.formatProductionDate(locale),
+                )
+                DeviceSerialRow(
+                    label = stringResource(R.string.right_bud_short),
+                    serial = info?.rightSerial,
+                    productionDate = rightProduction?.formatProductionDate(locale),
+                )
+                if (earbudsProductionMismatch) {
+                    Text(
+                        stringResource(R.string.device_info_production_date_warning),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
                 if (!info?.unknownFields.isNullOrEmpty()) {
                     DiagnosticSectionTitle(R.string.device_info_unknown_fields)
                     info?.unknownFields?.forEach { (id, value) ->
@@ -377,6 +409,15 @@ private fun DeviceInfoDialog(
     )
 }
 
+private fun ProductionDate.diagnosticValue(): String = "%04d-%02d".format(Locale.ROOT, year, month)
+
+private fun ProductionDate.formatProductionDate(locale: Locale): String {
+    val monthName = Month.of(month).getDisplayName(TextStyle.FULL_STANDALONE, locale)
+    return monthName.replaceFirstChar { character ->
+        if (character.isLowerCase()) character.titlecase(locale) else character.toString()
+    } + " " + year
+}
+
 @Composable
 private fun DiagnosticSectionTitle(@StringRes title: Int) {
     HorizontalDivider(Modifier.padding(vertical = 6.dp))
@@ -398,8 +439,11 @@ private fun HeadphonesSnapshot.toDiagnosticDump(rawResponses: List<String>): Str
         appendLine("firmware=${info.firmware.orEmpty()}")
         appendLine("hardware=${info.hardwareVersion.orEmpty()}")
         appendLine("caseSerial=${info.serialNumber.orEmpty()}")
+        appendLine("caseProduction=${info.serialNumber?.productionDate(SerialComponent.CASE)?.diagnosticValue().orEmpty()}")
         appendLine("leftSerial=${info.leftSerial.orEmpty()}")
+        appendLine("leftProduction=${info.leftSerial?.productionDate(SerialComponent.EARBUD)?.diagnosticValue().orEmpty()}")
         appendLine("rightSerial=${info.rightSerial.orEmpty()}")
+        appendLine("rightProduction=${info.rightSerial?.productionDate(SerialComponent.EARBUD)?.diagnosticValue().orEmpty()}")
         info.unknownFields.forEach { (id, value) -> appendLine("deviceInfo.tlv$id=$value") }
     }
     equalizerDiagnostics?.let { eq ->
@@ -414,6 +458,38 @@ private fun HeadphonesSnapshot.toDiagnosticDump(rawResponses: List<String>): Str
     appendLine("rawResponses:")
     rawResponses.forEach(::appendLine)
 }.trimEnd()
+
+@Composable
+private fun DeviceSerialRow(label: String, serial: String?, productionDate: String?) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            label,
+            modifier = Modifier.weight(0.8f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Column(
+            modifier = Modifier.weight(1.6f),
+            horizontalAlignment = Alignment.End,
+        ) {
+            Text(
+                serial ?: "—",
+                textAlign = TextAlign.End,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            if (productionDate != null) {
+                Text(
+                    productionDate,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.End,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+    }
+}
 
 @Composable
 private fun DeviceInfoRow(@StringRes label: Int, value: String?) =

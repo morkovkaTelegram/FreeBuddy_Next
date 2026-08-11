@@ -20,6 +20,30 @@ enum class Swipe(val code: Int) { NONE(255), VOLUME(0) }
 enum class EqPreset(val code: Int) { DEFAULT(1), BASS(2), TREBLE(3), VOICES(9) }
 enum class DualConnectionState { DISCONNECTED, CONNECTED, PLAYING }
 
+data class ProductionDate(val year: Int, val month: Int)
+
+enum class SerialComponent { CASE, EARBUD }
+
+/**
+ * Best-effort manufacturing date encoded in Huawei serial numbers.
+ * Case serials use positions 5..6 for year and 7 for month; earbud serials
+ * use positions 6..7 and 8 respectively (zero-based indexes).
+ */
+fun String.productionDate(component: SerialComponent): ProductionDate? {
+    val yearStart = if (component == SerialComponent.CASE) 5 else 6
+    val monthIndex = yearStart + 2
+    if (length <= monthIndex) return null
+    val year = substring(yearStart, yearStart + 2).toIntOrNull() ?: return null
+    val month = when (this[monthIndex].uppercaseChar()) {
+        in '1'..'9' -> this[monthIndex].digitToInt()
+        'A' -> 10
+        'B' -> 11
+        'C' -> 12
+        else -> return null
+    }
+    return ProductionDate(year = 2000 + year, month = month)
+}
+
 data class DeviceInfo(
     val model: String? = null,
     val subModel: String? = null,

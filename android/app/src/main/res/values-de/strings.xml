@@ -99,9 +99,7 @@
     <string name="device_info_submodel">Untermodell</string>
     <string name="device_info_firmware">Firmware</string>
     <string name="device_info_hardware">Hardwareversion</string>
-    <string name="device_info_serial">Seriennummer des Ladeetuis</string>
-    <string name="device_info_left_serial">Seriennummer links</string>
-    <string name="device_info_right_serial">Seriennummer rechts</string>
+    <string name="device_info_production_date_warning">Die Ohrhörer wurden zu unterschiedlichen Zeiten hergestellt und könnten aus verschiedenen Sets stammen.</string>
     <string name="close">Schließen</string>
     <string name="show_emojis">Emojis anzeigen</string>
     <string name="show_emojis_description">Dekorative Emojis in Oberflächentexten anzeigen</string>

@@ -99,9 +99,7 @@
     <string name="device_info_submodel">Подмодель</string>
     <string name="device_info_firmware">Прошивка</string>
     <string name="device_info_hardware">Аппаратная версия</string>
-    <string name="device_info_serial">Серийный номер кейса</string>
-    <string name="device_info_left_serial">Серийный номер левого</string>
-    <string name="device_info_right_serial">Серийный номер правого</string>
+    <string name="device_info_production_date_warning">Наушники произведены в разные периоды и могут быть из разных комплектов.</string>
     <string name="close">Закрыть</string>
     <string name="show_emojis">Показывать эмодзи</string>
     <string name="show_emojis_description">Отображать декоративные эмодзи в тексте интерфейса</string>

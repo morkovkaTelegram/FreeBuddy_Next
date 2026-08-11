@@ -99,9 +99,7 @@
     <string name="device_info_submodel">Podmodel</string>
     <string name="device_info_firmware">Oprogramowanie</string>
     <string name="device_info_hardware">Wersja sprzętowa</string>
-    <string name="device_info_serial">Numer seryjny etui</string>
-    <string name="device_info_left_serial">Numer seryjny lewej słuchawki</string>
-    <string name="device_info_right_serial">Numer seryjny prawej słuchawki</string>
+    <string name="device_info_production_date_warning">Słuchawki wyprodukowano w różnych okresach i mogą pochodzić z różnych zestawów.</string>
     <string name="close">Zamknij</string>
     <string name="show_emojis">Pokazuj emoji</string>
     <string name="show_emojis_description">Wyświetlaj dekoracyjne emoji w tekście interfejsu</string>

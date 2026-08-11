@@ -99,9 +99,7 @@
     <string name="device_info_submodel">Submodel</string>
     <string name="device_info_firmware">Firmware</string>
     <string name="device_info_hardware">Hardware</string>
-    <string name="device_info_serial">Case serial number</string>
-    <string name="device_info_left_serial">Left earbud serial</string>
-    <string name="device_info_right_serial">Right earbud serial</string>
+    <string name="device_info_production_date_warning">The earbuds were produced in different periods and may come from different sets.</string>
     <string name="close">Close</string>
     <string name="show_emojis">Show emojis</string>
     <string name="show_emojis_description">Display decorative emojis in interface text</string>

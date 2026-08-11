@@ -105,6 +105,15 @@ class MbbProtocolTest {
         assertNull(DeviceInfo(subModel = commonSubModel, hardwareVersion = commonHardware).detect5iColor())
     }
 
+    @Test fun productionDateIsDecodedForCaseAndEarbuds() {
+        assertEquals(ProductionDate(2025, 1), "5PUTQ25122006052".productionDate(SerialComponent.CASE))
+        assertEquals(ProductionDate(2025, 1), "TQ9084251A000328".productionDate(SerialComponent.EARBUD))
+        assertEquals(ProductionDate(2022, 12), "TQ908422C6021664".productionDate(SerialComponent.EARBUD))
+        assertEquals(ProductionDate(2024, 12), "2NGTQ24C06012946".productionDate(SerialComponent.CASE))
+        assertEquals(ProductionDate(2024, 11), "TQ487024BW006547".productionDate(SerialComponent.EARBUD))
+        assertNull("invalid".productionDate(SerialComponent.EARBUD))
+    }
+
     @Test fun partialDeviceInfoResponsesAreMergedWithoutLosingVariant() {
         val withVariant = FreeBuds5iProtocol.reduce(
             HeadphonesSnapshot(),
