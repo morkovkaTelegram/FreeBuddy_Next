@@ -29,6 +29,7 @@ import com.lastgimbus.the.freebuddy.protocol.MbbCommand
 import com.lastgimbus.the.freebuddy.protocol.Swipe
 import com.lastgimbus.the.freebuddy.protocol.TripleTap
 import com.lastgimbus.the.freebuddy.protocol.toDiagnosticString
+import com.lastgimbus.the.freebuddy.protocol.validHoldModesOrDefault
 import com.lastgimbus.the.freebuddy.widget.WidgetStorage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -476,7 +477,37 @@ class HeadphonesRepository(private val context: Context) {
     fun setTripleTap(left: TripleTap? = null, right: TripleTap? = null) = withProtocol {
         sendAndRefresh(it.tripleTap(left, right), it.tripleTapStateRequest())
     }
-    fun setHold(value: Hold) = withProtocol { sendAndRefresh(it.hold(value), it.holdStateRequest()) }
+    fun setHold(value: Hold) = withProtocol { protocol ->
+        if (value != Hold.CYCLE_ANC) {
+            sendAndRefresh(protocol.hold(value), protocol.holdStateRequest())
+            return@withProtocol
+        }
+
+        val currentModes = (_state.value as? ConnectionState.Connected)
+            ?.snapshot?.settings?.holdModes
+        val safeModes = validHoldModesOrDefault(currentModes)
+        _state.update { state ->
+            val connected = state as? ConnectionState.Connected ?: return@update state
+            connected.copy(
+                snapshot = connected.snapshot.copy(
+                    settings = connected.snapshot.settings.copy(
+                        hold = Hold.CYCLE_ANC,
+                        holdModes = safeModes,
+                    ),
+                ),
+            )
+        }
+        scope.launch {
+            runCatching {
+                // Enabling cycling and restoring its valid mask are one logical action.
+                client.send(protocol.hold(Hold.CYCLE_ANC))
+                client.send(protocol.holdModes(safeModes))
+                delay(500)
+                client.send(protocol.holdStateRequest())
+                client.send(protocol.holdModesStateRequest())
+            }
+        }
+    }
     fun setHoldModes(value: Set<AncMode>) = withProtocol { protocol ->
         if (value.size < 2) return@withProtocol
         _state.update { state ->

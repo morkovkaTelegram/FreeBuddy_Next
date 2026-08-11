@@ -11,6 +11,10 @@ data class BatteryLevels(
 
 enum class AncMode(val code: Int) { OFF(0), NOISE_CANCELLING(1), TRANSPARENCY(2) }
 
+/** Return a mask that Huawei can encode for hold-to-cycle ANC. */
+fun validHoldModesOrDefault(current: Set<AncMode>?): Set<AncMode> =
+    current?.takeIf { it.size in 2..3 } ?: AncMode.entries.toSet()
+
 /**
  * Huawei stores hold-to-cycle ANC as one of four combinations: any pair of
  * modes or all three modes. A single mode cannot be encoded. When the user

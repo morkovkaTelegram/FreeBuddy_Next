@@ -353,6 +353,17 @@ class MbbProtocolTest {
         )
     }
 
+    @Test fun invalidOrMissingHoldModesRestoreAllModesWhenCyclingIsEnabled() {
+        assertEquals(AncMode.entries.toSet(), validHoldModesOrDefault(null))
+        assertEquals(AncMode.entries.toSet(), validHoldModesOrDefault(emptySet()))
+        assertEquals(
+            AncMode.entries.toSet(),
+            validHoldModesOrDefault(setOf(AncMode.OFF)),
+        )
+        val valid = setOf(AncMode.OFF, AncMode.TRANSPARENCY)
+        assertEquals(valid, validHoldModesOrDefault(valid))
+    }
+
     @Test fun holdModeToggleAlwaysProducesProtocolSupportedCombination() {
         val offAndAnc = setOf(AncMode.OFF, AncMode.NOISE_CANCELLING)
         assertEquals(
