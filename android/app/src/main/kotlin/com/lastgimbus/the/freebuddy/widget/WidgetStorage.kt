@@ -96,17 +96,22 @@ object WidgetStorage {
         editor.apply()
     }
 
-    suspend fun saveAncAndUpdate(context: Context, mode: AncMode?, connected: Boolean) {
+    /** Persists the ANC state; returns true when something actually changed. */
+    fun saveAnc(context: Context, mode: AncMode?, connected: Boolean): Boolean {
         val modeCode = mode?.code ?: -1
         val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
         if (prefs.getInt(ANC_MODE, -1) == modeCode &&
             prefs.getBoolean(ANC_CONNECTED, false) == connected
-        ) return
+        ) return false
         prefs.edit()
             .putInt(ANC_MODE, modeCode)
             .putBoolean(ANC_CONNECTED, connected)
             .apply()
-        updateAll(context)
+        return true
+    }
+
+    suspend fun saveAncAndUpdate(context: Context, mode: AncMode?, connected: Boolean) {
+        if (saveAnc(context, mode, connected)) updateAll(context)
     }
 
     fun readAnc(context: Context): Pair<Int, Boolean> {
@@ -114,19 +119,24 @@ object WidgetStorage {
         return prefs.getInt(ANC_MODE, -1) to prefs.getBoolean(ANC_CONNECTED, false)
     }
 
-    suspend fun saveAndUpdate(context: Context, battery: BatteryLevels) {
+    /** Persists battery levels; returns true when something actually changed. */
+    fun saveBattery(context: Context, battery: BatteryLevels): Boolean {
         val left = BatteryLevel.validOrNull(battery.left) ?: -1
         val right = BatteryLevel.validOrNull(battery.right) ?: -1
         val case = BatteryLevel.validOrNull(battery.case) ?: -1
         // Buds re-send battery packets with unchanged values; skip the whole
         // bitmap -> RemoteViews -> Binder round-trip when nothing changed.
-        if (read(context) == Triple(left, right, case)) return
+        if (read(context) == Triple(left, right, case)) return false
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
             .putInt(LEFT, left)
             .putInt(RIGHT, right)
             .putInt(CASE, case)
             .apply()
-        updateAll(context)
+        return true
+    }
+
+    suspend fun saveAndUpdate(context: Context, battery: BatteryLevels) {
+        if (saveBattery(context, battery)) updateAll(context)
     }
 
     /** Pushes current battery + per-instance appearance into each widget's

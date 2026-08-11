@@ -2,7 +2,6 @@ package com.lastgimbus.the.freebuddy.widget
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -180,10 +179,12 @@ class SetAncModeAction : ActionCallback {
                 repository.state.first { it is ConnectionState.Connected }
             } != null
         if (!connected || !repository.setAncMode(mode)) {
-            context.startActivity(
-                Intent(context, MainActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            )
+            // Do not startActivity() from here: background activity launches are
+            // silently blocked on Android 10+ for widget callbacks on many ROMs.
+            // Flip the stored state to disconnected instead - the widget
+            // re-renders and its buttons switch to actionStartActivity (a
+            // launcher-blessed PendingIntent), so the next tap opens the app.
+            WidgetStorage.saveAncAndUpdate(context, mode = null, connected = false)
         }
     }
 }

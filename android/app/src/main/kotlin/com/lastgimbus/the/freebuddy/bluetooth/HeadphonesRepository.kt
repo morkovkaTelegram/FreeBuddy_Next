@@ -169,15 +169,13 @@ class HeadphonesRepository(private val context: Context) {
                     ancChanged = updated.ancMode != current.ancMode
                     if (updated == current) state else ConnectionState.Connected(updated)
                 }
-                if (batteryChanged) {
-                    ((_state.value as? ConnectionState.Connected)?.snapshot?.battery)?.let {
-                        WidgetStorage.saveAndUpdate(context, it)
-                    }
-                }
-                if (ancChanged) {
-                    val mode = (_state.value as? ConnectionState.Connected)?.snapshot?.ancMode
-                    WidgetStorage.saveAncAndUpdate(context, mode, connected = true)
-                }
+                // Write both values first, then push widgets once: a packet that
+                // changes battery AND ANC used to trigger two full updateAll passes.
+                val snapshot = (_state.value as? ConnectionState.Connected)?.snapshot
+                val widgetsDirty =
+                    (if (batteryChanged) snapshot?.battery?.let { WidgetStorage.saveBattery(context, it) } == true else false) or
+                        (if (ancChanged) WidgetStorage.saveAnc(context, snapshot?.ancMode, connected = true) else false)
+                if (widgetsDirty) WidgetStorage.updateAll(context)
                 activeProtocol?.takeIf { it.isDualConnectChangeEvent(command) }?.let { protocol ->
                     send(protocol.dualConnectStateRequest())
                     refreshDualConnectDevices()
@@ -324,6 +322,7 @@ class HeadphonesRepository(private val context: Context) {
     private fun startLivenessWatch(device: BluetoothDevice) {
         livenessJob?.cancel()
         livenessJob = scope.launch {
+            var proxyMisses = 0
             while (true) {
                 delay(4000)
                 // The watch is restarted on every successful connect; keeping an
@@ -331,7 +330,14 @@ class HeadphonesRepository(private val context: Context) {
                 if (_state.value !is ConnectionState.Connected) break
                 ensureProfileProxy()
                 val proxy = a2dp
-                if (proxy == null) continue
+                if (proxy == null) {
+                    // Proxy that never comes back (revoked permission, dying BT
+                    // stack) would otherwise keep this loop spinning forever
+                    // without ever detecting anything.
+                    if (!hasPermission() || ++proxyMisses >= 5) break
+                    continue
+                }
+                proxyMisses = 0
                 val st = proxy.getConnectionState(device)
                 if (st != BluetoothProfile.STATE_CONNECTED) {
                     disconnectActive()
