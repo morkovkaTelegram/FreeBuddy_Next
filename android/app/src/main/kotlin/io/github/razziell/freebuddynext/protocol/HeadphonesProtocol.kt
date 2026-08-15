@@ -2,81 +2,113 @@ package io.github.razziell.freebuddynext.protocol
 
 import java.util.UUID
 
-/** Features that may differ between Huawei models. */
-data class HeadphonesCapabilities(
-    val ancLevels: Boolean = false,
-    val dynamicAnc: Boolean = false,
-    val doubleTap: Boolean = false,
-    val tripleTap: Boolean = false,
-    val splitHold: Boolean = false,
-    val swipe: Boolean = false,
-    val autoPause: Boolean = false,
-    val lowLatency: Boolean = false,
-    val ldac: Boolean = false,
-    val equalizer: Boolean = false,
-    val customEqualizer: Boolean = false,
-    val dualConnect: Boolean = false,
-    val dualConnectAutoConnect: Boolean = false,
-    val deviceInfo: Boolean = false,
-)
+/** A self-contained protocol feature that owns its reads and packet reducer. */
+interface ProtocolModule {
+    val initialRequests: List<MbbCommand>
+    fun reduce(snapshot: HeadphonesSnapshot, command: MbbCommand): HeadphonesSnapshot = snapshot
+}
 
-/**
- * Model-specific Huawei MBB protocol profile.
- *
- * A new model must be implemented here and explicitly registered only after
- * its command set has been verified on real hardware. The repository never
- * sends commands from one model profile to another.
- */
+interface DeviceInfoModule : ProtocolModule
+interface BatteryModule : ProtocolModule
+
+interface AncModule : ProtocolModule {
+    val supportsLevels: Boolean
+    val supportsDynamicLevel: Boolean
+    fun setMode(mode: AncMode): MbbCommand
+    fun setLevel(mode: AncMode, level: AncLevel): MbbCommand
+    fun stateRequest(): MbbCommand
+}
+
+interface AutoPauseModule : ProtocolModule {
+    fun setEnabled(enabled: Boolean): MbbCommand
+    fun stateRequest(): MbbCommand
+}
+
+interface DoubleTapModule : ProtocolModule {
+    fun set(left: DoubleTap? = null, right: DoubleTap? = null): MbbCommand
+    fun stateRequest(): MbbCommand
+}
+
+interface TripleTapModule : ProtocolModule {
+    fun set(left: TripleTap? = null, right: TripleTap? = null): MbbCommand
+    fun stateRequest(): MbbCommand
+}
+
+interface HoldModule : ProtocolModule {
+    fun setAction(value: Hold): MbbCommand
+    fun setModes(modes: Set<AncMode>): MbbCommand
+    fun actionStateRequest(): MbbCommand
+    fun modesStateRequest(): MbbCommand
+}
+
+interface SwipeModule : ProtocolModule {
+    fun set(value: Swipe): MbbCommand
+    fun stateRequest(): MbbCommand
+}
+
+interface LowLatencyModule : ProtocolModule {
+    fun setEnabled(enabled: Boolean): MbbCommand
+    fun stateRequest(): MbbCommand
+}
+
+interface LdacModule : ProtocolModule {
+    fun setEnabled(enabled: Boolean): MbbCommand
+    fun stateRequest(): MbbCommand
+}
+
+interface EqualizerModule : ProtocolModule {
+    fun selectPreset(value: EqPreset): MbbCommand
+    fun stateRequest(): MbbCommand
+}
+
+interface CustomEqualizerModule : EqualizerModule {
+    val firstPresetId: Int
+    val lastPresetId: Int
+    val bandCount: Int
+    val minimum: Int
+    val maximum: Int
+    val step: Int
+    val maxNameBytes: Int
+    fun savePreset(preset: CustomEqualizerPreset): MbbCommand
+    fun deletePreset(preset: CustomEqualizerPreset): MbbCommand
+}
+
+interface DualConnectModule : ProtocolModule {
+    val supportsAutoConnect: Boolean
+    fun setEnabled(enabled: Boolean): MbbCommand
+    fun stateRequest(): MbbCommand
+    fun enumerate(): MbbCommand
+    fun setPreferred(device: DualConnectDevice, enabled: Boolean): MbbCommand
+    fun action(device: DualConnectDevice, action: Int): MbbCommand
+    fun isChangeEvent(command: MbbCommand): Boolean
+}
+
+/** Model identity plus an explicit composition of supported feature modules. */
 interface HeadphonesProtocol {
     val id: String
     val displayName: String
     val bluetoothNamePrefixes: Set<String>
     val sppUuid: UUID
-    val capabilities: HeadphonesCapabilities
     val availableColors: List<DeviceColor>
-    val initialRequests: List<MbbCommand>
+    val modules: List<ProtocolModule>
 
-    /** Model-specific color detection; must not reuse another model's undocumented TLVs. */
     fun detectColor(info: DeviceInfo?): DeviceColor?
 
     fun matchesBluetoothName(name: String?): Boolean =
         name != null && bluetoothNamePrefixes.any(name::startsWith)
 
-    fun reduce(snapshot: HeadphonesSnapshot, command: MbbCommand): HeadphonesSnapshot
-    fun isDualConnectChangeEvent(command: MbbCommand): Boolean
+    val initialRequests: List<MbbCommand>
+        get() = modules.flatMap(ProtocolModule::initialRequests)
 
-    fun ancMode(mode: AncMode): MbbCommand
-    fun ancLevel(mode: AncMode, level: AncLevel): MbbCommand
-    fun equalizer(value: EqPreset): MbbCommand
-    fun customEqualizerSave(preset: CustomEqualizerPreset): MbbCommand =
-        error("Custom equalizer is not supported by $displayName")
-    fun customEqualizerDelete(preset: CustomEqualizerPreset): MbbCommand =
-        error("Custom equalizer is not supported by $displayName")
-    fun autoPause(enabled: Boolean): MbbCommand
-    fun lowLatency(enabled: Boolean): MbbCommand
-    fun ldac(enabled: Boolean): MbbCommand
-    fun dualConnect(enabled: Boolean): MbbCommand
-    fun dualConnectEnumeration(): MbbCommand
-    fun dualConnectPreferred(device: DualConnectDevice, enabled: Boolean): MbbCommand
-    fun dualConnectAction(device: DualConnectDevice, action: Int): MbbCommand
-    fun doubleTap(left: DoubleTap? = null, right: DoubleTap? = null): MbbCommand
-    fun tripleTap(left: TripleTap? = null, right: TripleTap? = null): MbbCommand
-    fun hold(value: Hold): MbbCommand
-    fun holdModes(modes: Set<AncMode>): MbbCommand
-    fun swipe(value: Swipe): MbbCommand
-
-    fun ancStateRequest(): MbbCommand
-    fun equalizerStateRequest(): MbbCommand
-    fun autoPauseStateRequest(): MbbCommand
-    fun lowLatencyStateRequest(): MbbCommand
-    fun ldacStateRequest(): MbbCommand
-    fun dualConnectStateRequest(): MbbCommand
-    fun doubleTapStateRequest(): MbbCommand
-    fun tripleTapStateRequest(): MbbCommand
-    fun holdStateRequest(): MbbCommand
-    fun holdModesStateRequest(): MbbCommand
-    fun swipeStateRequest(): MbbCommand
+    fun reduce(snapshot: HeadphonesSnapshot, command: MbbCommand): HeadphonesSnapshot =
+        modules.fold(snapshot) { current, module -> module.reduce(current, command) }
 }
+
+inline fun <reified T : ProtocolModule> HeadphonesProtocol.module(): T? =
+    modules.filterIsInstance<T>().firstOrNull()
+
+fun HeadphonesProtocol.isDualConnectChangeEvent(command: MbbCommand): Boolean =
+    module<DualConnectModule>()?.isChangeEvent(command) == true
 
 /** Single source of truth for models that are safe to control. */
 object HeadphonesProtocolRegistry {

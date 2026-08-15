@@ -22,6 +22,19 @@ import io.github.razziell.freebuddynext.protocol.EqPreset
 import io.github.razziell.freebuddynext.protocol.CustomEqualizerPreset
 import io.github.razziell.freebuddynext.protocol.EqualizerDiagnostics
 import io.github.razziell.freebuddynext.protocol.HeadphonesProtocol
+import io.github.razziell.freebuddynext.protocol.AncModule
+import io.github.razziell.freebuddynext.protocol.AutoPauseModule
+import io.github.razziell.freebuddynext.protocol.CustomEqualizerModule
+import io.github.razziell.freebuddynext.protocol.DoubleTapModule
+import io.github.razziell.freebuddynext.protocol.DualConnectModule
+import io.github.razziell.freebuddynext.protocol.EqualizerModule
+import io.github.razziell.freebuddynext.protocol.HoldModule
+import io.github.razziell.freebuddynext.protocol.LdacModule
+import io.github.razziell.freebuddynext.protocol.LowLatencyModule
+import io.github.razziell.freebuddynext.protocol.SwipeModule
+import io.github.razziell.freebuddynext.protocol.TripleTapModule
+import io.github.razziell.freebuddynext.protocol.isDualConnectChangeEvent
+import io.github.razziell.freebuddynext.protocol.module
 import io.github.razziell.freebuddynext.protocol.HeadphonesProtocolRegistry
 import io.github.razziell.freebuddynext.protocol.HeadphonesSnapshot
 import io.github.razziell.freebuddynext.protocol.Hold
@@ -177,7 +190,7 @@ class HeadphonesRepository(private val context: Context) {
                         (if (ancChanged) WidgetStorage.saveAnc(context, snapshot?.ancMode, connected = true) else false)
                 if (widgetsDirty) WidgetStorage.updateAll(context)
                 activeProtocol?.takeIf { it.isDualConnectChangeEvent(command) }?.let { protocol ->
-                    send(protocol.dualConnectStateRequest())
+                    protocol.module<DualConnectModule>()?.let { send(it.stateRequest()) }
                     refreshDualConnectDevices()
                 }
             }
@@ -282,7 +295,6 @@ class HeadphonesRepository(private val context: Context) {
                             protocolId = protocol.id,
                             name = name,
                             address = device.address,
-                            capabilities = protocol.capabilities,
                         )
                     )
                     WidgetStorage.saveAncAndUpdate(context, mode = null, connected = true)
@@ -383,149 +395,138 @@ class HeadphonesRepository(private val context: Context) {
     }
 
     fun setAncMode(mode: AncMode): Boolean {
-        val protocol = activeProtocol ?: return false
+        val module = activeProtocol?.module<AncModule>() ?: return false
         if (_state.value !is ConnectionState.Connected) return false
         _state.update { state ->
             val connected = state as? ConnectionState.Connected ?: return@update state
             connected.copy(snapshot = connected.snapshot.copy(ancMode = mode))
         }
         scope.launch { WidgetStorage.saveAncAndUpdate(context, mode, connected = true) }
-        send(protocol.ancMode(mode))
+        send(module.setMode(mode))
         return true
     }
 
-    fun setAncLevel(level: AncLevel) = withProtocol { protocol ->
+    fun setAncLevel(level: AncLevel) = withModule<AncModule> { module ->
         val mode = (_state.value as? ConnectionState.Connected)?.snapshot?.ancMode
             ?: AncMode.NOISE_CANCELLING
-        send(protocol.ancLevel(mode, level))
+        send(module.setLevel(mode, level))
     }
 
-    fun setEq(value: EqPreset) = withProtocol { sendAndRefresh(it.equalizer(value), it.equalizerStateRequest()) }
-    fun saveCustomEq(preset: CustomEqualizerPreset) = withProtocol { protocol ->
-        if (!protocol.capabilities.customEqualizer) return@withProtocol
+    fun setEq(value: EqPreset) = withModule<EqualizerModule> {
+        sendAndRefresh(it.selectPreset(value), it.stateRequest())
+    }
+
+    fun saveCustomEq(preset: CustomEqualizerPreset) = withModule<CustomEqualizerModule> { module ->
         _state.update { state ->
             val connected = state as? ConnectionState.Connected ?: return@update state
             val diagnostics = connected.snapshot.equalizerDiagnostics ?: EqualizerDiagnostics()
-            connected.copy(
-                snapshot = connected.snapshot.copy(
-                    equalizerDiagnostics = diagnostics.copy(
-                        activePresetId = preset.id,
-                        customPresets = (diagnostics.customPresets.filterNot { it.id == preset.id } + preset)
-                            .sortedBy { it.id },
-                    ),
+            connected.copy(snapshot = connected.snapshot.copy(
+                equalizerDiagnostics = diagnostics.copy(
+                    activePresetId = preset.id,
+                    customPresets = (diagnostics.customPresets.filterNot { it.id == preset.id } + preset).sortedBy { it.id },
                 ),
-            )
+            ))
         }
-        sendAndRefresh(
-            protocol.customEqualizerSave(preset),
-            protocol.equalizerStateRequest(),
-            refreshDelayMs = 500,
-        )
+        sendAndRefresh(module.savePreset(preset), module.stateRequest(), refreshDelayMs = 500)
     }
 
-    fun deleteCustomEq(preset: CustomEqualizerPreset) = withProtocol { protocol ->
-        if (!protocol.capabilities.customEqualizer) return@withProtocol
+    fun deleteCustomEq(preset: CustomEqualizerPreset) = withModule<CustomEqualizerModule> { module ->
         _state.update { state ->
             val connected = state as? ConnectionState.Connected ?: return@update state
             val diagnostics = connected.snapshot.equalizerDiagnostics ?: return@update state
-            connected.copy(
-                snapshot = connected.snapshot.copy(
-                    equalizerDiagnostics = diagnostics.copy(
-                        activePresetId = if (diagnostics.activePresetId == preset.id) 1 else diagnostics.activePresetId,
-                        customPresets = diagnostics.customPresets.filterNot { it.id == preset.id },
-                    ),
+            connected.copy(snapshot = connected.snapshot.copy(
+                equalizerDiagnostics = diagnostics.copy(
+                    activePresetId = if (diagnostics.activePresetId == preset.id) 1 else diagnostics.activePresetId,
+                    customPresets = diagnostics.customPresets.filterNot { it.id == preset.id },
                 ),
-            )
+            ))
         }
-        sendAndRefresh(
-            protocol.customEqualizerDelete(preset),
-            protocol.equalizerStateRequest(),
-            refreshDelayMs = 500,
-        )
-    }
-    fun setAutoPause(value: Boolean) = withProtocol { sendAndRefresh(it.autoPause(value), it.autoPauseStateRequest()) }
-    fun setLowLatency(value: Boolean) = withProtocol {
-        sendAndRefresh(it.lowLatency(value), it.lowLatencyStateRequest(), refreshDelayMs = 1_000)
-    }
-    fun setLdac(value: Boolean) = withProtocol { sendAndRefresh(it.ldac(value), it.ldacStateRequest()) }
-    fun setDualConnect(value: Boolean) = withProtocol { sendAndRefresh(it.dualConnect(value), it.dualConnectStateRequest()) }
-
-    fun refreshDualConnectDevices() = withProtocol { protocol ->
-        if (_state.value is ConnectionState.Connected) send(protocol.dualConnectEnumeration())
+        sendAndRefresh(module.deletePreset(preset), module.stateRequest(), refreshDelayMs = 500)
     }
 
-    fun setDualDeviceConnected(device: DualConnectDevice, connected: Boolean) = withProtocol {
-        sendAndRefreshDual(it.dualConnectAction(device, if (connected) 1 else 2))
+    fun setAutoPause(value: Boolean) = withModule<AutoPauseModule> {
+        sendAndRefresh(it.setEnabled(value), it.stateRequest())
     }
-    fun setDualDeviceAutoConnect(device: DualConnectDevice, enabled: Boolean) = withProtocol {
-        if (it.capabilities.dualConnectAutoConnect) {
-            sendAndRefreshDual(it.dualConnectAction(device, if (enabled) 4 else 5))
-        }
+    fun setLowLatency(value: Boolean) = withModule<LowLatencyModule> {
+        sendAndRefresh(it.setEnabled(value), it.stateRequest(), refreshDelayMs = 1_000)
     }
-    fun setDualDevicePreferred(device: DualConnectDevice, enabled: Boolean) = withProtocol {
-        sendAndRefreshDual(it.dualConnectPreferred(device, enabled))
+    fun setLdac(value: Boolean) = withModule<LdacModule> {
+        sendAndRefresh(it.setEnabled(value), it.stateRequest())
+    }
+    fun setDualConnect(value: Boolean) = withModule<DualConnectModule> {
+        sendAndRefresh(it.setEnabled(value), it.stateRequest())
+    }
+
+    fun refreshDualConnectDevices() = withModule<DualConnectModule> { module ->
+        if (_state.value is ConnectionState.Connected) send(module.enumerate())
+    }
+    fun setDualDeviceConnected(device: DualConnectDevice, connected: Boolean) = withModule<DualConnectModule> {
+        sendAndRefreshDual(it.action(device, if (connected) 1 else 2))
+    }
+    fun setDualDeviceAutoConnect(device: DualConnectDevice, enabled: Boolean) = withModule<DualConnectModule> {
+        if (it.supportsAutoConnect) sendAndRefreshDual(it.action(device, if (enabled) 4 else 5))
+    }
+    fun setDualDevicePreferred(device: DualConnectDevice, enabled: Boolean) = withModule<DualConnectModule> {
+        sendAndRefreshDual(it.setPreferred(device, enabled))
     }
     fun unpairDualDevice(device: DualConnectDevice) {
         _state.update { state ->
             val connected = state as? ConnectionState.Connected ?: return@update state
-            connected.copy(
-                snapshot = connected.snapshot.copy(
-                    dualConnectDevices = connected.snapshot.dualConnectDevices
-                        .filterNot { it.address == device.address },
-                ),
-            )
+            connected.copy(snapshot = connected.snapshot.copy(
+                dualConnectDevices = connected.snapshot.dualConnectDevices.filterNot { it.address == device.address },
+            ))
         }
-        withProtocol { sendAndRefreshDual(it.dualConnectAction(device, 3)) }
+        withModule<DualConnectModule> { sendAndRefreshDual(it.action(device, 3)) }
     }
-    fun setDoubleTap(left: DoubleTap? = null, right: DoubleTap? = null) = withProtocol {
-        sendAndRefresh(it.doubleTap(left, right), it.doubleTapStateRequest())
+    fun setDoubleTap(left: DoubleTap? = null, right: DoubleTap? = null) = withModule<DoubleTapModule> {
+        sendAndRefresh(it.set(left, right), it.stateRequest())
     }
-    fun setTripleTap(left: TripleTap? = null, right: TripleTap? = null) = withProtocol {
-        sendAndRefresh(it.tripleTap(left, right), it.tripleTapStateRequest())
+    fun setTripleTap(left: TripleTap? = null, right: TripleTap? = null) = withModule<TripleTapModule> {
+        sendAndRefresh(it.set(left, right), it.stateRequest())
     }
-    fun setHold(value: Hold) = withProtocol { protocol ->
+    fun setHold(value: Hold) = withModule<HoldModule> { module ->
         if (value != Hold.CYCLE_ANC) {
-            sendAndRefresh(protocol.hold(value), protocol.holdStateRequest())
-            return@withProtocol
+            sendAndRefresh(module.setAction(value), module.actionStateRequest())
+            return@withModule
         }
-
-        val currentModes = (_state.value as? ConnectionState.Connected)
-            ?.snapshot?.settings?.holdModes
-        val safeModes = validHoldModesOrDefault(currentModes)
+        val safeModes = validHoldModesOrDefault(
+            (_state.value as? ConnectionState.Connected)?.snapshot?.settings?.holdModes,
+        )
         _state.update { state ->
             val connected = state as? ConnectionState.Connected ?: return@update state
-            connected.copy(
-                snapshot = connected.snapshot.copy(
-                    settings = connected.snapshot.settings.copy(
-                        hold = Hold.CYCLE_ANC,
-                        holdModes = safeModes,
-                    ),
-                ),
-            )
+            connected.copy(snapshot = connected.snapshot.copy(settings = connected.snapshot.settings.copy(
+                hold = Hold.CYCLE_ANC,
+                holdModes = safeModes,
+            )))
         }
         scope.launch {
             runCatching {
-                // Enabling cycling and restoring its valid mask are one logical action.
-                client.send(protocol.hold(Hold.CYCLE_ANC))
-                client.send(protocol.holdModes(safeModes))
+                client.send(module.setAction(Hold.CYCLE_ANC))
+                client.send(module.setModes(safeModes))
                 delay(500)
-                client.send(protocol.holdStateRequest())
-                client.send(protocol.holdModesStateRequest())
+                client.send(module.actionStateRequest())
+                client.send(module.modesStateRequest())
             }
         }
     }
-    fun setHoldModes(value: Set<AncMode>) = withProtocol { protocol ->
-        if (value.size < 2) return@withProtocol
+    fun setHoldModes(value: Set<AncMode>) = withModule<HoldModule> { module ->
+        if (value.size < 2) return@withModule
         _state.update { state ->
             val connected = state as? ConnectionState.Connected ?: return@update state
-            connected.copy(snapshot = connected.snapshot.copy(settings = connected.snapshot.settings.copy(holdModes = value)))
+            connected.copy(snapshot = connected.snapshot.copy(
+                settings = connected.snapshot.settings.copy(holdModes = value),
+            ))
         }
-        sendAndRefresh(protocol.holdModes(value), protocol.holdModesStateRequest(), refreshDelayMs = 500)
+        sendAndRefresh(module.setModes(value), module.modesStateRequest(), refreshDelayMs = 500)
     }
-    fun setSwipe(value: Swipe) = withProtocol { sendAndRefresh(it.swipe(value), it.swipeStateRequest()) }
+    fun setSwipe(value: Swipe) = withModule<SwipeModule> {
+        sendAndRefresh(it.set(value), it.stateRequest())
+    }
 
-    private inline fun withProtocol(block: (HeadphonesProtocol) -> Unit) {
-        activeProtocol?.let(block)
+    private inline fun <reified T : io.github.razziell.freebuddynext.protocol.ProtocolModule> withModule(
+        block: (T) -> Unit,
+    ) {
+        activeProtocol?.module<T>()?.let(block)
     }
 
     private fun send(command: MbbCommand) { scope.launch { runCatching { client.send(command) } } }

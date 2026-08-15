@@ -1,29 +1,35 @@
-# Huawei model profiles
+# Huawei protocol modules
 
-Each supported model must implement `HeadphonesProtocol` and be registered in
-`HeadphonesProtocolRegistry.verifiedProfiles` only after validation on real
-hardware. The repository obtains matching, RFCOMM UUID, initial reads, parser,
-write commands, read-back commands and capabilities exclusively from the
-active profile; commands cannot leak between models.
+`HeadphonesProtocol` contains model identity, transport metadata and an explicit
+list of `ProtocolModule` instances. It does not expose commands for unsupported
+features. The repository and UI resolve typed modules such as `AncModule`,
+`HoldModule`, `EqualizerModule` and `DualConnectModule`; if a module is absent,
+that feature cannot form a command and is not shown.
 
-## Adding HUAWEI FreeBuds 6i
+Every module owns its initial read requests, write/read-back commands and packet
+reducer. Shared, stateless Huawei modules are reused by verified profiles. A
+model-specific implementation is required only where packets or capabilities
+differ.
 
-OpenFreebuds marks its 6i profile as tested and reports Huawei SPP service
-channel 1. Android resolves the standard SPP UUID to the remote RFCOMM channel,
-so validate discovery on a real pair before adding any fallback/reflection for
-an explicit channel.
+## Adding a model
 
-Create `FreeBuds6iProtocol : HeadphonesProtocol`, then verify every command and
-only then register it. Known OpenFreebuds capability differences versus 5i:
+1. Verify the profile and packets against OpenFreebuds and real hardware.
+2. Create a `HeadphonesProtocol` with identity, SPP UUID, colors and modules.
+3. Reuse only confirmed common Huawei modules.
+4. Implement a model-specific module for every protocol difference.
+5. Add packet, reducer and module-composition tests.
+6. Register the profile in `HeadphonesProtocolRegistry` only after validation.
 
-- custom equalizer is supported (`customEqualizer = true`);
-- built-in EQ codes remain 1, 2, 3 and 9;
-- Dual Connect is supported, but per-device auto-connect is not
-  (`dualConnectAutoConnect = false`);
-- split long-tap configuration, dynamic ANC, low latency, auto pause, swipe,
-  double/triple tap and device information are supported;
-- firmware update is not implemented.
+The UI derives capabilities from module presence. Do not add a second boolean
+capability table and do not delegate one complete model profile to another.
 
-Do not alias `FreeBuds5iProtocol`: copy/derive only commands confirmed by the
-Openfreebuds 6i handler and field logs. Add protocol reducer and registry tests,
-then gate UI with `HeadphonesSnapshot.capabilities`.
+## Current profiles
+
+FreeBuds 5i and 6i share device info, battery, advanced ANC, auto pause,
+gestures, low latency and LDAC modules. They intentionally differ in equalizer
+and Dual Connect composition:
+
+- 5i uses built-in EQ and Dual Connect with per-device auto-connect;
+- 6i uses custom EQ and Dual Connect without per-device auto-connect.
+
+Firmware update is not implemented.

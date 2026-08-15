@@ -112,12 +112,23 @@ import io.github.razziell.freebuddynext.protocol.toggleHoldMode
 import io.github.razziell.freebuddynext.protocol.SerialComponent
 import io.github.razziell.freebuddynext.protocol.ProductionDate
 import io.github.razziell.freebuddynext.protocol.AncLevel
+import io.github.razziell.freebuddynext.protocol.AncModule
+import io.github.razziell.freebuddynext.protocol.AutoPauseModule
+import io.github.razziell.freebuddynext.protocol.CustomEqualizerModule
+import io.github.razziell.freebuddynext.protocol.DoubleTapModule
+import io.github.razziell.freebuddynext.protocol.DualConnectModule
+import io.github.razziell.freebuddynext.protocol.EqualizerModule
+import io.github.razziell.freebuddynext.protocol.HoldModule
+import io.github.razziell.freebuddynext.protocol.LdacModule
+import io.github.razziell.freebuddynext.protocol.LowLatencyModule
+import io.github.razziell.freebuddynext.protocol.SwipeModule
+import io.github.razziell.freebuddynext.protocol.TripleTapModule
+import io.github.razziell.freebuddynext.protocol.module
 import io.github.razziell.freebuddynext.protocol.AncMode
 import io.github.razziell.freebuddynext.protocol.BatteryLevel
 import io.github.razziell.freebuddynext.protocol.BatteryLevels
 import io.github.razziell.freebuddynext.protocol.DoubleTap
 import io.github.razziell.freebuddynext.protocol.CustomEqualizerPreset
-import io.github.razziell.freebuddynext.protocol.FreeBuds6iProtocol
 import io.github.razziell.freebuddynext.protocol.DualConnectDevice
 import io.github.razziell.freebuddynext.protocol.DeviceColor
 import io.github.razziell.freebuddynext.protocol.DeviceInfo
@@ -275,8 +286,9 @@ private fun ConnectedContent(snapshot: HeadphonesSnapshot, repository: Headphone
             if (showInfo) DeviceInfoDialog(snapshot, repository, onDismiss = { showInfo = false })
         }
         item { BatteryCard(snapshot.battery) }
-        if (snapshot.capabilities.ancLevels) item { AncCard(snapshot, repository) }
-        if (snapshot.capabilities.dualConnect) item { DualConnectCard(snapshot, repository) }
+        val protocol = HeadphonesProtocolRegistry.findById(snapshot.protocolId)
+        protocol?.module<AncModule>()?.let { anc -> item { AncCard(snapshot, repository, anc) } }
+        protocol?.module<DualConnectModule>()?.let { dual -> item { DualConnectCard(snapshot, repository, dual) } }
         item { Button(onClick = openSettings, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.headphones_settings)) } }
         item { Spacer(Modifier.height(24.dp)) }
     }
@@ -515,7 +527,7 @@ private fun DeviceInfoRow(label: String, value: String?) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DualConnectCard(snapshot: HeadphonesSnapshot, repository: HeadphonesRepository) {
+private fun DualConnectCard(snapshot: HeadphonesSnapshot, repository: HeadphonesRepository, module: DualConnectModule) {
     var expanded by remember { mutableStateOf(false) }
     var selectedAddress by remember { mutableStateOf<String?>(null) }
     val selectedDevice = snapshot.dualConnectDevices.firstOrNull { it.address == selectedAddress }
@@ -577,7 +589,7 @@ private fun DualConnectCard(snapshot: HeadphonesSnapshot, repository: Headphones
     selectedDevice?.let { device ->
         DualDeviceSheet(
             device = device,
-            autoConnectSupported = snapshot.capabilities.dualConnectAutoConnect,
+            autoConnectSupported = module.supportsAutoConnect,
             repository = repository,
             onDismiss = { selectedAddress = null },
         )
@@ -759,7 +771,7 @@ private fun BatteryRow(
 }
 
 @Composable
-private fun AncCard(snapshot: HeadphonesSnapshot, repository: HeadphonesRepository) {
+private fun AncCard(snapshot: HeadphonesSnapshot, repository: HeadphonesRepository, module: AncModule) {
     Card(Modifier.fillMaxWidth(), shape = AppCardShape) {
         Column(
             Modifier.fillMaxWidth().padding(16.dp),
@@ -772,8 +784,12 @@ private fun AncCard(snapshot: HeadphonesSnapshot, repository: HeadphonesReposito
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center,
             )
-            if (snapshot.ancMode == AncMode.NOISE_CANCELLING) {
-                AncLevelMenu(snapshot.ancLevel, repository::setAncLevel)
+            if (module.supportsLevels && snapshot.ancMode == AncMode.NOISE_CANCELLING) {
+                AncLevelMenu(
+                    snapshot.ancLevel,
+                    levels = if (module.supportsDynamicLevel) AncLevel.entries else AncLevel.entries.filterNot { it == AncLevel.DYNAMIC },
+                    choose = repository::setAncLevel,
+                )
             }
             Row(
                 Modifier.fillMaxWidth(),
@@ -820,7 +836,7 @@ private fun AncModeButton(mode: AncMode, selectedMode: AncMode?, @DrawableRes ic
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AncLevelMenu(selected: AncLevel?, choose: (AncLevel) -> Unit) {
+private fun AncLevelMenu(selected: AncLevel?, levels: List<AncLevel>, choose: (AncLevel) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val current = selected?.let { stringResource(it.label()) }.orEmpty()
     ExposedDropdownMenuBox(
@@ -844,7 +860,7 @@ private fun AncLevelMenu(selected: AncLevel?, choose: (AncLevel) -> Unit) {
             shape = AppCardShape,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            AncLevel.entries.forEach { level ->
+            levels.forEach { level ->
                 val isSelected = level == selected
                 DropdownMenuItem(
                     text = { Text(stringResource(level.label())) },
@@ -871,19 +887,28 @@ private fun HeadphonesSettingsScreen(state: ConnectionState, repository: Headpho
             return@Scaffold
         }
         val s = snapshot.settings
-        val features = snapshot.capabilities
+        val protocol = HeadphonesProtocolRegistry.findById(snapshot.protocolId)
+        val equalizer = protocol?.module<EqualizerModule>()
+        val customEqualizer = protocol?.module<CustomEqualizerModule>()
+        val autoPause = protocol?.module<AutoPauseModule>()
+        val lowLatency = protocol?.module<LowLatencyModule>()
+        val ldac = protocol?.module<LdacModule>()
+        val doubleTap = protocol?.module<DoubleTapModule>()
+        val tripleTap = protocol?.module<TripleTapModule>()
+        val hold = protocol?.module<HoldModule>()
+        val swipe = protocol?.module<SwipeModule>()
         LazyColumn(Modifier.padding(padding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            if (features.equalizer) item {
-                if (features.customEqualizer) {
-                    CustomEqualizerSection(snapshot, repository)
+            if (equalizer != null) item {
+                if (customEqualizer != null) {
+                    CustomEqualizerSection(snapshot, repository, customEqualizer)
                 } else {
                     EnumDropdown(R.string.equalizer, EqPreset.entries, s.eqPreset, { it.eqLabel() }, repository::setEq)
                 }
             }
-            if (features.autoPause) item { CardSwitch(stringResource(R.string.auto_pause), s.autoPause ?: false, s.autoPause != null, stringResource(R.string.auto_pause_desc), repository::setAutoPause) }
-            if (features.lowLatency) item { CardSwitch(stringResource(R.string.low_latency), s.lowLatency ?: false, s.lowLatency != null, stringResource(R.string.low_latency_desc), repository::setLowLatency) }
-            if (features.ldac) item { CardSwitch(stringResource(R.string.ldac), s.ldac ?: false, s.ldac != null, stringResource(R.string.ldac_desc), repository::setLdac) }
-            if (features.doubleTap || features.tripleTap || features.splitHold || features.swipe) {
+            if (autoPause != null) item { CardSwitch(stringResource(R.string.auto_pause), s.autoPause ?: false, s.autoPause != null, stringResource(R.string.auto_pause_desc), repository::setAutoPause) }
+            if (lowLatency != null) item { CardSwitch(stringResource(R.string.low_latency), s.lowLatency ?: false, s.lowLatency != null, stringResource(R.string.low_latency_desc), repository::setLowLatency) }
+            if (ldac != null) item { CardSwitch(stringResource(R.string.ldac), s.ldac ?: false, s.ldac != null, stringResource(R.string.ldac_desc), repository::setLdac) }
+            if (doubleTap != null || tripleTap != null || hold != null || swipe != null) {
                 item {
                     Text(
                         stringResource(R.string.gestures),
@@ -892,13 +917,13 @@ private fun HeadphonesSettingsScreen(state: ConnectionState, repository: Headpho
                     )
                 }
             }
-            if (features.doubleTap) item { GesturePair(R.string.double_tap, DoubleTap.entries, s.doubleTapLeft, s.doubleTapRight, { it.doubleTapLabel() }, { repository.setDoubleTap(left = it) }, { repository.setDoubleTap(right = it) }) }
-            if (features.tripleTap) item { GesturePair(R.string.triple_tap, TripleTap.entries, s.tripleTapLeft, s.tripleTapRight, { it.tripleTapLabel() }, { repository.setTripleTap(left = it) }, { repository.setTripleTap(right = it) }) }
-            if (features.splitHold) {
+            if (doubleTap != null) item { GesturePair(R.string.double_tap, DoubleTap.entries, s.doubleTapLeft, s.doubleTapRight, { it.doubleTapLabel() }, { repository.setDoubleTap(left = it) }, { repository.setDoubleTap(right = it) }) }
+            if (tripleTap != null) item { GesturePair(R.string.triple_tap, TripleTap.entries, s.tripleTapLeft, s.tripleTapRight, { it.tripleTapLabel() }, { repository.setTripleTap(left = it) }, { repository.setTripleTap(right = it) }) }
+            if (hold != null) {
                 item { EnumDropdown(R.string.hold, Hold.entries, s.hold, { it.holdLabel() }, repository::setHold) }
                 item { HoldModesCard(s, repository) }
             }
-            if (features.swipe) item { EnumDropdown(R.string.swipe, Swipe.entries, s.swipe, { it.swipeLabel() }, repository::setSwipe) }
+            if (swipe != null) item { EnumDropdown(R.string.swipe, Swipe.entries, s.swipe, { it.swipeLabel() }, repository::setSwipe) }
             item { Spacer(Modifier.height(32.dp)) }
         }
     }
@@ -914,6 +939,7 @@ private sealed interface EqualizerChoice {
 private fun CustomEqualizerSection(
     snapshot: HeadphonesSnapshot,
     repository: HeadphonesRepository,
+    module: CustomEqualizerModule,
 ) {
     val diagnostics = snapshot.equalizerDiagnostics
     val customPresets = diagnostics?.customPresets.orEmpty()
@@ -929,7 +955,7 @@ private fun CustomEqualizerSection(
     }
     var expanded by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<CustomEqualizerPreset?>(null) }
-    val canCreate = customPresets.size < 3
+    val canCreate = customPresets.size < (module.lastPresetId - module.firstPresetId + 1)
     val defaultCustomName = stringResource(R.string.eq_custom_default_name)
     val currentLabel = when (selected) {
         is EqualizerChoice.BuiltIn -> selected.preset.eqLabel()
@@ -992,12 +1018,12 @@ private fun CustomEqualizerSection(
                 TextButton(
                     onClick = {
                         val used = customPresets.mapTo(mutableSetOf()) { it.id }
-                        val id = (FreeBuds6iProtocol.CUSTOM_EQ_FIRST_ID..FreeBuds6iProtocol.CUSTOM_EQ_LAST_ID)
+                        val id = (module.firstPresetId..module.lastPresetId)
                             .first { it !in used }
                         editing = CustomEqualizerPreset(
                             id = id,
-                            name = "$defaultCustomName ${id - 99}",
-                            bands = List(FreeBuds6iProtocol.CUSTOM_EQ_BAND_COUNT) { 0 },
+                            name = "$defaultCustomName ${id - module.firstPresetId + 1}",
+                            bands = List(module.bandCount) { 0 },
                         )
                     },
                 ) {
@@ -1012,6 +1038,7 @@ private fun CustomEqualizerSection(
     editing?.let { preset ->
         CustomEqualizerEditor(
             original = preset,
+            module = module,
             allowDelete = customPresets.any { it.id == preset.id },
             onDismiss = { editing = null },
             onSave = {
@@ -1029,6 +1056,7 @@ private fun CustomEqualizerSection(
 @Composable
 private fun CustomEqualizerEditor(
     original: CustomEqualizerPreset,
+    module: CustomEqualizerModule,
     allowDelete: Boolean,
     onDismiss: () -> Unit,
     onSave: (CustomEqualizerPreset) -> Unit,
@@ -1038,7 +1066,7 @@ private fun CustomEqualizerEditor(
     var bands by remember(original.id) { mutableStateOf(original.bands) }
     var confirmDelete by remember { mutableStateOf(false) }
     val nameBytes = name.trim().toByteArray(Charsets.UTF_8).size
-    val validName = name.isNotBlank() && nameBytes <= FreeBuds6iProtocol.CUSTOM_EQ_NAME_MAX_BYTES
+    val validName = name.isNotBlank() && nameBytes <= module.maxNameBytes
     val frequencies = listOf("60", "125", "250", "500", "1K", "2K", "4K", "8K", "12K", "16K")
     val frequenciesHz = listOf(60, 125, 250, 500, 1_000, 2_000, 4_000, 8_000, 12_000, 16_000)
 
@@ -1055,7 +1083,7 @@ private fun CustomEqualizerEditor(
                     onValueChange = { name = it },
                     label = { Text(stringResource(R.string.eq_custom_name)) },
                     supportingText = {
-                        Text(stringResource(R.string.eq_custom_name_bytes, nameBytes, FreeBuds6iProtocol.CUSTOM_EQ_NAME_MAX_BYTES))
+                        Text(stringResource(R.string.eq_custom_name_bytes, nameBytes, module.maxNameBytes))
                     },
                     isError = !validName,
                     singleLine = true,
@@ -1083,11 +1111,11 @@ private fun CustomEqualizerEditor(
                                 stateDescription = bandState
                             },
                             onValueChange = { value ->
-                                val snapped = ((value / FreeBuds6iProtocol.CUSTOM_EQ_STEP).roundToInt() * FreeBuds6iProtocol.CUSTOM_EQ_STEP)
-                                    .coerceIn(FreeBuds6iProtocol.CUSTOM_EQ_MIN, FreeBuds6iProtocol.CUSTOM_EQ_MAX)
+                                val snapped = ((value / module.step).roundToInt() * module.step)
+                                    .coerceIn(module.minimum, module.maximum)
                                 bands = bands.toMutableList().also { it[index] = snapped }
                             },
-                            valueRange = FreeBuds6iProtocol.CUSTOM_EQ_MIN.toFloat()..FreeBuds6iProtocol.CUSTOM_EQ_MAX.toFloat(),
+                            valueRange = module.minimum.toFloat()..module.maximum.toFloat(),
                             steps = 23,
                         )
                     }

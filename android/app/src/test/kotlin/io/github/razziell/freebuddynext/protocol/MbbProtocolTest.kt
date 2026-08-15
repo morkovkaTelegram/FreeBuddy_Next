@@ -133,12 +133,11 @@ class MbbProtocolTest {
         assertNull(HeadphonesProtocolRegistry.findByBluetoothName("Random headset"))
     }
 
-    @Test fun freeBuds5iCapabilitiesAreExplicit() {
-        val features = FreeBuds5iProtocol.capabilities
-        assertEquals(true, features.ancLevels)
-        assertEquals(true, features.dynamicAnc)
-        assertEquals(true, features.dualConnectAutoConnect)
-        assertEquals(false, features.customEqualizer)
+    @Test fun freeBuds5iModulesAreExplicit() {
+        assertEquals(true, FreeBuds5iProtocol.module<AncModule>()?.supportsLevels)
+        assertEquals(true, FreeBuds5iProtocol.module<AncModule>()?.supportsDynamicLevel)
+        assertEquals(true, FreeBuds5iProtocol.module<DualConnectModule>()?.supportsAutoConnect)
+        assertNull(FreeBuds5iProtocol.module<CustomEqualizerModule>())
     }
 
     @Test(expected = IllegalArgumentException::class)
@@ -172,10 +171,8 @@ class MbbProtocolTest {
     }
 
     @Test fun freeBuds6iProfileDeclaresModelDifferences() {
-        val features = FreeBuds6iProtocol.capabilities
-        assertEquals(true, features.customEqualizer)
-        assertEquals(true, features.dualConnect)
-        assertEquals(false, features.dualConnectAutoConnect)
+        assertEquals(true, FreeBuds6iProtocol.module<CustomEqualizerModule>() != null)
+        assertEquals(false, FreeBuds6iProtocol.module<DualConnectModule>()?.supportsAutoConnect)
         assertEquals(
             listOf(DeviceColor.BLACK, DeviceColor.WHITE, DeviceColor.PURPLE),
             FreeBuds6iProtocol.availableColors,
@@ -199,7 +196,7 @@ class MbbProtocolTest {
     }
 
     @Test fun freeBuds6iEqualizerReadRequestsAllKnownFields() {
-        val request = FreeBuds6iProtocol.equalizerStateRequest()
+        val request = FreeBuds6iProtocol.module<CustomEqualizerModule>()!!.stateRequest()
         assertEquals(43, request.serviceId)
         assertEquals(74, request.commandId)
         assertEquals((1..8).toSet(), request.args.keys)
@@ -219,7 +216,7 @@ class MbbProtocolTest {
             74,
             mapOf(2 to byteArrayOf(100.toByte()), 3 to byteArrayOf(1, 2, 3, 9), 8 to custom),
         )
-        val diagnostics = FreeBuds6iProtocol.parseEqualizerDiagnostics(command)
+        val diagnostics = FreeBuds6iProtocol.reduce(HeadphonesSnapshot(), command).equalizerDiagnostics!!
         assertEquals(100, diagnostics.activePresetId)
         assertEquals(listOf(1, 2, 3, 9), diagnostics.builtInPresetIds)
         assertEquals("My EQ", diagnostics.customPresets.single().name)
@@ -237,11 +234,11 @@ class MbbProtocolTest {
     @Test fun holdRequestsAndResponsesMatchOpenFreebudsTraffic() {
         assertEquals(
             "5A0007002B170100020030A7",
-            FreeBuds5iProtocol.holdStateRequest().toPayload().toHex(),
+            FreeBuds5iProtocol.module<HoldModule>()!!.actionStateRequest().toPayload().toHex(),
         )
         assertEquals(
             "5A0007002B1901000200FF0F",
-            FreeBuds5iProtocol.holdModesStateRequest().toPayload().toHex(),
+            FreeBuds5iProtocol.module<HoldModule>()!!.modesStateRequest().toPayload().toHex(),
         )
 
         val response = MbbCommand.parse(
@@ -252,13 +249,13 @@ class MbbProtocolTest {
     }
 
     @Test fun holdModeWriteTargetsBothEarbuds() {
-        val command = FreeBuds5iProtocol.holdModes(
+        val command = FreeBuds5iProtocol.module<HoldModule>()!!.setModes(
             setOf(AncMode.OFF, AncMode.TRANSPARENCY),
         )
         assertArrayEquals(byteArrayOf(4), command.args[1])
         assertArrayEquals(byteArrayOf(4), command.args[2])
 
-        val base = FreeBuds5iProtocol.hold(Hold.CYCLE_ANC)
+        val base = FreeBuds5iProtocol.module<HoldModule>()!!.setAction(Hold.CYCLE_ANC)
         assertArrayEquals(byteArrayOf(10), base.args[1])
         assertArrayEquals(byteArrayOf(10), base.args[2])
     }
@@ -273,52 +270,52 @@ class MbbProtocolTest {
         )
         assertEquals(
             "5A0005002B110100772A",
-            FreeBuds5iProtocol.autoPauseStateRequest().toPayload().toHex(),
+            FreeBuds5iProtocol.module<AutoPauseModule>()!!.stateRequest().toPayload().toHex(),
         )
         assertEquals(
             "5A000700012001000200E897",
-            FreeBuds5iProtocol.doubleTapStateRequest().toPayload().toHex(),
+            FreeBuds5iProtocol.module<DoubleTapModule>()!!.stateRequest().toPayload().toHex(),
         )
         assertEquals(
             "5A0007002B1F01000200328A",
-            FreeBuds5iProtocol.swipeStateRequest().toPayload().toHex(),
+            FreeBuds5iProtocol.module<SwipeModule>()!!.stateRequest().toPayload().toHex(),
         )
         assertEquals(
             "5A0005002B6C0200B820",
-            FreeBuds5iProtocol.lowLatencyStateRequest().toPayload().toHex(),
+            FreeBuds5iProtocol.module<LowLatencyModule>()!!.stateRequest().toPayload().toHex(),
         )
     }
 
     @Test fun commonWritesMatchOpenfreebudsTraffic() {
         assertEquals(
             "5A0006002B10010101A956",
-            FreeBuds5iProtocol.autoPause(true).toPayload().toHex(),
+            FreeBuds5iProtocol.module<AutoPauseModule>()!!.setEnabled(true).toPayload().toHex(),
         )
         assertEquals(
             "5A000600011F01010203C1",
-            FreeBuds5iProtocol.doubleTap(left = DoubleTap.NEXT, right = null).toPayload().toHex(),
+            FreeBuds5iProtocol.module<DoubleTapModule>()!!.set(left = DoubleTap.NEXT, right = null).toPayload().toHex(),
         )
         assertEquals(
             "5A0009002B1E0101FF0201FF9D9B",
-            FreeBuds5iProtocol.swipe(Swipe.NONE).toPayload().toHex(),
+            FreeBuds5iProtocol.module<SwipeModule>()!!.set(Swipe.NONE).toPayload().toHex(),
         )
         assertEquals(
             "5A0006002B6C010101A411",
-            FreeBuds5iProtocol.lowLatency(true).toPayload().toHex(),
+            FreeBuds5iProtocol.module<LowLatencyModule>()!!.setEnabled(true).toPayload().toHex(),
         )
     }
 
     @Test fun allStructuredReadsDeclareExpectedTlvFields() {
-        assertEquals(setOf(1, 2), FreeBuds5iProtocol.ancStateRequest().args.keys)
-        assertEquals(setOf(1, 2), FreeBuds5iProtocol.tripleTapStateRequest().args.keys)
-        assertEquals((1..8).toSet(), FreeBuds5iProtocol.equalizerStateRequest().args.keys)
-        assertEquals(setOf(1), FreeBuds5iProtocol.dualConnectStateRequest().args.keys)
-        assertEquals(true, FreeBuds5iProtocol.ancStateRequest().args.values.all { it.isEmpty() })
-        assertEquals(true, FreeBuds5iProtocol.equalizerStateRequest().args.values.all { it.isEmpty() })
+        assertEquals(setOf(1, 2), FreeBuds5iProtocol.module<AncModule>()!!.stateRequest().args.keys)
+        assertEquals(setOf(1, 2), FreeBuds5iProtocol.module<TripleTapModule>()!!.stateRequest().args.keys)
+        assertEquals((1..8).toSet(), FreeBuds5iProtocol.module<EqualizerModule>()!!.stateRequest().args.keys)
+        assertEquals(setOf(1), FreeBuds5iProtocol.module<DualConnectModule>()!!.stateRequest().args.keys)
+        assertEquals(true, FreeBuds5iProtocol.module<AncModule>()!!.stateRequest().args.values.all { it.isEmpty() })
+        assertEquals(true, FreeBuds5iProtocol.module<EqualizerModule>()!!.stateRequest().args.values.all { it.isEmpty() })
     }
 
     @Test fun freeBuds6iCustomEqualizerSaveUsesVerifiedPayload() {
-        val command = FreeBuds6iProtocol.customEqualizerSave(
+        val command = FreeBuds6iProtocol.module<CustomEqualizerModule>()!!.savePreset(
             CustomEqualizerPreset(
                 id = 101,
                 name = "My sound effect 2",
@@ -335,7 +332,7 @@ class MbbProtocolTest {
     }
 
     @Test fun freeBuds6iCustomEqualizerDeleteUsesActionTwoAndSignedBands() {
-        val command = FreeBuds6iProtocol.customEqualizerDelete(
+        val command = FreeBuds6iProtocol.module<CustomEqualizerModule>()!!.deletePreset(
             CustomEqualizerPreset(
                 id = 102,
                 name = "My sound effect 3",
@@ -348,7 +345,7 @@ class MbbProtocolTest {
 
     @Test(expected = IllegalArgumentException::class)
     fun freeBuds6iCustomEqualizerRejectsOutOfRangeBand() {
-        FreeBuds6iProtocol.customEqualizerSave(
+        FreeBuds6iProtocol.module<CustomEqualizerModule>()!!.savePreset(
             CustomEqualizerPreset(100, "Invalid", List(10) { 65 }),
         )
     }
@@ -381,6 +378,18 @@ class MbbProtocolTest {
         assertEquals(
             setOf(AncMode.NOISE_CANCELLING, AncMode.TRANSPARENCY),
             toggleHoldMode(AncMode.entries.toSet(), AncMode.OFF, enabled = false),
+        )
+    }
+
+    @Test fun profilesAreComposedFromIndependentFeatureModules() {
+        assertEquals(HuaweiBuiltInEqualizerModule, FreeBuds5iProtocol.module<EqualizerModule>())
+        assertNull(FreeBuds5iProtocol.module<CustomEqualizerModule>())
+        assertEquals(HuaweiCustomEqualizerModule, FreeBuds6iProtocol.module<CustomEqualizerModule>())
+        assertEquals(true, FreeBuds5iProtocol.module<DualConnectModule>()?.supportsAutoConnect)
+        assertEquals(false, FreeBuds6iProtocol.module<DualConnectModule>()?.supportsAutoConnect)
+        assertEquals(
+            FreeBuds5iProtocol.modules.filterNot { it is EqualizerModule || it is DualConnectModule },
+            FreeBuds6iProtocol.modules.filterNot { it is EqualizerModule || it is DualConnectModule },
         )
     }
 
