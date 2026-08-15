@@ -12,6 +12,16 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
+androidComponents {
+    onVariants(selector().withBuildType("release")) { variant ->
+        variant.outputs.forEach { output ->
+            output.outputFileName.set(
+                "FreeBuddy_Next_${output.versionName.get()}+${output.versionCode.get()}.apk"
+            )
+        }
+    }
+}
+
 android {
     namespace "io.github.razziell.freebuddynext"
     compileSdk 36
