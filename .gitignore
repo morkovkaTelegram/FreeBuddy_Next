@@ -12,3 +12,13 @@ android/local.properties
 android/key.properties
 android/.cxx/
 android/captures/
+
+# Legacy Flutter/FVM generated files
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.fvm/
+.fvmrc
+.metadata
+# Kotlin/Android local caches
+android/.kotlin/
