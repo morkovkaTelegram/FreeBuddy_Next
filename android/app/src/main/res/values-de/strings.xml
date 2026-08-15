@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">FreeBuddy</string>
-    <string name="about">Über FreeBuddy ℹ️</string>
+    <string name="app_name">FreeBuddy Next</string>
+    <string name="about">Über FreeBuddy Next ℹ️</string>
     <string name="about_text">Eine unabhängige Open-Source-App zur Steuerung unterstützter Huawei FreeBuds.</string>
     <string name="version_text">Version %1$s</string>
     <string name="connected">Kopfhörer verbunden 🎧</string>
@@ -132,7 +132,7 @@
     <string name="device_info_eq_preset">Voreinstellung %1$d · %2$s</string>
     <string name="device_info_eq_tlv">EQ-TLV %1$d</string>
     <string name="device_info_copy_raw">Rohdaten kopieren</string>
-    <string name="device_info_clipboard_label">FreeBuddy-Diagnose</string>
+    <string name="device_info_clipboard_label">FreeBuddy Next-Diagnose</string>
     <string name="eq_custom_create">Preset erstellen</string>
     <string name="eq_custom_edit">Bearbeiten</string>
     <string name="eq_custom_editor_title">Benutzerdefinierter Equalizer</string>

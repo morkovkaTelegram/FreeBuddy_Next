@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">FreeBuddy</string>
-    <string name="about">О FreeBuddy ℹ️</string>
+    <string name="app_name">FreeBuddy Next</string>
+    <string name="about">О FreeBuddy Next ℹ️</string>
     <string name="about_text">Независимое приложение с открытым исходным кодом для управления поддерживаемыми Huawei FreeBuds.</string>
     <string name="version_text">Версия %1$s</string>
     <string name="connected">Наушники подключены 🎧</string>
@@ -132,7 +132,7 @@
     <string name="device_info_eq_preset">Пресет %1$d · %2$s</string>
     <string name="device_info_eq_tlv">EQ TLV %1$d</string>
     <string name="device_info_copy_raw">Копировать сырые данные</string>
-    <string name="device_info_clipboard_label">Диагностика FreeBuddy</string>
+    <string name="device_info_clipboard_label">Диагностика FreeBuddy Next</string>
     <string name="eq_custom_create">Создать пресет</string>
     <string name="eq_custom_edit">Изменить</string>
     <string name="eq_custom_editor_title">Пользовательский эквалайзер</string>

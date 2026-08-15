@@ -1,0 +1,33 @@
+package io.github.razziell.freebuddynext.bluetooth
+
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothDevice
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import io.github.razziell.freebuddynext.FreeBuddyApplication
+import io.github.razziell.freebuddynext.protocol.HeadphonesProtocolRegistry
+
+class BluetoothConnectionReceiver : BroadcastReceiver() {
+    // Reading device.name is guarded with runCatching; the repository re-checks
+    // the permission before doing any real Bluetooth work anyway.
+    @SuppressLint("MissingPermission")
+    override fun onReceive(context: Context, intent: Intent?) {
+        if (intent?.action != BluetoothDevice.ACTION_ACL_CONNECTED) return
+        // Skip process wake-ups for unrelated devices (watches, cars, speakers).
+        val name = runCatching { getDevice(intent)?.name }.getOrNull()
+        if (name != null && HeadphonesProtocolRegistry.findByBluetoothName(name) == null) return
+        // Never block BroadcastReceiver/main thread: all work starts on Dispatchers.IO.
+        (context.applicationContext as? FreeBuddyApplication)
+            ?.headphonesRepository
+            ?.refreshAsync()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun getDevice(intent: Intent): BluetoothDevice? = if (Build.VERSION.SDK_INT >= 33) {
+        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+    } else {
+        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+    }
+}
