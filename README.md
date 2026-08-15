@@ -176,7 +176,7 @@ sdk.dir=/absolute/path/to/Android/Sdk
 The APK is created at:
 
 ```text
-android/app/build/outputs/apk/release/app-release.apk
+android/app/build/outputs/apk/release/FreeBuddy_Next_<versionName>+<versionCode>.apk
 ```
 
 #### Release signing
@@ -195,7 +195,7 @@ keyPassword=your_key_password
 #### Install with ADB
 
 ```bash
-adb install -r -g android/app/build/outputs/apk/release/app-release.apk
+adb install -r -g android/app/build/outputs/apk/release/FreeBuddy_Next_<versionName>+<versionCode>.apk
 ```
 
 ### Privacy
@@ -204,15 +204,25 @@ FreeBuddy Next communicates directly with paired headphones over Bluetooth. It d
 
 Diagnostic dumps may contain Bluetooth addresses and real serial numbers. Remove or mask them before publishing logs publicly.
 
-### Migration history
+### Name and package ID change
 
-The application was rewritten from Flutter/Dart to native Kotlin in version 0.3.0 while preserving the package ID:
+The original application was named **FreeBuddy** and used this package ID:
+
+```text
+com.lastgimbus.the.freebuddy
+```
+
+The native Kotlin continuation was renamed to **FreeBuddy Next** and now uses:
 
 ```text
 io.github.razziell.freebuddynext
 ```
 
-The previous Flutter implementation is preserved in Git history at commit `5d9ed35`.
+Because the package ID changed, Android treats FreeBuddy Next as a separate application. It can be installed alongside the original FreeBuddy, but it cannot update it in place. Permissions, application settings, and home-screen widgets are not migrated automatically and must be configured again.
+
+### Migration history
+
+The application was rewritten from Flutter/Dart to native Kotlin starting with version 0.3.0. The previous Flutter implementation remains available in Git history. FreeBuddy Next continues the project under the new name and package ID shown above.
 
 ### License
 
@@ -394,7 +404,7 @@ sdk.dir=/абсолютный/путь/к/Android/Sdk
 APK создаётся по пути:
 
 ```text
-android/app/build/outputs/apk/release/app-release.apk
+android/app/build/outputs/apk/release/FreeBuddy_Next_<versionName>+<versionCode>.apk
 ```
 
 #### Подпись release
@@ -413,7 +423,7 @@ keyPassword=пароль_ключа
 #### Установка через ADB
 
 ```bash
-adb install -r -g android/app/build/outputs/apk/release/app-release.apk
+adb install -r -g android/app/build/outputs/apk/release/FreeBuddy_Next_<versionName>+<versionCode>.apk
 ```
 
 ### Конфиденциальность
@@ -422,15 +432,25 @@ FreeBuddy Next напрямую связывается с сопряжённым
 
 Диагностические дампы могут содержать Bluetooth-адреса и реальные серийные номера. Перед публичной публикацией логов удалите или замаскируйте эти данные.
 
-### История миграции
+### Смена названия и package ID
 
-Приложение было переписано с Flutter/Dart на нативный Kotlin в версии 0.3.0 с сохранением package ID:
+Исходное приложение называлось **FreeBuddy** и использовало package ID:
+
+```text
+com.lastgimbus.the.freebuddy
+```
+
+Нативное продолжение на Kotlin переименовано в **FreeBuddy Next** и теперь использует:
 
 ```text
 io.github.razziell.freebuddynext
 ```
 
-Предыдущая Flutter-реализация сохранена в истории Git в коммите `5d9ed35`.
+Из-за смены package ID Android считает FreeBuddy Next отдельным приложением. Его можно установить одновременно с исходным FreeBuddy, но установить как обновление поверх него нельзя. Разрешения, настройки приложения и виджеты на рабочем столе автоматически не переносятся — их необходимо настроить заново.
+
+### История миграции
+
+Переход с Flutter/Dart на нативный Kotlin начался с версии 0.3.0. Предыдущая Flutter-реализация остаётся доступной в истории Git. FreeBuddy Next продолжает проект под новым названием и package ID, указанными выше.
 
 ### Лицензия
 
