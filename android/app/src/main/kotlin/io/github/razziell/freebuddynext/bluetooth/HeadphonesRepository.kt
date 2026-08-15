@@ -409,7 +409,8 @@ class HeadphonesRepository(private val context: Context) {
     fun setAncLevel(level: AncLevel) = withModule<AncModule> { module ->
         val mode = (_state.value as? ConnectionState.Connected)?.snapshot?.ancMode
             ?: AncMode.NOISE_CANCELLING
-        send(module.setLevel(mode, level))
+        // Models without configurable levels (e.g. 4i) return null: ignore.
+        module.setLevel(mode, level)?.let { send(it) }
     }
 
     fun setEq(value: EqPreset) = withModule<EqualizerModule> {

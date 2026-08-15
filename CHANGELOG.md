@@ -6,6 +6,12 @@ This file is maintained in English first, followed by a complete Russian transla
 
 - No unreleased changes yet.
 
+## [Unreleased]
+
+### Added
+
+- Initial HUAWEI FreeBuds 4i profile with device information, battery, basic ANC, auto-pause, double-tap, and hold controls.
+
 ## [0.3.7+32] — 2026-08
 
 ### Changed
@@ -175,7 +181,6 @@ This file is maintained in English first, followed by a complete Russian transla
 
 ### Важно
 
-- Android считает FreeBuddy Next отдельным приложением. Оно может быть установлено одновременно с прежним пакетом `com.lastgimbus.the.freebuddy`.
 - Разрешения, настройки приложения и размещённые виджеты из прежнего пакета автоматически не переносятся.
 
 ## [0.3.6+31] — 2026-08

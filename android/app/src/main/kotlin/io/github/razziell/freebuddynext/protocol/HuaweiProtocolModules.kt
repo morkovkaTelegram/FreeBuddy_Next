@@ -77,6 +77,29 @@ object HuaweiBatteryModule : BatteryModule {
     }
 }
 
+/** Basic three-mode ANC used by models without configurable ANC levels. */
+object HuaweiBasicAncModule : AncModule {
+    override val supportsLevels = false
+    override val supportsDynamicLevel = false
+    override val initialRequests get() = listOf(stateRequest())
+    override fun setMode(mode: AncMode) =
+        MbbCommand(43, 4, mapOf(1 to intBytes(mode.code, if (mode == AncMode.OFF) 0 else 255)))
+
+    // 4i has no configurable ANC levels: refuse the call instead of silently
+    // re-sending the mode, so future callers cannot mistake it for support.
+    override fun setLevel(mode: AncMode, level: AncLevel): MbbCommand? = null
+    override fun stateRequest() = MbbCommand(43, 42, mapOf(1 to byteArrayOf(), 2 to byteArrayOf()))
+    override fun reduce(snapshot: HeadphonesSnapshot, command: MbbCommand): HeadphonesSnapshot {
+        if (command.serviceId != 43 || command.commandId != 42) return snapshot
+        val values = command.args[1] ?: return snapshot
+        if (values.size < 2) return snapshot
+        return snapshot.copy(
+            ancLevel = null,
+            ancMode = AncMode.entries.firstOrNull { it.code == values[1].toInt().and(0xFF) },
+        )
+    }
+}
+
 object HuaweiAdvancedAncModule : AncModule {
     override val supportsLevels = true
     override val supportsDynamicLevel = true
@@ -168,6 +191,41 @@ object HuaweiSplitHoldModule : HoldModule {
         )
         command.serviceId == 43 && command.commandId == 25 -> snapshot.copy(
             settings = snapshot.settings.copy(holdModes = when (command.arg(1) ?: command.arg(2)) {
+                1 -> setOf(AncMode.OFF, AncMode.NOISE_CANCELLING)
+                2 -> AncMode.entries.toSet()
+                3 -> setOf(AncMode.NOISE_CANCELLING, AncMode.TRANSPARENCY)
+                4 -> setOf(AncMode.OFF, AncMode.TRANSPARENCY)
+                else -> null
+            }),
+        )
+        else -> snapshot
+    }
+}
+
+/** FreeBuds 4i stores hold action/modes only in the left-ear TLV (id 1). */
+object Huawei4iHoldModule : HoldModule {
+    override val initialRequests get() = listOf(actionStateRequest(), modesStateRequest())
+    override fun setAction(value: Hold) = MbbCommand(43, 22, mapOf(1 to intBytes(value.code)))
+    override fun setModes(modes: Set<AncMode>): MbbCommand {
+        val value = when (modes) {
+            setOf(AncMode.OFF, AncMode.NOISE_CANCELLING) -> 1
+            AncMode.entries.toSet() -> 2
+            setOf(AncMode.NOISE_CANCELLING, AncMode.TRANSPARENCY) -> 3
+            setOf(AncMode.OFF, AncMode.TRANSPARENCY) -> 4
+            else -> 2
+        }
+        return MbbCommand(43, 24, mapOf(1 to intBytes(value)))
+    }
+    override fun actionStateRequest() = MbbCommand(43, 23, mapOf(1 to byteArrayOf(), 2 to byteArrayOf()))
+    override fun modesStateRequest() = MbbCommand(43, 25, mapOf(1 to byteArrayOf(), 2 to byteArrayOf()))
+    override fun reduce(snapshot: HeadphonesSnapshot, command: MbbCommand): HeadphonesSnapshot = when {
+        command.serviceId == 43 && command.commandId == 23 -> snapshot.copy(
+            settings = snapshot.settings.copy(
+                hold = Hold.entries.firstOrNull { it.code == command.arg(1) },
+            ),
+        )
+        command.serviceId == 43 && command.commandId == 25 -> snapshot.copy(
+            settings = snapshot.settings.copy(holdModes = when (command.arg(1)) {
                 1 -> setOf(AncMode.OFF, AncMode.NOISE_CANCELLING)
                 2 -> AncMode.entries.toSet()
                 3 -> setOf(AncMode.NOISE_CANCELLING, AncMode.TRANSPARENCY)

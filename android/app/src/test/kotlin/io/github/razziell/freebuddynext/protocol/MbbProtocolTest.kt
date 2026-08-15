@@ -161,6 +161,88 @@ class MbbProtocolTest {
         assertNull(HeadphonesProtocolRegistry.findByBluetoothName("Random headset"))
     }
 
+    @Test fun freeBuds4iProfileContainsOnlyVerifiedModules() {
+        assertEquals(FreeBuds4iProtocol, HeadphonesProtocolRegistry.findByBluetoothName("HUAWEI FreeBuds 4i"))
+        assertEquals(false, FreeBuds4iProtocol.module<AncModule>()?.supportsLevels)
+        assertEquals(false, FreeBuds4iProtocol.module<AncModule>()?.supportsDynamicLevel)
+        assertEquals(true, FreeBuds4iProtocol.module<BatteryModule>() != null)
+        assertEquals(true, FreeBuds4iProtocol.module<DeviceInfoModule>() != null)
+        assertEquals(true, FreeBuds4iProtocol.module<AutoPauseModule>() != null)
+        assertEquals(true, FreeBuds4iProtocol.module<DoubleTapModule>() != null)
+        assertEquals(true, FreeBuds4iProtocol.module<HoldModule>() != null)
+        assertNull(FreeBuds4iProtocol.module<TripleTapModule>())
+        assertNull(FreeBuds4iProtocol.module<SwipeModule>())
+        assertNull(FreeBuds4iProtocol.module<LowLatencyModule>())
+        assertNull(FreeBuds4iProtocol.module<LdacModule>())
+        assertNull(FreeBuds4iProtocol.module<EqualizerModule>())
+        assertNull(FreeBuds4iProtocol.module<DualConnectModule>())
+        assertEquals(
+            listOf(DeviceColor.BLACK, DeviceColor.WHITE, DeviceColor.RED),
+            FreeBuds4iProtocol.availableColors,
+        )
+        assertEquals(
+            DeviceColor.WHITE,
+            FreeBuds4iProtocol.detectColor(DeviceInfo(unknownFields = mapOf(25 to "0x01"))),
+        )
+        assertNull(FreeBuds4iProtocol.detectColor(DeviceInfo(unknownFields = mapOf(25 to "0x7F"))))
+    }
+
+    @Test fun realWhiteFreeBuds4iPacketIdentifiesModelAndColor() {
+        val command = MbbCommand(
+            1,
+            7,
+            mapOf(
+                2 to byteArrayOf(0x01, 0x24),
+                3 to "HL1OTEM2_VB".toByteArray(),
+                7 to "1.9.0.198".toByteArray(),
+                9 to "U3UBB21922101672".toByteArray(),
+                10 to "BTFT0001-000124".toByteArray(),
+                15 to "BTFT0001".toByteArray(),
+                25 to byteArrayOf(0x01),
+            ),
+        )
+        val snapshot = FreeBuds4iProtocol.reduce(HeadphonesSnapshot(), command)
+        assertEquals("BTFT0001", snapshot.deviceInfo?.model)
+        assertEquals("BTFT0001-000124", snapshot.deviceInfo?.subModel)
+        assertEquals(DeviceColor.WHITE, FreeBuds4iProtocol.detectColor(snapshot.deviceInfo))
+    }
+
+    @Test fun realFreeBuds4iHoldAcknowledgementDoesNotOverwriteState() {
+        val module = FreeBuds4iProtocol.module<HoldModule>()!!
+        val initial = HeadphonesSnapshot(
+            settings = FreeBudsSettings(holdModes = setOf(AncMode.OFF, AncMode.TRANSPARENCY)),
+        )
+        // Captured 43/24 response: TLV 3 is a status/acknowledgement, not modes.
+        val unchanged = module.reduce(initial, MbbCommand(43, 24, mapOf(3 to byteArrayOf(0))))
+        assertEquals(initial, unchanged)
+    }
+
+    @Test fun freeBuds4iHoldWritesOnlyLeftTlv() {
+        val module = FreeBuds4iProtocol.module<HoldModule>()!!
+        val action = module.setAction(Hold.CYCLE_ANC)
+        assertEquals(setOf(1), action.args.keys)
+        assertArrayEquals(byteArrayOf(10), action.args[1])
+
+        val modes = module.setModes(setOf(AncMode.OFF, AncMode.TRANSPARENCY))
+        assertEquals(setOf(1), modes.args.keys)
+        assertArrayEquals(byteArrayOf(4), modes.args[1])
+        assertEquals(setOf(1, 2), module.actionStateRequest().args.keys)
+        assertEquals(setOf(1, 2), module.modesStateRequest().args.keys)
+    }
+
+    @Test fun freeBuds4iBasicAncIgnoresLevelsAndParsesMode() {
+        val module = FreeBuds4iProtocol.module<AncModule>()!!
+        val snapshot = module.reduce(
+            HeadphonesSnapshot(ancLevel = AncLevel.ULTRA),
+            MbbCommand(43, 42, mapOf(1 to byteArrayOf(2, AncMode.TRANSPARENCY.code.toByte()))),
+        )
+        assertEquals(AncMode.TRANSPARENCY, snapshot.ancMode)
+        assertNull(snapshot.ancLevel)
+        // No configurable levels on 4i: the module must refuse instead of
+        // silently re-sending the mode command.
+        assertNull(module.setLevel(AncMode.NOISE_CANCELLING, AncLevel.ULTRA))
+    }
+
     @Test fun freeBuds5iModulesAreExplicit() {
         assertEquals(true, FreeBuds5iProtocol.module<AncModule>()?.supportsLevels)
         assertEquals(true, FreeBuds5iProtocol.module<AncModule>()?.supportsDynamicLevel)

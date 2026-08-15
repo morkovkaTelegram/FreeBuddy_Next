@@ -304,15 +304,20 @@ private fun headphonesImage(
         ?: HeadphonesProtocolRegistry.defaultProfile()
     val color = if (forceColor) selectedColor else protocol.detectColor(snapshot.deviceInfo)
     return when (protocol.id) {
+        "freebuds_4i" -> when (color) {
+            DeviceColor.WHITE -> R.drawable.freebuds_4i_w
+            DeviceColor.RED -> R.drawable.freebuds_4i_r
+            DeviceColor.BLACK, DeviceColor.BLUE, DeviceColor.PURPLE, null -> R.drawable.freebuds_4i_b
+        }
         "freebuds_6i" -> when (color) {
             DeviceColor.WHITE -> R.drawable.freebuds_6i_w
             DeviceColor.PURPLE -> R.drawable.freebuds_6i_v
-            DeviceColor.BLACK, DeviceColor.BLUE, null -> R.drawable.freebuds_6i_b
+            DeviceColor.BLACK, DeviceColor.BLUE, DeviceColor.RED, null -> R.drawable.freebuds_6i_b
         }
         else -> when (color) {
             DeviceColor.WHITE -> R.drawable.freebuds_5i_w
             DeviceColor.BLUE -> R.drawable.freebuds_5i_bl
-            DeviceColor.BLACK, DeviceColor.PURPLE, null -> R.drawable.freebuds_5i_b
+            DeviceColor.BLACK, DeviceColor.PURPLE, DeviceColor.RED, null -> R.drawable.freebuds_5i_b
         }
     }
 }
@@ -341,6 +346,7 @@ private fun DeviceInfoDialog(
                 DeviceColor.WHITE -> R.string.headphones_color_white
                 DeviceColor.BLUE -> R.string.headphones_color_blue
                 DeviceColor.PURPLE -> R.string.headphones_color_purple
+                DeviceColor.RED -> R.string.headphones_color_red
             },
         )
     }
@@ -1541,6 +1547,7 @@ private fun DeviceColor.label() = when (this) {
     DeviceColor.WHITE -> R.string.headphones_color_white
     DeviceColor.BLUE -> R.string.headphones_color_blue
     DeviceColor.PURPLE -> R.string.headphones_color_purple
+    DeviceColor.RED -> R.string.headphones_color_red
 }
 
 private fun ThemeStore.ThemeMode.label() = when (this) {

@@ -86,7 +86,7 @@ data class DeviceInfo(
 )
 
 /** Retail colors supported by model profiles. */
-enum class DeviceColor { BLACK, WHITE, BLUE, PURPLE }
+enum class DeviceColor { BLACK, WHITE, BLUE, PURPLE, RED }
 
 /**
  * Best-effort color detection from MBB 1/7 device information.

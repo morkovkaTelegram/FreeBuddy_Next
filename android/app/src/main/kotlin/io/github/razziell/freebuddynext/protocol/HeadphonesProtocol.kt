@@ -15,7 +15,9 @@ interface AncModule : ProtocolModule {
     val supportsLevels: Boolean
     val supportsDynamicLevel: Boolean
     fun setMode(mode: AncMode): MbbCommand
-    fun setLevel(mode: AncMode, level: AncLevel): MbbCommand
+
+    /** Returns null when the model has no configurable ANC levels. */
+    fun setLevel(mode: AncMode, level: AncLevel): MbbCommand?
     fun stateRequest(): MbbCommand
 }
 
@@ -115,6 +117,7 @@ object HeadphonesProtocolRegistry {
     private val verifiedProfiles: List<HeadphonesProtocol> = listOf(
         FreeBuds5iProtocol,
         FreeBuds6iProtocol,
+        FreeBuds4iProtocol,
     )
 
     fun findByBluetoothName(name: String?): HeadphonesProtocol? =
