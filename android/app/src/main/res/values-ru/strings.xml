@@ -109,6 +109,7 @@
     <string name="widget_anc_description">Переключение режимов шумоподавления</string>
     <string name="widget_anc_disconnected">%1$s. Наушники не подключены</string>
     <string name="device_info_unknown_fields">Неизвестные поля протокола</string>
+    <string name="device_info_probable_color">Вероятный цвет</string>
     <string name="device_info_tlv_field">TLV %1$d</string>
     <string name="widget_compact_name">Заряд · компактный</string>
     <string name="widget_compact_description">Заряд наушников в одной компактной строке</string>

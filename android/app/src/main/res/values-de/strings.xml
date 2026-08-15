@@ -109,6 +109,7 @@
     <string name="widget_anc_description">Zwischen Geräuschunterdrückungsmodi wechseln</string>
     <string name="widget_anc_disconnected">%1$s. Kopfhörer sind nicht verbunden</string>
     <string name="device_info_unknown_fields">Unbekannte Protokollfelder</string>
+    <string name="device_info_probable_color">Vermutliche Farbe</string>
     <string name="device_info_tlv_field">TLV %1$d</string>
     <string name="widget_compact_name">Akku · kompakt</string>
     <string name="widget_compact_description">Akkustände in einer kompakten Zeile</string>

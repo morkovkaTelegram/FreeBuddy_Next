@@ -333,6 +333,17 @@ private fun DeviceInfoDialog(
     val earbudsProductionMismatch = leftProduction != null && rightProduction != null &&
         leftProduction != rightProduction
     val clipboardLabel = stringResource(R.string.device_info_clipboard_label)
+    val detectedColor = HeadphonesProtocolRegistry.findById(snapshot.protocolId)?.detectColor(info)
+    val detectedColorLabel = detectedColor?.let { color ->
+        stringResource(
+            when (color) {
+                DeviceColor.BLACK -> R.string.headphones_color_black
+                DeviceColor.WHITE -> R.string.headphones_color_white
+                DeviceColor.BLUE -> R.string.headphones_color_blue
+                DeviceColor.PURPLE -> R.string.headphones_color_purple
+            },
+        )
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.device_info_title)) },
@@ -372,7 +383,16 @@ private fun DeviceInfoDialog(
                 if (!info?.unknownFields.isNullOrEmpty()) {
                     DiagnosticSectionTitle(R.string.device_info_unknown_fields)
                     info?.unknownFields?.forEach { (id, value) ->
-                        DeviceInfoRow(stringResource(R.string.device_info_tlv_field, id), value)
+                        if (id == 25) {
+                            DeviceTlvColorRow(
+                                label = stringResource(R.string.device_info_tlv_field, id),
+                                value = value,
+                                probableColorLabel = stringResource(R.string.device_info_probable_color),
+                                probableColor = detectedColorLabel,
+                            )
+                        } else {
+                            DeviceInfoRow(stringResource(R.string.device_info_tlv_field, id), value)
+                        }
                     }
                 }
                 if (eq != null) {
@@ -457,7 +477,14 @@ private fun HeadphonesSnapshot.toDiagnosticDump(rawResponses: List<String>): Str
         appendLine("leftProduction=${info.leftSerial?.productionDate(SerialComponent.EARBUD)?.diagnosticValue().orEmpty()}")
         appendLine("rightSerial=${info.rightSerial.orEmpty()}")
         appendLine("rightProduction=${info.rightSerial?.productionDate(SerialComponent.EARBUD)?.diagnosticValue().orEmpty()}")
-        info.unknownFields.forEach { (id, value) -> appendLine("deviceInfo.tlv$id=$value") }
+        val detectedColor = HeadphonesProtocolRegistry.findById(protocolId)?.detectColor(info)
+        info.unknownFields.forEach { (id, value) ->
+            val annotation = if (id == 25) {
+                val color = detectedColor?.name?.lowercase()
+                if (color == null) " (probable color code)" else " (probable color code: $color)"
+            } else ""
+            appendLine("deviceInfo.tlv$id=$value$annotation")
+        }
     }
     equalizerDiagnostics?.let { eq ->
         appendLine("eq.activePresetId=${eq.activePresetId ?: ""}")
@@ -500,6 +527,40 @@ private fun DeviceSerialRow(label: String, serial: String?, productionDate: Stri
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun DeviceTlvColorRow(
+    label: String,
+    value: String,
+    probableColorLabel: String,
+    probableColor: String?,
+) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Column(Modifier.weight(0.8f)) {
+            Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                probableColorLabel,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        Column(
+            modifier = Modifier.weight(1.6f),
+            horizontalAlignment = Alignment.End,
+        ) {
+            Text(value, textAlign = TextAlign.End, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                probableColor ?: "—",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.End,
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
     }
 }

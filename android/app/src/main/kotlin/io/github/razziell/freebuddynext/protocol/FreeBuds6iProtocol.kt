@@ -26,7 +26,10 @@ object FreeBuds6iProtocol : HeadphonesProtocol {
     )
 
     override fun detectColor(info: DeviceInfo?): DeviceColor? {
-        if (info?.unknownFields?.get(25)?.uppercase() == "0X02") return DeviceColor.BLACK
+        when (info?.unknownFields?.get(25)?.uppercase()) {
+            "0X01" -> return DeviceColor.WHITE
+            "0X02" -> return DeviceColor.BLACK
+        }
         val text = listOfNotNull(info?.subModel, info?.hardwareVersion).joinToString(" ").uppercase()
         return when {
             "PURPLE" in text || "VIOLET" in text -> DeviceColor.PURPLE

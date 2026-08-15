@@ -109,6 +109,7 @@
     <string name="widget_anc_description">Switch between noise cancellation modes</string>
     <string name="widget_anc_disconnected">%1$s. Headphones are disconnected</string>
     <string name="device_info_unknown_fields">Unknown protocol fields</string>
+    <string name="device_info_probable_color">Probable color</string>
     <string name="device_info_tlv_field">TLV %1$d</string>
     <string name="widget_compact_name">Battery · compact</string>
     <string name="widget_compact_description">Battery levels in one compact row</string>

@@ -44,6 +44,34 @@ class MbbProtocolTest {
         assertEquals(true, device.preferred)
     }
 
+    @Test fun dualConnectConnectionStateUsesHuaweiBitmaskValues() {
+        fun state(rawConnection: Int): DualConnectionState {
+            val command = MbbCommand(
+                43,
+                49,
+                mapOf(
+                    4 to byteArrayOf(0x01, 0x23, 0x45, 0x67, 0x01, rawConnection.toByte()),
+                    5 to intBytes(rawConnection),
+                    7 to intBytes(0),
+                    8 to intBytes(1),
+                    9 to "Phone".toByteArray(),
+                ),
+            )
+            return FreeBuds5iProtocol.reduce(HeadphonesSnapshot(), command)
+                .dualConnectDevices.single().connectionState
+        }
+
+        assertEquals(DualConnectionState.DISCONNECTED, state(0x00))
+        assertEquals(DualConnectionState.CONNECTED, state(0x01))
+        assertEquals(DualConnectionState.PLAYING, state(0x09))
+    }
+
+    @Test fun dualConnectChangeEventTriggersRefreshRecognition() {
+        val module = FreeBuds5iProtocol.module<DualConnectModule>()!!
+        assertEquals(true, module.isChangeEvent(MbbCommand(43, 54, mapOf(5 to byteArrayOf(1)))))
+        assertEquals(false, module.isChangeEvent(MbbCommand(43, 49)))
+    }
+
     @Test fun deviceInfoResponseIsParsed() {
         val snapshot = FreeBuds5iProtocol.reduce(
             HeadphonesSnapshot(),
@@ -181,7 +209,10 @@ class MbbProtocolTest {
             DeviceColor.BLACK,
             FreeBuds6iProtocol.detectColor(DeviceInfo(unknownFields = mapOf(25 to "0x02"))),
         )
-        assertNull(FreeBuds6iProtocol.detectColor(DeviceInfo(unknownFields = mapOf(25 to "0x01"))))
+        assertEquals(
+            DeviceColor.WHITE,
+            FreeBuds6iProtocol.detectColor(DeviceInfo(unknownFields = mapOf(25 to "0x01"))),
+        )
     }
 
     @Test fun realBlackFreeBuds6iDeviceInfoDetectsBlackColor() {
@@ -193,6 +224,17 @@ class MbbProtocolTest {
         assertEquals("BTFT0019-000153", snapshot.deviceInfo?.subModel)
         assertEquals("0x02", snapshot.deviceInfo?.unknownFields?.get(25))
         assertEquals(DeviceColor.BLACK, FreeBuds6iProtocol.detectColor(snapshot.deviceInfo))
+    }
+
+    @Test fun realWhiteFreeBuds6iDeviceInfoDetectsWhiteColor() {
+        val response = MbbCommand.parse(
+            "5A0092000107020201530308484C324F52434D5207204861726D6F6E794F5320362E302E302E323932284630303148303033433930290910324E47545132343532373030323230320A0F42544654303031392D3030303135330F08425446543030313918254C2D545134383730323434523031313537322C522D545134383733323435413030313036391901011B06DB2E1312CC809900".hexBytes(),
+        )
+        val snapshot = FreeBuds6iProtocol.reduce(HeadphonesSnapshot(), response)
+        assertEquals("BTFT0019", snapshot.deviceInfo?.model)
+        assertEquals("BTFT0019-000153", snapshot.deviceInfo?.subModel)
+        assertEquals("0x01", snapshot.deviceInfo?.unknownFields?.get(25))
+        assertEquals(DeviceColor.WHITE, FreeBuds6iProtocol.detectColor(snapshot.deviceInfo))
     }
 
     @Test fun freeBuds6iEqualizerReadRequestsAllKnownFields() {
