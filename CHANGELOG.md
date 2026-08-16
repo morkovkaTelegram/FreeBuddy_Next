@@ -6,11 +6,15 @@ This file is maintained in English first, followed by a complete Russian transla
 
 - No unreleased changes yet.
 
-## [Unreleased]
+## [0.3.9+36] — 2026-08
 
 ### Added
 
 - Initial HUAWEI FreeBuds 4i profile with device information, battery, basic ANC, auto-pause, double-tap, and hold controls.
+
+### Fixed
+
+- Automatic detection of the purple HUAWEI FreeBuds 6i variant from device-information code `0x07`.
 
 ## [0.3.7+32] — 2026-08
 
@@ -170,6 +174,16 @@ This file is maintained in English first, followed by a complete Russian transla
 ## [Не выпущено]
 
 - Пока нет невыпущенных изменений.
+
+## [0.3.9+36] — 2026-08
+
+### Добавлено
+
+- Начальный профиль HUAWEI FreeBuds 4i со сведениями об устройстве, зарядом, базовым ANC, автопаузой, двойным касанием и управлением удержанием.
+
+### Исправлено
+
+- Автоматическое определение фиолетового варианта HUAWEI FreeBuds 6i по коду сведений об устройстве `0x07`.
 
 ## [0.3.7+32] — 2026-08
 

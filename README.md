@@ -10,16 +10,17 @@ A native Android application for controlling supported Huawei FreeBuds.
 >
 > Artificial intelligence tools were used to assist with code analysis, implementation, debugging, testing, and documentation. Technical decisions, validation on real devices, and responsibility for the final result remain with the project maintainer.
 
-Current version: **0.3.7 (versionCode 32)**
+Current version: **0.3.9 (versionCode 36)**
 
 ### Supported headphones
 
 | Model | Status | Notes |
 |---|---|---|
+| HUAWEI FreeBuds 4i | Supported; real-device testing in progress | Battery, basic ANC, auto-pause, double-tap, hold controls and device information |
 | HUAWEI FreeBuds 5i | Supported and tested | Battery, ANC, gestures, EQ, LDAC, low latency, Dual Connect, device information and color detection |
 | HUAWEI FreeBuds 6i | Supported; real-device testing in progress | Battery, ANC, gestures, built-in and custom EQ, LDAC, low latency, Dual Connect and device information |
 
-The protocol layer is model-specific. `FreeBuds5iProtocol` and `FreeBuds6iProtocol` expose their own capabilities, commands, colors and image resources through the shared `HeadphonesProtocol` interface.
+The protocol layer is model-specific. `FreeBuds4iProtocol`, `FreeBuds5iProtocol` and `FreeBuds6iProtocol` expose their own capabilities, commands, colors and image resources through the shared `HeadphonesProtocol` interface.
 
 ### Features
 
@@ -75,7 +76,7 @@ Tap the headphone image to open device information:
 Color detection currently uses confirmed device-information values:
 
 - FreeBuds 5i: white, blue and black;
-- FreeBuds 6i: black; white and purple can be selected manually until their automatic codes are confirmed.
+- FreeBuds 6i: white, black and purple.
 
 A manual color override is stored per physical headset set. The case serial number is the primary identity, with Bluetooth MAC used as a fallback until the serial number is available.
 
@@ -238,16 +239,17 @@ Licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 >
 > При анализе кода, разработке, отладке, тестировании и подготовке документации использовались инструменты искусственного интеллекта. Технические решения, проверка на реальных устройствах и ответственность за итоговый результат остаются за сопровождающим проекта.
 
-Текущая версия: **0.3.7 (versionCode 32)**
+Текущая версия: **0.3.9 (versionCode 36)**
 
 ### Поддерживаемые наушники
 
 | Модель | Статус | Примечания |
 |---|---|---|
+| HUAWEI FreeBuds 4i | Поддерживаются; продолжается проверка на реальных устройствах | Заряд, базовый ANC, автопауза, двойное касание, удержание и сведения об устройстве |
 | HUAWEI FreeBuds 5i | Поддерживаются и протестированы | Заряд, ANC, жесты, эквалайзер, LDAC, низкая задержка, Dual Connect, сведения об устройстве и определение цвета |
 | HUAWEI FreeBuds 6i | Поддерживаются; продолжается проверка на реальных устройствах | Заряд, ANC, жесты, встроенный и пользовательский эквалайзер, LDAC, низкая задержка, Dual Connect и сведения об устройстве |
 
-Протокольный слой разделён по моделям. `FreeBuds5iProtocol` и `FreeBuds6iProtocol` предоставляют собственные возможности, команды, цвета и изображения через общий интерфейс `HeadphonesProtocol`.
+Протокольный слой разделён по моделям. `FreeBuds4iProtocol`, `FreeBuds5iProtocol` и `FreeBuds6iProtocol` предоставляют собственные возможности, команды, цвета и изображения через общий интерфейс `HeadphonesProtocol`.
 
 ### Возможности
 
@@ -303,7 +305,7 @@ Licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 Автоматическое определение цвета использует подтверждённые значения сведений об устройстве:
 
 - FreeBuds 5i: белый, голубой и чёрный;
-- FreeBuds 6i: чёрный; белый и фиолетовый можно выбрать вручную до подтверждения их автоматических кодов.
+- FreeBuds 6i: белый, чёрный и фиолетовый.
 
 Принудительный цвет сохраняется отдельно для каждого физического комплекта. Основным идентификатором служит серийный номер кейса, а Bluetooth MAC используется как резерв до получения серийного номера.
 

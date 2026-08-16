@@ -29,6 +29,7 @@ object FreeBuds6iProtocol : HeadphonesProtocol {
         when (info?.unknownFields?.get(25)?.uppercase()) {
             "0X01" -> return DeviceColor.WHITE
             "0X02" -> return DeviceColor.BLACK
+            "0X07" -> return DeviceColor.PURPLE
         }
         val text = listOfNotNull(info?.subModel, info?.hardwareVersion).joinToString(" ").uppercase()
         return when {

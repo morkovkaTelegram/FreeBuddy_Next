@@ -295,6 +295,10 @@ class MbbProtocolTest {
             DeviceColor.WHITE,
             FreeBuds6iProtocol.detectColor(DeviceInfo(unknownFields = mapOf(25 to "0x01"))),
         )
+        assertEquals(
+            DeviceColor.PURPLE,
+            FreeBuds6iProtocol.detectColor(DeviceInfo(unknownFields = mapOf(25 to "0x07"))),
+        )
     }
 
     @Test fun realBlackFreeBuds6iDeviceInfoDetectsBlackColor() {
