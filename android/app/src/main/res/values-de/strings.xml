@@ -150,4 +150,14 @@
     <string name="back">Zurück</string>
     <string name="device_info_button">Geräteinformationen für %1$s</string>
     <string name="eq_band_accessibility">Equalizer-Band %1$d Hz</string>
+    <string name="find_earbuds">Kopfhörer finden 🔍</string>
+    <string name="find_earbuds_description">Einen lauten Signalton abspielen, um einen verbundenen Ohrhörer in der Nähe zu finden.</string>
+    <string name="find_earbuds_warning_title">Warnung vor lautem Ton 🔊</string>
+    <string name="find_earbuds_warning">Der ausgewählte Ohrhörer spielt einen Signalton mit maximaler Lautstärke ab. Trage die Ohrhörer nicht, während der Ton abgespielt wird.</string>
+    <string name="find_earbuds_left">Linker Ohrhörer</string>
+    <string name="find_earbuds_right">Rechter Ohrhörer</string>
+    <string name="find_earbuds_play">Signalton abspielen ▶️</string>
+    <string name="find_earbuds_stop">Signalton stoppen ⏹️</string>
+    <string name="find_earbuds_local_only">Funktioniert nur, wenn die Ohrhörer mit diesem Gerät verbunden sind.</string>
+    <string name="find_earbuds_confirm">Fortfahren</string>
 </resources>

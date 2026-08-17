@@ -150,4 +150,14 @@
     <string name="back">Назад</string>
     <string name="device_info_button">Информация об устройстве %1$s</string>
     <string name="eq_band_accessibility">Полоса эквалайзера %1$d Гц</string>
+    <string name="find_earbuds">Поиск наушников 🔍</string>
+    <string name="find_earbuds_description">Воспроизвести громкий сигнал, чтобы найти подключённый наушник поблизости.</string>
+    <string name="find_earbuds_warning_title">Предупреждение о громком звуке 🔊</string>
+    <string name="find_earbuds_warning">Выбранный наушник воспроизведёт сигнал на максимальной громкости. Не надевайте наушники во время воспроизведения сигнала.</string>
+    <string name="find_earbuds_left">Левый наушник</string>
+    <string name="find_earbuds_right">Правый наушник</string>
+    <string name="find_earbuds_play">Воспроизвести сигнал ▶️</string>
+    <string name="find_earbuds_stop">Остановить сигнал ⏹️</string>
+    <string name="find_earbuds_local_only">Работает только при подключении наушников к этому устройству.</string>
+    <string name="find_earbuds_confirm">Продолжить</string>
 </resources>

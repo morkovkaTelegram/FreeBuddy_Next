@@ -22,6 +22,7 @@ object FreeBuds6iProtocol : HeadphonesProtocol {
         HuaweiCustomEqualizerModule,
         HuaweiLdacModule,
         FreeBuds6iDualConnect,
+        HuaweiFindEarbudsModule,
         HuaweiDeviceInfoModule,
     )
 

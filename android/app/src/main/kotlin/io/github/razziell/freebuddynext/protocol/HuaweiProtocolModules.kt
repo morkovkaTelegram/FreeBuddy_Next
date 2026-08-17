@@ -283,6 +283,38 @@ object HuaweiBuiltInEqualizerModule : EqualizerModule {
         } else snapshot
 }
 
+/** Local acoustic search used by connected FreeBuds 5i/6i. */
+object HuaweiFindEarbudsModule : FindEarbudsModule {
+    override val initialRequests: List<MbbCommand>
+        get() = listOf(abilityRequest(), stateRequest())
+
+    /** Huawei 43/93, TLV 1=[side, state], side: 0 left / 1 right. */
+    override fun setSound(side: EarbudSide, enabled: Boolean) =
+        // Huawei uses 0 to start sounding and 1 to stop. This is confirmed
+        // both by the official UI state machine and real 5i/6i behaviour.
+        MbbCommand(43, 93, mapOf(1 to intBytes(side.code, if (enabled) 0 else 1)))
+
+    /** Huawei 43/95, TLV 2 returns [side, sounding]. */
+    override fun stateRequest() = MbbCommand(43, 95, mapOf(2 to byteArrayOf()))
+
+    /** Huawei 43/94, TLV 3; responses contain [side, supported]. */
+    override fun abilityRequest() = MbbCommand(43, 94, mapOf(3 to byteArrayOf()))
+
+    override fun reduce(snapshot: HeadphonesSnapshot, command: MbbCommand): HeadphonesSnapshot {
+        if (command.serviceId != 43 || command.commandId != 95) return snapshot
+        val value = command.args[2] ?: return snapshot
+        if (value.size < 2) return snapshot
+        val side = EarbudSide.entries.firstOrNull { it.code == value[0].toInt().and(0xFF) }
+            ?: return snapshot
+        // 43/95 reports the Huawei command state: 0 = sounding, 1 = stopped.
+        val sounding = value[1].toInt().and(0xFF) == 0
+        return snapshot.copy(findEarbuds = when (side) {
+            EarbudSide.LEFT -> snapshot.findEarbuds.copy(leftSounding = sounding)
+            EarbudSide.RIGHT -> snapshot.findEarbuds.copy(rightSounding = sounding)
+        })
+    }
+}
+
 class HuaweiDualConnectModule(
     override val supportsAutoConnect: Boolean,
 ) : DualConnectModule {

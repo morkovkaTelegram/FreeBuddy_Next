@@ -10,6 +10,8 @@ This file is maintained in English first, followed by a complete Russian transla
 
 ### Added
 
+- Local acoustic search for connected FreeBuds 5i and 6i with separate left/right controls and a loud-volume warning.
+
 - Initial HUAWEI FreeBuds 4i profile with device information, battery, basic ANC, auto-pause, double-tap, and hold controls.
 
 ### Fixed
@@ -178,6 +180,8 @@ This file is maintained in English first, followed by a complete Russian transla
 ## [0.3.9+36] — 2026-08
 
 ### Добавлено
+
+- Локальный звуковой поиск подключённых FreeBuds 5i и 6i с раздельным управлением левым/правым наушником и предупреждением о громкости.
 
 - Начальный профиль HUAWEI FreeBuds 4i со сведениями об устройстве, зарядом, базовым ANC, автопаузой, двойным касанием и управлением удержанием.
 

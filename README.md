@@ -10,17 +10,17 @@ A native Android application for controlling supported Huawei FreeBuds.
 >
 > Artificial intelligence tools were used to assist with code analysis, implementation, debugging, testing, and documentation. Technical decisions, validation on real devices, and responsibility for the final result remain with the project maintainer.
 
-Current version: **0.3.9 (versionCode 36)**
+Current version: **0.4.0 (versionCode 37)**
 
 ### Supported headphones
 
 | Model | Status | Notes |
 |---|---|---|
-| HUAWEI FreeBuds 4i | Supported; real-device testing in progress | Battery, basic ANC, auto-pause, double-tap, hold controls and device information |
-| HUAWEI FreeBuds 5i | Supported and tested | Battery, ANC, gestures, EQ, LDAC, low latency, Dual Connect, device information and color detection |
-| HUAWEI FreeBuds 6i | Supported; real-device testing in progress | Battery, ANC, gestures, built-in and custom EQ, LDAC, low latency, Dual Connect and device information |
+| HUAWEI FreeBuds 4i | Supported and tested on a real device | Battery, basic ANC, auto-pause, double-tap, hold controls, device information and white color detection |
+| HUAWEI FreeBuds 5i | Supported and tested | Battery, ANC, gestures, EQ, LDAC, low latency, Dual Connect, local sound-based finding, device information and color detection |
+| HUAWEI FreeBuds 6i | Supported and tested on real devices | Battery, ANC, gestures, built-in and custom EQ, LDAC, low latency, Dual Connect, local sound-based finding, device information and color detection |
 
-The protocol layer is model-specific. `FreeBuds4iProtocol`, `FreeBuds5iProtocol` and `FreeBuds6iProtocol` expose their own capabilities, commands, colors and image resources through the shared `HeadphonesProtocol` interface.
+The protocol layer is model-specific and modular. `FreeBuds4iProtocol`, `FreeBuds5iProtocol` and `FreeBuds6iProtocol` compose reusable feature modules through the shared `HeadphonesProtocol` and `ProtocolModule` interfaces. Unsupported features are absent from a profile instead of being represented by inactive capability flags.
 
 ### Features
 
@@ -43,12 +43,16 @@ The protocol layer is model-specific. `FreeBuds4iProtocol`, `FreeBuds5iProtocol`
   - preferred device;
   - per-device auto-connect where supported;
   - unpairing.
-- Gesture configuration:
+- Gesture configuration, depending on the model:
   - double tap;
   - triple tap;
   - touch and hold;
   - ANC modes cycled by holding;
   - swipe.
+- Local sound-based earbud finding for connected FreeBuds 5i and 6i:
+  - independent left/right signal;
+  - maximum-volume safety warning;
+  - automatic stop when leaving the screen, backgrounding the app, or disconnecting.
 
 #### Equalizer
 
@@ -75,6 +79,7 @@ Tap the headphone image to open device information:
 
 Color detection currently uses confirmed device-information values:
 
+- FreeBuds 4i: white; black and red remain available as manual choices until their codes are confirmed;
 - FreeBuds 5i: white, blue and black;
 - FreeBuds 6i: white, black and purple.
 
@@ -239,17 +244,17 @@ Licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 >
 > При анализе кода, разработке, отладке, тестировании и подготовке документации использовались инструменты искусственного интеллекта. Технические решения, проверка на реальных устройствах и ответственность за итоговый результат остаются за сопровождающим проекта.
 
-Текущая версия: **0.3.9 (versionCode 36)**
+Текущая версия: **0.4.0 (versionCode 37)**
 
 ### Поддерживаемые наушники
 
 | Модель | Статус | Примечания |
 |---|---|---|
-| HUAWEI FreeBuds 4i | Поддерживаются; продолжается проверка на реальных устройствах | Заряд, базовый ANC, автопауза, двойное касание, удержание и сведения об устройстве |
-| HUAWEI FreeBuds 5i | Поддерживаются и протестированы | Заряд, ANC, жесты, эквалайзер, LDAC, низкая задержка, Dual Connect, сведения об устройстве и определение цвета |
-| HUAWEI FreeBuds 6i | Поддерживаются; продолжается проверка на реальных устройствах | Заряд, ANC, жесты, встроенный и пользовательский эквалайзер, LDAC, низкая задержка, Dual Connect и сведения об устройстве |
+| HUAWEI FreeBuds 4i | Поддерживаются и проверены на реальном устройстве | Заряд, базовый ANC, автопауза, двойное касание, удержание, сведения об устройстве и определение белого цвета |
+| HUAWEI FreeBuds 5i | Поддерживаются и протестированы | Заряд, ANC, жесты, эквалайзер, LDAC, низкая задержка, Dual Connect, локальный звуковой поиск, сведения об устройстве и определение цвета |
+| HUAWEI FreeBuds 6i | Поддерживаются и проверены на реальных устройствах | Заряд, ANC, жесты, встроенный и пользовательский эквалайзер, LDAC, низкая задержка, Dual Connect, локальный звуковой поиск, сведения об устройстве и определение цвета |
 
-Протокольный слой разделён по моделям. `FreeBuds4iProtocol`, `FreeBuds5iProtocol` и `FreeBuds6iProtocol` предоставляют собственные возможности, команды, цвета и изображения через общий интерфейс `HeadphonesProtocol`.
+Протокольный слой разделён по моделям и модулям. `FreeBuds4iProtocol`, `FreeBuds5iProtocol` и `FreeBuds6iProtocol` собираются из переиспользуемых функциональных модулей через интерфейсы `HeadphonesProtocol` и `ProtocolModule`. Неподдерживаемая функция отсутствует в профиле, а не представлена неактивным флагом возможностей.
 
 ### Возможности
 
@@ -272,12 +277,16 @@ Licensed under the Apache License 2.0. See [LICENSE](LICENSE).
   - приоритетное устройство;
   - автоподключение для отдельных устройств на поддерживаемых моделях;
   - удаление сопряжения.
-- Настройка жестов:
+- Настройка жестов в зависимости от модели:
   - двойное касание;
   - тройное касание;
   - касание и удержание;
   - режимы ANC, переключаемые удержанием;
   - смахивание.
+- Локальный звуковой поиск подключённых FreeBuds 5i и 6i:
+  - независимый сигнал левого и правого наушника;
+  - предупреждение о максимальной громкости;
+  - автоматическая остановка при выходе с экрана, сворачивании приложения или отключении.
 
 #### Эквалайзер
 
@@ -304,6 +313,7 @@ Licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 
 Автоматическое определение цвета использует подтверждённые значения сведений об устройстве:
 
+- FreeBuds 4i: белый; чёрный и красный пока доступны как ручной выбор до подтверждения кодов;
 - FreeBuds 5i: белый, голубой и чёрный;
 - FreeBuds 6i: белый, чёрный и фиолетовый.
 

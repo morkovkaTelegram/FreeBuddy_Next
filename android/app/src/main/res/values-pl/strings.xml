@@ -150,4 +150,14 @@
     <string name="back">Wstecz</string>
     <string name="device_info_button">Informacje o urządzeniu %1$s</string>
     <string name="eq_band_accessibility">Pasmo korektora %1$d Hz</string>
+    <string name="find_earbuds">Znajdź słuchawki 🔍</string>
+    <string name="find_earbuds_description">Odtwórz głośny sygnał, aby znaleźć podłączoną słuchawkę w pobliżu.</string>
+    <string name="find_earbuds_warning_title">Ostrzeżenie o głośnym dźwięku 🔊</string>
+    <string name="find_earbuds_warning">Wybrana słuchawka odtworzy sygnał z maksymalną głośnością. Nie zakładaj słuchawek podczas odtwarzania sygnału.</string>
+    <string name="find_earbuds_left">Lewa słuchawka</string>
+    <string name="find_earbuds_right">Prawa słuchawka</string>
+    <string name="find_earbuds_play">Odtwórz sygnał ▶️</string>
+    <string name="find_earbuds_stop">Zatrzymaj sygnał ⏹️</string>
+    <string name="find_earbuds_local_only">Działa tylko wtedy, gdy słuchawki są połączone z tym urządzeniem.</string>
+    <string name="find_earbuds_confirm">Kontynuuj</string>
 </resources>

@@ -150,4 +150,14 @@
     <string name="back">Back</string>
     <string name="device_info_button">Device information for %1$s</string>
     <string name="eq_band_accessibility">Equalizer band %1$d Hz</string>
+    <string name="find_earbuds">Find earbuds 🔍</string>
+    <string name="find_earbuds_description">Play a loud sound to locate a connected earbud nearby.</string>
+    <string name="find_earbuds_warning_title">Loud sound warning 🔊</string>
+    <string name="find_earbuds_warning">The selected earbud will play a sound at maximum volume. Do not wear the earbuds while the sound is playing.</string>
+    <string name="find_earbuds_left">Left earbud</string>
+    <string name="find_earbuds_right">Right earbud</string>
+    <string name="find_earbuds_play">Play sound ▶️</string>
+    <string name="find_earbuds_stop">Stop sound ⏹️</string>
+    <string name="find_earbuds_local_only">Works only while the earbuds are connected to this device.</string>
+    <string name="find_earbuds_confirm">Continue</string>
 </resources>

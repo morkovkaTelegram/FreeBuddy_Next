@@ -521,6 +521,40 @@ class MbbProtocolTest {
         )
     }
 
+
+    @Test fun findEarbudsModuleUsesHuaweiLocalSoundCommands() {
+        val module = FreeBuds5iProtocol.module<FindEarbudsModule>()!!
+        val startLeft = module.setSound(EarbudSide.LEFT, true)
+        assertEquals(43, startLeft.serviceId)
+        assertEquals(93, startLeft.commandId)
+        assertArrayEquals(byteArrayOf(0, 0), startLeft.args[1])
+
+        val stopRight = module.setSound(EarbudSide.RIGHT, false)
+        assertArrayEquals(byteArrayOf(1, 1), stopRight.args[1])
+        assertEquals(mapOf(3 to byteArrayOf()).keys, module.abilityRequest().args.keys)
+        assertEquals(mapOf(2 to byteArrayOf()).keys, module.stateRequest().args.keys)
+    }
+
+    @Test fun findEarbudsModuleParsesAvailabilityAndSoundingState() {
+        val module = FreeBuds6iProtocol.module<FindEarbudsModule>()!!
+        val sounding = module.reduce(
+            HeadphonesSnapshot(),
+            MbbCommand(43, 95, mapOf(2 to byteArrayOf(1, 0))),
+        )
+        assertEquals(true, sounding.findEarbuds.rightSounding)
+        val stopped = module.reduce(
+            sounding,
+            MbbCommand(43, 95, mapOf(2 to byteArrayOf(1, 1))),
+        )
+        assertEquals(false, stopped.findEarbuds.rightSounding)
+    }
+
+    @Test fun localFindIsAvailableOnlyOnVerifiedProfiles() {
+        assertEquals(true, FreeBuds5iProtocol.module<FindEarbudsModule>() != null)
+        assertEquals(true, FreeBuds6iProtocol.module<FindEarbudsModule>() != null)
+        assertNull(FreeBuds4iProtocol.module<FindEarbudsModule>())
+    }
+
 }
 
 private fun String.hexBytes(): ByteArray = chunked(2).map { it.toInt(16).toByte() }.toByteArray()

@@ -75,6 +75,12 @@ interface CustomEqualizerModule : EqualizerModule {
     fun deletePreset(preset: CustomEqualizerPreset): MbbCommand
 }
 
+interface FindEarbudsModule : ProtocolModule {
+    fun setSound(side: EarbudSide, enabled: Boolean): MbbCommand
+    fun stateRequest(): MbbCommand
+    fun abilityRequest(): MbbCommand
+}
+
 interface DualConnectModule : ProtocolModule {
     val supportsAutoConnect: Boolean
     fun setEnabled(enabled: Boolean): MbbCommand

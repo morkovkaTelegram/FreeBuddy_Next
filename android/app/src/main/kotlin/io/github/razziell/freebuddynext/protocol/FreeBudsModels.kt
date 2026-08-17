@@ -48,6 +48,17 @@ enum class Hold(val code: Int) { NONE(255), CYCLE_ANC(10) }
 enum class Swipe(val code: Int) { NONE(255), VOLUME(0) }
 enum class EqPreset(val code: Int) { DEFAULT(1), BASS(2), TREBLE(3), VOICES(9) }
 enum class DualConnectionState { DISCONNECTED, CONNECTED, PLAYING }
+enum class EarbudSide(val code: Int) { LEFT(0), RIGHT(1) }
+
+data class FindEarbudsState(
+    val leftSounding: Boolean = false,
+    val rightSounding: Boolean = false,
+) {
+    fun sounding(side: EarbudSide): Boolean = when (side) {
+        EarbudSide.LEFT -> leftSounding
+        EarbudSide.RIGHT -> rightSounding
+    }
+}
 
 data class ProductionDate(val year: Int, val month: Int)
 
@@ -156,6 +167,7 @@ data class HeadphonesSnapshot(
     val settings: FreeBudsSettings = FreeBudsSettings(),
     val dualConnectEnabled: Boolean? = null,
     val dualConnectDevices: List<DualConnectDevice> = emptyList(),
+    val findEarbuds: FindEarbudsState = FindEarbudsState(),
     val deviceInfo: DeviceInfo? = null,
     /** FreeBuds 6i MBB 43/74 diagnostics; null for models without custom EQ. */
     val equalizerDiagnostics: EqualizerDiagnostics? = null,

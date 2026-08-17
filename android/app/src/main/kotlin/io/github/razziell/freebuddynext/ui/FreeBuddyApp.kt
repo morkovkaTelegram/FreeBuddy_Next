@@ -68,6 +68,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -98,7 +99,10 @@ import java.time.Month
 import java.time.format.TextStyle
 import java.util.Locale
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.razziell.freebuddynext.BuildConfig
 import io.github.razziell.freebuddynext.R
 import io.github.razziell.freebuddynext.data.HeadphonesIdentity
@@ -118,6 +122,8 @@ import io.github.razziell.freebuddynext.protocol.CustomEqualizerModule
 import io.github.razziell.freebuddynext.protocol.DoubleTapModule
 import io.github.razziell.freebuddynext.protocol.DualConnectModule
 import io.github.razziell.freebuddynext.protocol.EqualizerModule
+import io.github.razziell.freebuddynext.protocol.EarbudSide
+import io.github.razziell.freebuddynext.protocol.FindEarbudsModule
 import io.github.razziell.freebuddynext.protocol.HoldModule
 import io.github.razziell.freebuddynext.protocol.LdacModule
 import io.github.razziell.freebuddynext.protocol.LowLatencyModule
@@ -141,13 +147,13 @@ import io.github.razziell.freebuddynext.protocol.Hold
 import io.github.razziell.freebuddynext.protocol.Swipe
 import io.github.razziell.freebuddynext.protocol.TripleTap
 
-private enum class Screen { HOME, HEADPHONES_SETTINGS, ABOUT }
+private enum class Screen { HOME, HEADPHONES_SETTINGS, FIND_EARBUDS, ABOUT }
 
 
 private val AppCardShape = RoundedCornerShape(16.dp)
 private val LocalShowEmojis = staticCompositionLocalOf { true }
 private val EmojiRegex = Regex(
-    """[\x{1F000}-\x{1FAFF}\x{2100}-\x{214F}\x{2300}-\x{23FF}\x{2600}-\x{27BF}\uFE0E\uFE0F\u200D]+""",
+    """[\x{1F000}-\x{1FAFF}\x{2100}-\x{214F}\x{2300}-\x{25FF}\x{2600}-\x{27BF}\uFE0E\uFE0F\u200D]+""",
 )
 
 private fun String.withoutEmojis(): String =
@@ -179,7 +185,13 @@ fun FreeBuddyApp(repository: HeadphonesRepository, requestBluetoothPermission: (
             }
             when (screen) {
                 Screen.HOME -> HomeScreen(state, repository, requestBluetoothPermission, { screen = Screen.HEADPHONES_SETTINGS }, { screen = Screen.ABOUT })
-                Screen.HEADPHONES_SETTINGS -> HeadphonesSettingsScreen(state, repository) { screen = Screen.HOME }
+                Screen.HEADPHONES_SETTINGS -> HeadphonesSettingsScreen(
+                    state,
+                    repository,
+                    openFindEarbuds = { screen = Screen.FIND_EARBUDS },
+                    back = { screen = Screen.HOME },
+                )
+                Screen.FIND_EARBUDS -> FindEarbudsScreen(state, repository) { screen = Screen.HEADPHONES_SETTINGS }
                 Screen.ABOUT -> AboutScreen(activeIdentity) { screen = Screen.HOME }
             }
         }
@@ -946,7 +958,12 @@ private fun AncLevelMenu(selected: AncLevel?, levels: List<AncLevel>, choose: (A
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HeadphonesSettingsScreen(state: ConnectionState, repository: HeadphonesRepository, back: () -> Unit) {
+private fun HeadphonesSettingsScreen(
+    state: ConnectionState,
+    repository: HeadphonesRepository,
+    openFindEarbuds: () -> Unit,
+    back: () -> Unit,
+) {
     Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.headphones_settings), Modifier.semantics { heading() }) }, navigationIcon = { IconButton(back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) } }) }) { padding ->
         val snapshot = (state as? ConnectionState.Connected)?.snapshot
         if (snapshot == null) {
@@ -964,6 +981,7 @@ private fun HeadphonesSettingsScreen(state: ConnectionState, repository: Headpho
         val tripleTap = protocol?.module<TripleTapModule>()
         val hold = protocol?.module<HoldModule>()
         val swipe = protocol?.module<SwipeModule>()
+        val findEarbuds = protocol?.module<FindEarbudsModule>()
         LazyColumn(Modifier.padding(padding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             if (equalizer != null) item {
                 if (customEqualizer != null) {
@@ -975,6 +993,21 @@ private fun HeadphonesSettingsScreen(state: ConnectionState, repository: Headpho
             if (autoPause != null) item { CardSwitch(stringResource(R.string.auto_pause), s.autoPause ?: false, s.autoPause != null, stringResource(R.string.auto_pause_desc), repository::setAutoPause) }
             if (lowLatency != null) item { CardSwitch(stringResource(R.string.low_latency), s.lowLatency ?: false, s.lowLatency != null, stringResource(R.string.low_latency_desc), repository::setLowLatency) }
             if (ldac != null) item { CardSwitch(stringResource(R.string.ldac), s.ldac ?: false, s.ldac != null, stringResource(R.string.ldac_desc), repository::setLdac) }
+            if (findEarbuds != null) item {
+                Card(
+                    modifier = Modifier.fillMaxWidth().clickable(onClick = openFindEarbuds),
+                    shape = AppCardShape,
+                ) {
+                    Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(stringResource(R.string.find_earbuds), style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            stringResource(R.string.find_earbuds_description),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
             if (doubleTap != null || tripleTap != null || hold != null || swipe != null) {
                 item {
                     Text(
@@ -992,6 +1025,109 @@ private fun HeadphonesSettingsScreen(state: ConnectionState, repository: Headpho
             }
             if (swipe != null) item { EnumDropdown(R.string.swipe, Swipe.entries, s.swipe, { it.swipeLabel() }, repository::setSwipe) }
             item { Spacer(Modifier.height(32.dp)) }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FindEarbudsScreen(
+    state: ConnectionState,
+    repository: HeadphonesRepository,
+    back: () -> Unit,
+) {
+    val snapshot = (state as? ConnectionState.Connected)?.snapshot
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var pendingSide by remember { mutableStateOf<EarbudSide?>(null) }
+
+    LaunchedEffect(Unit) { repository.refreshFindEarbuds() }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) repository.stopFindEarbudsSound()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            repository.stopFindEarbudsSound()
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.find_earbuds), Modifier.semantics { heading() }) },
+                navigationIcon = {
+                    IconButton(back) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        if (snapshot == null) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Text(stringResource(R.string.disconnected))
+            }
+            return@Scaffold
+        }
+        Column(
+            Modifier.fillMaxSize().padding(padding).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(
+                stringResource(R.string.find_earbuds_local_only),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            FindEarbudCard(EarbudSide.LEFT, snapshot, repository) { pendingSide = it }
+            FindEarbudCard(EarbudSide.RIGHT, snapshot, repository) { pendingSide = it }
+        }
+    }
+
+    pendingSide?.let { side ->
+        AlertDialog(
+            onDismissRequest = { pendingSide = null },
+            title = { Text(stringResource(R.string.find_earbuds_warning_title)) },
+            text = { Text(stringResource(R.string.find_earbuds_warning)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    repository.setFindEarbudSound(side, true)
+                    pendingSide = null
+                }) { Text(stringResource(R.string.find_earbuds_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingSide = null }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
+    }
+}
+
+@Composable
+private fun FindEarbudCard(
+    side: EarbudSide,
+    snapshot: HeadphonesSnapshot,
+    repository: HeadphonesRepository,
+    requestStart: (EarbudSide) -> Unit,
+) {
+    val state = snapshot.findEarbuds
+    val sounding = state.sounding(side)
+    val title = stringResource(
+        if (side == EarbudSide.LEFT) R.string.find_earbuds_left else R.string.find_earbuds_right,
+    )
+    Card(Modifier.fillMaxWidth(), shape = AppCardShape) {
+        Row(
+            Modifier.fillMaxWidth().padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+            when {
+                sounding -> Button(onClick = { repository.setFindEarbudSound(side, false) }) {
+                    Text(stringResource(R.string.find_earbuds_stop))
+                }
+                else -> Button(onClick = { requestStart(side) }) {
+                    Text(stringResource(R.string.find_earbuds_play))
+                }
+            }
         }
     }
 }

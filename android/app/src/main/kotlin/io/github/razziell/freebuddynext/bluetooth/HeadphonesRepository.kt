@@ -28,6 +28,8 @@ import io.github.razziell.freebuddynext.protocol.CustomEqualizerModule
 import io.github.razziell.freebuddynext.protocol.DoubleTapModule
 import io.github.razziell.freebuddynext.protocol.DualConnectModule
 import io.github.razziell.freebuddynext.protocol.EqualizerModule
+import io.github.razziell.freebuddynext.protocol.EarbudSide
+import io.github.razziell.freebuddynext.protocol.FindEarbudsModule
 import io.github.razziell.freebuddynext.protocol.HoldModule
 import io.github.razziell.freebuddynext.protocol.LdacModule
 import io.github.razziell.freebuddynext.protocol.LowLatencyModule
@@ -385,10 +387,20 @@ class HeadphonesRepository(private val context: Context) {
         livenessJob = null
         connectJob?.takeIf { it !== self }?.cancel()
         connectJob = null
+        val findModule = activeProtocol?.module<FindEarbudsModule>()
+        val findState = (_state.value as? ConnectionState.Connected)?.snapshot?.findEarbuds
         activeDevice = null
         activeProtocol = null
         synchronized(diagnosticLog) { diagnosticLog.clear() }
         withContext(NonCancellable) {
+            if (findModule != null && findState != null) {
+                if (findState.leftSounding) runCatching {
+                    client.send(findModule.setSound(EarbudSide.LEFT, false))
+                }
+                if (findState.rightSounding) runCatching {
+                    client.send(findModule.setSound(EarbudSide.RIGHT, false))
+                }
+            }
             client.close()
             WidgetStorage.saveAncAndUpdate(context, mode = null, connected = false)
         }
@@ -456,6 +468,43 @@ class HeadphonesRepository(private val context: Context) {
     }
     fun setDualConnect(value: Boolean) = withModule<DualConnectModule> {
         sendAndRefresh(it.setEnabled(value), it.stateRequest())
+    }
+
+    fun setFindEarbudSound(side: EarbudSide, enabled: Boolean) = withModule<FindEarbudsModule> { module ->
+        _state.update { state ->
+            val connected = state as? ConnectionState.Connected ?: return@update state
+            val find = connected.snapshot.findEarbuds
+            connected.copy(snapshot = connected.snapshot.copy(findEarbuds = when (side) {
+                EarbudSide.LEFT -> find.copy(leftSounding = enabled)
+                EarbudSide.RIGHT -> find.copy(rightSounding = enabled)
+            }))
+        }
+        sendAndRefresh(module.setSound(side, enabled), module.stateRequest(), refreshDelayMs = 500)
+    }
+
+    fun stopFindEarbudsSound() = withModule<FindEarbudsModule> { module ->
+        _state.update { state ->
+            val connected = state as? ConnectionState.Connected ?: return@update state
+            connected.copy(snapshot = connected.snapshot.copy(
+                findEarbuds = connected.snapshot.findEarbuds.copy(
+                    leftSounding = false,
+                    rightSounding = false,
+                ),
+            ))
+        }
+        scope.launch {
+            runCatching {
+                client.send(module.setSound(EarbudSide.LEFT, false))
+                client.send(module.setSound(EarbudSide.RIGHT, false))
+                delay(250)
+                client.send(module.stateRequest())
+            }
+        }
+    }
+
+    fun refreshFindEarbuds() = withModule<FindEarbudsModule> { module ->
+        send(module.abilityRequest())
+        send(module.stateRequest())
     }
 
     fun refreshDualConnectDevices() = withModule<DualConnectModule> { module ->
