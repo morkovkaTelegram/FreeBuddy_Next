@@ -1,5 +1,7 @@
 package io.github.razziell.freebuddynext.ui
 
+import androidx.activity.compose.BackHandler
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -188,6 +190,17 @@ fun FreeBuddyApp(repository: HeadphonesRepository, requestBluetoothPermission: (
             val state by repository.state.collectAsStateWithLifecycle()
             val activeSnapshot = (state as? ConnectionState.Connected)?.snapshot
             val activeIdentity = activeSnapshot?.colorIdentity()
+
+            BackHandler(enabled = screen != Screen.HOME) {
+                screen = when (screen) {
+                    Screen.HOME -> Screen.HOME
+                    Screen.HEADPHONES_SETTINGS -> Screen.HOME
+                    Screen.FIND_EARBUDS -> Screen.HEADPHONES_SETTINGS
+                    Screen.ABOUT -> Screen.HOME
+                    Screen.INTERFACE_EDITOR -> Screen.ABOUT
+                }
+            }
+
             LaunchedEffect(activeIdentity) {
                 activeIdentity?.let { ThemeStore.registerHeadphones(context, it) }
             }
