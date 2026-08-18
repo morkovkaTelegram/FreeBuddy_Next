@@ -45,6 +45,14 @@ enum class DoubleTap(val code: Int) {
 }
 enum class TripleTap(val code: Int) { NONE(255), NEXT(2), PREVIOUS(7) }
 enum class Hold(val code: Int) { NONE(255), CYCLE_ANC(10) }
+
+enum class SplitHoldAction(val code: Int) {
+    NONE(255),
+    ASSISTANT(0),
+    CYCLE_ANC(10),
+    VOLUME_UP(18),
+    VOLUME_DOWN(19),
+}
 enum class Swipe(val code: Int) { NONE(255), VOLUME(0) }
 enum class EqPreset(val code: Int) {
     DEFAULT(1), BASS(2), TREBLE(3), VOICES(9),
@@ -155,6 +163,10 @@ data class FreeBudsSettings(
     val tripleTapRight: TripleTap? = null,
     val hold: Hold? = null,
     val holdModes: Set<AncMode>? = null,
+    val splitHoldLeft: SplitHoldAction? = null,
+    val splitHoldRight: SplitHoldAction? = null,
+    val splitHoldModesLeft: Set<AncMode>? = null,
+    val splitHoldModesRight: Set<AncMode>? = null,
     val swipe: Swipe? = null,
     val autoPause: Boolean? = null,
     val lowLatency: Boolean? = null,

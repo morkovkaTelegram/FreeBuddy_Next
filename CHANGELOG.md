@@ -4,7 +4,78 @@ This file is maintained in English first, followed by a complete Russian transla
 
 ## [Unreleased]
 
-- No unreleased changes yet.
+- Documentation synchronized with the current implementation.
+
+## [0.4.2+44] — 2026-08
+
+### Fixed
+
+- The main screen and the headphone settings screen no longer open scrolled
+  to the middle of the page when blocks were reordered in the interface
+  editor: the lists now compose only after the saved order is loaded.
+- The noise cancellation card no longer slightly changes its height when
+  switching between Off, Noise cancelling and Transparency: the header row
+  has a fixed minimum height regardless of the level chevron.
+
+## [0.4.2+43] — 2026-08
+
+### Added
+
+- ANC levels for FreeBuds SE 4 ANC (Normal, Comfort, Ultra, Dynamic): the
+  profile now uses the advanced ANC module, matching real device replies and
+  the official Huawei configuration.
+- Custom EQ preset import/export for FreeBuds SE 4 ANC. Preset files remain
+  strictly model-scoped: a 6i file cannot be imported into SE 4 ANC and vice
+  versa.
+- Shorter EQ preset file names: `EQ_6i_FBN.json` and `EQ_SE4_ANC_FBN.json`.
+
+### Changed
+
+- Redesigned the noise cancellation card header: a single-line title on the
+  left and the current mode or selected ANC level on the right; tapping the
+  level opens a compact dropdown.
+- The delete button in the custom EQ editor moved to the always-visible
+  bottom bar next to Cancel.
+
+### Fixed
+
+- ANC mode and level changes now re-read the actual headset state after
+  400 ms, so the UI no longer sticks to a stale or optimistic value.
+- A hold write failure no longer skips the follow-up state re-read for
+  split-hold models.
+
+## [0.4.2+41] — 2026-08
+
+### Added
+
+- HUAWEI FreeBuds SE 4 ANC profile, validated on a real device:
+  - battery and device information;
+  - basic ANC;
+  - double and triple tap;
+  - independent left/right hold actions and ANC hold modes;
+  - built-in and custom 10-band equalizer;
+  - low-latency mode;
+  - automatic black color detection.
+- Shared interface layout editor:
+  - reorder main-screen blocks and headphone-settings sections;
+  - scale the headphone image, battery rows and ANC buttons;
+  - real previews of the affected components;
+  - reset to the default layout.
+- JSON import and export for FreeBuds 6i and FreeBuds SE 4 ANC custom equalizer presets through Android Storage Access Framework.
+- Official FreeBuds 6i extended equalizer presets: Classics (`200`) and Hi-Fi (`201`).
+
+### Changed
+
+- Interface layout and scale settings are shared across supported headset models.
+- Unsupported model-specific sections remain reorderable in the editor but are visually marked as unavailable.
+- Updated Gradle Wrapper to 8.14.4.
+- System Back navigation now returns through internal screens before leaving the application.
+
+### Fixed
+
+- Corrected split-hold partial responses so changing one earbud does not erase the other side.
+- Corrected local earbud-finding start/stop command semantics and guaranteed signal shutdown when leaving the screen or disconnecting.
+- Improved editor slider persistence and preview layout behavior.
 
 ## [0.3.9+36] — 2026-08
 
@@ -13,6 +84,7 @@ This file is maintained in English first, followed by a complete Russian transla
 - Local acoustic search for connected FreeBuds 5i and 6i with separate left/right controls and a loud-volume warning.
 
 - Initial HUAWEI FreeBuds 4i profile with device information, battery, basic ANC, auto-pause, double-tap, and hold controls.
+- Initial HUAWEI FreeBuds SE 4 ANC profile with battery, basic ANC, double/triple tap, independent hold actions, built-in EQ and low latency.
 
 ### Fixed
 
@@ -175,7 +247,78 @@ This file is maintained in English first, followed by a complete Russian transla
 
 ## [Не выпущено]
 
-- Пока нет невыпущенных изменений.
+- Документация синхронизирована с текущей реализацией.
+
+## [0.4.2+44] — 2026-08
+
+### Исправлено
+
+- Главный экран и экран настроек наушников больше не открываются
+  проскролленными к середине страницы после перестановки блоков в редакторе
+  интерфейса: списки строятся только после загрузки сохранённого порядка.
+- Карточка шумоподавления больше не меняет слегка высоту при переключении
+  между «Выключено», «Шумоподавление» и «Прозрачность»: строка заголовка
+  имеет фиксированную минимальную высоту независимо от шеврона уровня.
+
+## [0.4.2+43] — 2026-08
+
+### Добавлено
+
+- Уровни ANC для FreeBuds SE 4 ANC (обычный, комфортный, максимальный,
+  динамический): профиль переведён на расширенный модуль ANC в соответствии
+  с ответами реального устройства и официальной конфигурацией Huawei.
+- Импорт и экспорт пользовательских EQ-пресетов для FreeBuds SE 4 ANC. Файлы
+  остаются строго модельными: файл 6i нельзя импортировать в SE 4 ANC и
+  наоборот.
+- Более короткие имена файлов пресетов: `EQ_6i_FBN.json` и
+  `EQ_SE4_ANC_FBN.json`.
+
+### Изменено
+
+- Переработан заголовок карточки шумоподавления: однострочное название слева
+  и текущий режим или выбранный уровень ANC справа; нажатие на уровень
+  открывает компактное меню.
+- Кнопка удаления в редакторе пользовательского EQ перенесена в постоянно
+  видимую нижнюю панель рядом с «Отмена».
+
+### Исправлено
+
+- После смены режима или уровня ANC приложение через 400 мс перечитывает
+  фактическое состояние наушников, поэтому интерфейс больше не остаётся в
+  устаревшем или оптимистичном состоянии.
+- Сбой записи действия удержания больше не пропускает последующее чтение
+  состояния у моделей с раздельным удержанием.
+
+### Добавлено
+
+- Профиль HUAWEI FreeBuds SE 4 ANC, проверенный на реальном устройстве:
+  - заряд и сведения об устройстве;
+  - базовый ANC;
+  - двойное и тройное касание;
+  - раздельные действия удержания и режимы ANC для левого/правого наушника;
+  - встроенный и пользовательский 10-полосный эквалайзер;
+  - режим низкой задержки;
+  - автоматическое определение чёрного цвета.
+- Общий редактор интерфейса:
+  - изменение порядка блоков главного экрана и разделов настроек наушников;
+  - масштабирование изображения, строк заряда и кнопок ANC;
+  - реальные превью изменяемых компонентов;
+  - сброс к стандартной раскладке.
+- Импорт и экспорт пользовательских пресетов эквалайзера FreeBuds 6i и FreeBuds SE 4 ANC в JSON через системный Storage Access Framework Android.
+- Официальные расширенные пресеты FreeBuds 6i: «Классика» (`200`) и Hi-Fi (`201`).
+
+### Изменено
+
+- Раскладка интерфейса и масштабы теперь общие для всех поддерживаемых моделей.
+- Неподдерживаемые моделью разделы можно перемещать в редакторе, но они визуально помечены как недоступные.
+- Gradle Wrapper обновлён до 8.14.4.
+- Системная навигация «Назад» сначала возвращает по внутренним экранам и только затем закрывает приложение.
+
+### Исправлено
+
+- Частичные ответы раздельного удержания больше не стирают настройку второго наушника.
+- Исправлена семантика запуска/остановки локального поиска; сигнал гарантированно останавливается при выходе с экрана или отключении.
+- Улучшено сохранение значений ползунков и расположение превью редактора.
 
 ## [0.3.9+36] — 2026-08
 
@@ -184,6 +327,7 @@ This file is maintained in English first, followed by a complete Russian transla
 - Локальный звуковой поиск подключённых FreeBuds 5i и 6i с раздельным управлением левым/правым наушником и предупреждением о громкости.
 
 - Начальный профиль HUAWEI FreeBuds 4i со сведениями об устройстве, зарядом, базовым ANC, автопаузой, двойным касанием и управлением удержанием.
+- Начальный профиль HUAWEI FreeBuds SE 4 ANC с зарядом, базовым ANC, двойным/тройным касанием, раздельными действиями удержания, встроенным эквалайзером и низкой задержкой.
 
 ### Исправлено
 

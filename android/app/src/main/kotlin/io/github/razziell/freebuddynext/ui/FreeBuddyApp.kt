@@ -55,6 +55,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
@@ -143,6 +144,8 @@ import io.github.razziell.freebuddynext.protocol.HoldModule
 import io.github.razziell.freebuddynext.protocol.LdacModule
 import io.github.razziell.freebuddynext.protocol.LowLatencyModule
 import io.github.razziell.freebuddynext.protocol.SwipeModule
+import io.github.razziell.freebuddynext.protocol.SplitHoldAction
+import io.github.razziell.freebuddynext.protocol.SplitHoldModule
 import io.github.razziell.freebuddynext.protocol.TripleTapModule
 import io.github.razziell.freebuddynext.protocol.module
 import io.github.razziell.freebuddynext.protocol.AncMode
@@ -294,8 +297,11 @@ private fun ConnectedContent(
         .collectAsStateWithLifecycle(initialValue = false)
     val storedColor by remember(colorIdentity) { ThemeStore.headphonesColor(context, colorIdentity) }
         .collectAsStateWithLifecycle(initialValue = DeviceColor.BLACK.name)
-    val layout by remember { ThemeStore.interfaceLayout(context) }
-        .collectAsStateWithLifecycle(initialValue = InterfaceLayout())
+    // See HeadphonesSettingsScreen: compose the list only after the persisted
+    // order is loaded so LazyColumn does not follow a reordered first item.
+    val layoutOrNull by remember { ThemeStore.interfaceLayout(context) }
+        .collectAsStateWithLifecycle(initialValue = null)
+    val layout = layoutOrNull ?: return
     val selectedColor = storedColor.toDeviceColor()
     val protocol = HeadphonesProtocolRegistry.findById(snapshot.protocolId)
     val ancModule = protocol?.module<AncModule>()
@@ -384,6 +390,11 @@ private fun headphonesImage(
             DeviceColor.WHITE -> R.drawable.freebuds_4i_w
             DeviceColor.RED -> R.drawable.freebuds_4i_r
             DeviceColor.BLACK, DeviceColor.BLUE, DeviceColor.PURPLE, null -> R.drawable.freebuds_4i_b
+        }
+        "freebuds_se_4_anc" -> when (color) {
+            DeviceColor.WHITE -> R.drawable.freebuds_se_4_anc_w
+            DeviceColor.BLUE -> R.drawable.freebuds_se_4_anc_bl
+            DeviceColor.BLACK, DeviceColor.PURPLE, DeviceColor.RED, null -> R.drawable.freebuds_se_4_anc_b
         }
         "freebuds_6i" -> when (color) {
             DeviceColor.WHITE -> R.drawable.freebuds_6i_w
@@ -928,20 +939,12 @@ private fun AncCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                stringResource(R.string.anc_title),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center,
+            AncCardHeader(
+                snapshot = snapshot,
+                module = module,
+                interactive = interactive,
+                chooseLevel = repository::setAncLevel,
             )
-            if (module.supportsLevels && snapshot.ancMode == AncMode.NOISE_CANCELLING) {
-                AncLevelMenu(
-                    snapshot.ancLevel,
-                    levels = if (module.supportsDynamicLevel) AncLevel.entries else AncLevel.entries.filterNot { it == AncLevel.DYNAMIC },
-                    choose = repository::setAncLevel,
-                    interactive = interactive,
-                )
-            }
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -994,49 +997,90 @@ private fun AncModeButton(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AncLevelMenu(
-    selected: AncLevel?,
-    levels: List<AncLevel>,
-    choose: (AncLevel) -> Unit,
-    interactive: Boolean = true,
+private fun AncCardHeader(
+    snapshot: HeadphonesSnapshot,
+    module: AncModule,
+    interactive: Boolean,
+    chooseLevel: (AncLevel) -> Unit,
 ) {
+    val canChooseLevel = module.supportsLevels && snapshot.ancMode == AncMode.NOISE_CANCELLING
+    val levels = if (module.supportsDynamicLevel) {
+        AncLevel.entries
+    } else {
+        AncLevel.entries.filterNot { it == AncLevel.DYNAMIC }
+    }
     var expanded by remember { mutableStateOf(false) }
-    val current = selected?.let { stringResource(it.label()) }.orEmpty()
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { if (interactive) expanded = !expanded },
+    val selectedLabel = when {
+        canChooseLevel && snapshot.ancLevel != null -> stringResource(snapshot.ancLevel.label())
+        snapshot.ancMode != null -> stringResource(snapshot.ancMode.label())
+        else -> "—"
+    }
+
+    Row(
         modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        OutlinedTextField(
-            value = current,
-            onValueChange = {},
-            readOnly = true,
-            singleLine = true,
-            label = { Text(stringResource(R.string.anc_level_title)) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            shape = AppCardShape,
-            modifier = Modifier.menuAnchor().fillMaxWidth(),
+        Text(
+            text = stringResource(R.string.anc_title),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
         )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            shape = AppCardShape,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            levels.forEach { level ->
-                val isSelected = level == selected
-                DropdownMenuItem(
-                    text = { Text(stringResource(level.label())) },
-                    trailingIcon = {
-                        if (isSelected) Icon(Icons.Default.Check, null)
-                    },
-                    onClick = {
-                        expanded = false
-                        choose(level)
-                    },
+        Box {
+            Row(
+                modifier = Modifier
+                    .clip(AppCardShape)
+                    .then(
+                        if (canChooseLevel && interactive) {
+                            Modifier.clickable(
+                                role = Role.Button,
+                                onClick = { expanded = true },
+                            )
+                        } else Modifier
+                    )
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                    // Keep the header height identical in every ANC mode: the
+                    // chevron is only shown for noise cancelling, so without a
+                    // fixed minimum the card would shrink for Off/Transparency.
+                    .heightIn(min = 24.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = selectedLabel,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = if (canChooseLevel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
                 )
+                if (canChooseLevel) {
+                    Icon(
+                        imageVector = Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = if (interactive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                shape = AppCardShape,
+            ) {
+                levels.forEach { level ->
+                    val isSelected = level == snapshot.ancLevel
+                    DropdownMenuItem(
+                        text = { Text(stringResource(level.label())) },
+                        trailingIcon = {
+                            if (isSelected) Icon(Icons.Default.Check, null)
+                        },
+                        onClick = {
+                            expanded = false
+                            chooseLevel(level)
+                        },
+                    )
+                }
             }
         }
     }
@@ -1075,8 +1119,12 @@ private fun HeadphonesSettingsScreen(
             return@Scaffold
         }
         val context = LocalContext.current
-        val layout by remember { ThemeStore.interfaceLayout(context) }
-            .collectAsStateWithLifecycle(initialValue = InterfaceLayout())
+        // Wait for the persisted layout before composing the list: rendering the
+        // default order first and reordering afterwards makes LazyColumn follow
+        // the moved first item, so the screen would open scrolled mid-page.
+        val layoutOrNull by remember { ThemeStore.interfaceLayout(context) }
+            .collectAsStateWithLifecycle(initialValue = null)
+        val layout = layoutOrNull ?: return@Scaffold
         val settings = snapshot.settings
         val protocol = HeadphonesProtocolRegistry.findById(snapshot.protocolId)
         val equalizer = protocol?.module<EqualizerModule>()
@@ -1087,9 +1135,10 @@ private fun HeadphonesSettingsScreen(
         val doubleTap = protocol?.module<DoubleTapModule>()
         val tripleTap = protocol?.module<TripleTapModule>()
         val hold = protocol?.module<HoldModule>()
+        val splitHold = protocol?.module<SplitHoldModule>()
         val swipe = protocol?.module<SwipeModule>()
         val findEarbuds = protocol?.module<FindEarbudsModule>()
-        val anyGestures = doubleTap != null || tripleTap != null || hold != null || swipe != null
+        val anyGestures = doubleTap != null || tripleTap != null || hold != null || splitHold != null || swipe != null
 
         LazyColumn(
             Modifier.padding(padding).padding(horizontal = 16.dp),
@@ -1099,7 +1148,7 @@ private fun HeadphonesSettingsScreen(
                 when (block) {
                     SettingsBlock.EQUALIZER -> if (equalizer != null) item(key = block.name) {
                         if (customEqualizer != null) {
-                            CustomEqualizerSection(snapshot, repository, customEqualizer)
+                            CustomEqualizerSection(snapshot, repository, protocol.id, customEqualizer)
                         } else {
                             EnumDropdown(
                                 R.string.equalizer,
@@ -1187,17 +1236,27 @@ private fun HeadphonesSettingsScreen(
                             { repository.setTripleTap(right = it) },
                         )
                     }
-                    SettingsBlock.HOLD -> if (hold != null) item(key = block.name) {
-                        EnumDropdown(
-                            R.string.hold,
-                            Hold.entries,
-                            settings.hold,
-                            { it.holdLabel() },
-                            repository::setHold,
-                        )
+                    SettingsBlock.HOLD -> when {
+                        splitHold != null -> item(key = block.name) {
+                            SplitHoldActionsCard(settings, repository, splitHold)
+                        }
+                        hold != null -> item(key = block.name) {
+                            EnumDropdown(
+                                R.string.hold,
+                                Hold.entries,
+                                settings.hold,
+                                { it.holdLabel() },
+                                repository::setHold,
+                            )
+                        }
                     }
-                    SettingsBlock.HOLD_MODES -> if (hold != null) item(key = block.name) {
-                        HoldModesCard(settings, repository)
+                    SettingsBlock.HOLD_MODES -> when {
+                        splitHold != null -> item(key = block.name) {
+                            SplitHoldModesCard(settings, repository)
+                        }
+                        hold != null -> item(key = block.name) {
+                            HoldModesCard(settings, repository)
+                        }
                     }
                     SettingsBlock.SWIPE -> if (swipe != null) item(key = block.name) {
                         EnumDropdown(
@@ -1328,6 +1387,7 @@ private sealed interface EqualizerChoice {
 private fun CustomEqualizerSection(
     snapshot: HeadphonesSnapshot,
     repository: HeadphonesRepository,
+    protocolId: String,
     module: CustomEqualizerModule,
 ) {
     val diagnostics = snapshot.equalizerDiagnostics
@@ -1359,7 +1419,7 @@ private fun CustomEqualizerSection(
             val success = withContext(Dispatchers.IO) {
                 runCatching {
                     context.contentResolver.openOutputStream(uri, "wt")!!.bufferedWriter().use {
-                        it.write(EqualizerPresetFileCodec.encode("freebuds_6i", customPresets))
+                        it.write(EqualizerPresetFileCodec.encode(protocolId, customPresets))
                     }
                 }.isSuccess
             }
@@ -1385,7 +1445,7 @@ private fun CustomEqualizerSection(
                         }
                         output.toByteArray()
                     }
-                    EqualizerPresetFileCodec.decode(bytes.toString(Charsets.UTF_8), module)
+                    EqualizerPresetFileCodec.decode(bytes.toString(Charsets.UTF_8), protocolId, module)
                 }
             }
             decoded.onSuccess { pendingImport = it }
@@ -1449,7 +1509,7 @@ private fun CustomEqualizerSection(
                 Text(stringResource(R.string.eq_import))
             }
             TextButton(
-                onClick = { exportLauncher.launch("FreeBuddy_Next_FreeBuds_6i_EQ.json") },
+                onClick = { exportLauncher.launch(EqualizerPresetFileCodec.suggestedFileName(protocolId)) },
                 enabled = customPresets.isNotEmpty(),
             ) {
                 Icon(Icons.Default.ArrowUpward, contentDescription = null)
@@ -1596,13 +1656,6 @@ private fun CustomEqualizerEditor(
                         )
                     }
                 }
-                if (allowDelete) {
-                    TextButton(onClick = { confirmDelete = true }) {
-                        Icon(Icons.Default.Delete, null)
-                        Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.eq_custom_delete))
-                    }
-                }
             }
         },
         confirmButton = {
@@ -1611,7 +1664,18 @@ private fun CustomEqualizerEditor(
                 enabled = validName,
             ) { Text(stringResource(R.string.save)) }
         },
-        dismissButton = { TextButton(onDismiss) { Text(stringResource(R.string.cancel)) } },
+        dismissButton = {
+            Row {
+                if (allowDelete) {
+                    TextButton(onClick = { confirmDelete = true }) {
+                        Icon(Icons.Default.Delete, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.eq_custom_delete))
+                    }
+                }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+            }
+        },
     )
 
     if (confirmDelete) {
@@ -1704,6 +1768,94 @@ private fun <T> EnumDropdown(@StringRes title: Int, values: List<T>, selected: T
                         choose(value)
                     },
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SplitHoldActionsCard(
+    settings: FreeBudsSettings,
+    repository: HeadphonesRepository,
+    module: SplitHoldModule,
+) {
+    Card(Modifier.fillMaxWidth(), shape = AppCardShape) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                stringResource(R.string.hold),
+                modifier = Modifier.semantics { heading() },
+                style = MaterialTheme.typography.titleMedium,
+            )
+            EnumDropdown(
+                R.string.find_earbuds_left,
+                module.availableActions,
+                settings.splitHoldLeft,
+                { it.splitHoldLabel() },
+                { repository.setSplitHoldAction(EarbudSide.LEFT, it) },
+            )
+            EnumDropdown(
+                R.string.find_earbuds_right,
+                module.availableActions,
+                settings.splitHoldRight,
+                { it.splitHoldLabel() },
+                { repository.setSplitHoldAction(EarbudSide.RIGHT, it) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SplitHoldModesCard(settings: FreeBudsSettings, repository: HeadphonesRepository) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SplitHoldSideModesCard(
+            R.string.left_bud_short,
+            EarbudSide.LEFT,
+            settings.splitHoldLeft,
+            settings.splitHoldModesLeft,
+            repository,
+        )
+        SplitHoldSideModesCard(
+            R.string.right_bud_short,
+            EarbudSide.RIGHT,
+            settings.splitHoldRight,
+            settings.splitHoldModesRight,
+            repository,
+        )
+    }
+}
+
+@Composable
+private fun SplitHoldSideModesCard(
+    @StringRes sideLabel: Int,
+    side: EarbudSide,
+    action: SplitHoldAction?,
+    modes: Set<AncMode>?,
+    repository: HeadphonesRepository,
+) {
+    val current = modes ?: emptySet()
+    val enabled = action == SplitHoldAction.CYCLE_ANC && modes != null
+    Card(Modifier.fillMaxWidth(), shape = AppCardShape) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                "${stringResource(R.string.hold_modes)} · ${stringResource(sideLabel)}",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                stringResource(
+                    if (enabled) R.string.hold_modes_minimum_hint else R.string.hold_modes_disabled_hint,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
+            AncMode.entries.forEach { mode ->
+                SettingSwitch(
+                    stringResource(mode.label()),
+                    mode in current,
+                    enabled,
+                    stringResource(mode.description()),
+                ) { checked ->
+                    repository.setSplitHoldModes(side, toggleHoldMode(current, mode, checked))
+                }
             }
         }
     }
@@ -2072,7 +2224,8 @@ private fun supportedSettingsBlocks(
             SettingsBlock.GESTURES_TITLE -> gestures
             SettingsBlock.DOUBLE_TAP -> protocol.module<DoubleTapModule>() != null
             SettingsBlock.TRIPLE_TAP -> protocol.module<TripleTapModule>() != null
-            SettingsBlock.HOLD, SettingsBlock.HOLD_MODES -> protocol.module<HoldModule>() != null
+            SettingsBlock.HOLD, SettingsBlock.HOLD_MODES ->
+                protocol.module<HoldModule>() != null || protocol.module<SplitHoldModule>() != null
             SettingsBlock.SWIPE -> protocol.module<SwipeModule>() != null
         }
     }
@@ -2417,5 +2570,14 @@ private fun ThemeStore.ThemeMode.label() = when (this) {
 @Composable private fun EqPreset.eqLabel() = stringResource(when (this) { EqPreset.DEFAULT -> R.string.eq_default; EqPreset.BASS -> R.string.eq_bass; EqPreset.TREBLE -> R.string.eq_treble; EqPreset.VOICES -> R.string.eq_voices; EqPreset.CLASSICS -> R.string.eq_classics; EqPreset.HIFI -> R.string.eq_hifi })
 @Composable private fun DoubleTap.doubleTapLabel() = stringResource(when (this) { DoubleTap.NONE -> R.string.action_none; DoubleTap.ASSISTANT -> R.string.action_assistant; DoubleTap.PLAY_PAUSE -> R.string.action_play_pause; DoubleTap.NEXT -> R.string.action_next; DoubleTap.PREVIOUS -> R.string.action_previous })
 @Composable private fun TripleTap.tripleTapLabel() = stringResource(when (this) { TripleTap.NONE -> R.string.action_none; TripleTap.NEXT -> R.string.action_next; TripleTap.PREVIOUS -> R.string.action_previous })
+
+@Composable private fun SplitHoldAction.splitHoldLabel() = stringResource(when (this) {
+    SplitHoldAction.NONE -> R.string.action_none
+    SplitHoldAction.ASSISTANT -> R.string.action_assistant
+    SplitHoldAction.CYCLE_ANC -> R.string.action_cycle_anc
+    SplitHoldAction.VOLUME_UP -> R.string.action_volume_up
+    SplitHoldAction.VOLUME_DOWN -> R.string.action_volume_down
+})
+
 @Composable private fun Hold.holdLabel() = stringResource(if (this == Hold.NONE) R.string.action_none else R.string.action_cycle_anc)
 @Composable private fun Swipe.swipeLabel() = stringResource(if (this == Swipe.NONE) R.string.action_none else R.string.action_volume)

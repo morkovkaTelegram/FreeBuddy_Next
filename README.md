@@ -10,17 +10,18 @@ A native Android application for controlling supported Huawei FreeBuds.
 >
 > Artificial intelligence tools were used to assist with code analysis, implementation, debugging, testing, and documentation. Technical decisions, validation on real devices, and responsibility for the final result remain with the project maintainer.
 
-Current version: **0.4.0 (versionCode 37)**
+Current version: **0.4.2 (versionCode 44)**
 
 ### Supported headphones
 
 | Model | Status | Notes |
 |---|---|---|
 | HUAWEI FreeBuds 4i | Supported and tested on a real device | Battery, basic ANC, auto-pause, double-tap, hold controls, device information and white color detection |
+| HUAWEI FreeBuds SE 4 ANC | Supported and tested on a real device | Battery, basic ANC, double/triple tap, independent left/right hold actions, built-in and custom EQ, low latency, device information and black color detection |
 | HUAWEI FreeBuds 5i | Supported and tested | Battery, ANC, gestures, EQ, LDAC, low latency, Dual Connect, local sound-based finding, device information and color detection |
 | HUAWEI FreeBuds 6i | Supported and tested on real devices | Battery, ANC, gestures, built-in and custom EQ, LDAC, low latency, Dual Connect, local sound-based finding, device information and color detection |
 
-The protocol layer is model-specific and modular. `FreeBuds4iProtocol`, `FreeBuds5iProtocol` and `FreeBuds6iProtocol` compose reusable feature modules through the shared `HeadphonesProtocol` and `ProtocolModule` interfaces. Unsupported features are absent from a profile instead of being represented by inactive capability flags.
+The protocol layer is model-specific and modular. `FreeBuds4iProtocol`, `FreeBudsSe4AncProtocol`, `FreeBuds5iProtocol` and `FreeBuds6iProtocol` compose reusable feature modules through the shared `HeadphonesProtocol` and `ProtocolModule` interfaces. Unsupported features are absent from a profile instead of being represented by inactive capability flags.
 
 ### Features
 
@@ -57,12 +58,13 @@ The protocol layer is model-specific and modular. `FreeBuds4iProtocol`, `FreeBud
 #### Equalizer
 
 - Four built-in presets: Default, Bass boost, Treble boost and Vocals.
-- FreeBuds 6i custom equalizer editor:
+- FreeBuds 6i and FreeBuds SE 4 ANC custom equalizer editor:
   - up to three presets;
   - 10 bands: 60 Hz, 125 Hz, 250 Hz, 500 Hz, 1 kHz, 2 kHz, 4 kHz, 8 kHz, 12 kHz and 16 kHz;
   - range from −6.0 dB to +6.0 dB;
   - 0.5 dB step;
-  - create, rename, edit, select, reset and delete presets.
+  - create, rename, edit, select, reset and delete presets;
+  - portable JSON import and export for FreeBuds 6i and FreeBuds SE 4 ANC through the Android system file picker.
 
 #### Device information and diagnostics
 
@@ -74,12 +76,13 @@ Tap the headphone image to open device information:
 - estimated production dates decoded from serial numbers;
 - warning when the earbuds appear to have been manufactured in different periods;
 - unknown device-information TLVs;
-- FreeBuds 6i equalizer diagnostics;
+- FreeBuds 6i and FreeBuds SE 4 ANC equalizer diagnostics;
 - copyable raw MBB protocol responses.
 
 Color detection currently uses confirmed device-information values:
 
 - FreeBuds 4i: white; black and red remain available as manual choices until their codes are confirmed;
+- FreeBuds SE 4 ANC: black is detected automatically; white and blue remain available as manual choices until their codes are confirmed;
 - FreeBuds 5i: white, blue and black;
 - FreeBuds 6i: white, black and purple.
 
@@ -113,7 +116,11 @@ Widget features:
 - System, light and dark application themes.
 - Dynamic Material You colors.
 - Optional decorative emojis.
-- Manual headset color override per headset set.
+- Manual headset color override per physical headset set.
+- Shared interface layout editor:
+  - reorder main-screen blocks and headphone-settings sections;
+  - scale the headphone image, battery rows and ANC buttons;
+  - real component previews and reset to defaults.
 - English, Russian, Polish and German localization.
 - TalkBack semantics for headings, status changes, switches, radio buttons, sliders, widgets and interactive cards.
 
@@ -130,7 +137,7 @@ Main technologies:
 - Huawei MBB protocol with CRC16-XMODEM validation;
 - AndroidX Glance App Widgets;
 - Preferences DataStore;
-- Gradle 8.14.3;
+- Gradle 8.14.4;
 - Android Gradle Plugin 8.13.2;
 - JDK 21.
 
@@ -244,17 +251,18 @@ Licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 >
 > При анализе кода, разработке, отладке, тестировании и подготовке документации использовались инструменты искусственного интеллекта. Технические решения, проверка на реальных устройствах и ответственность за итоговый результат остаются за сопровождающим проекта.
 
-Текущая версия: **0.4.0 (versionCode 37)**
+Текущая версия: **0.4.2 (versionCode 44)**
 
 ### Поддерживаемые наушники
 
 | Модель | Статус | Примечания |
 |---|---|---|
 | HUAWEI FreeBuds 4i | Поддерживаются и проверены на реальном устройстве | Заряд, базовый ANC, автопауза, двойное касание, удержание, сведения об устройстве и определение белого цвета |
+| HUAWEI FreeBuds SE 4 ANC | Поддерживается и проверен на реальном устройстве | Заряд, базовый ANC, двойное/тройное касание, раздельные действия удержания, встроенный и пользовательский эквалайзер, низкая задержка, сведения об устройстве и определение чёрного цвета |
 | HUAWEI FreeBuds 5i | Поддерживаются и протестированы | Заряд, ANC, жесты, эквалайзер, LDAC, низкая задержка, Dual Connect, локальный звуковой поиск, сведения об устройстве и определение цвета |
 | HUAWEI FreeBuds 6i | Поддерживаются и проверены на реальных устройствах | Заряд, ANC, жесты, встроенный и пользовательский эквалайзер, LDAC, низкая задержка, Dual Connect, локальный звуковой поиск, сведения об устройстве и определение цвета |
 
-Протокольный слой разделён по моделям и модулям. `FreeBuds4iProtocol`, `FreeBuds5iProtocol` и `FreeBuds6iProtocol` собираются из переиспользуемых функциональных модулей через интерфейсы `HeadphonesProtocol` и `ProtocolModule`. Неподдерживаемая функция отсутствует в профиле, а не представлена неактивным флагом возможностей.
+Протокольный слой разделён по моделям и модулям. `FreeBuds4iProtocol`, `FreeBudsSe4AncProtocol`, `FreeBuds5iProtocol` и `FreeBuds6iProtocol` собираются из переиспользуемых функциональных модулей через интерфейсы `HeadphonesProtocol` и `ProtocolModule`. Неподдерживаемая функция отсутствует в профиле, а не представлена неактивным флагом возможностей.
 
 ### Возможности
 
@@ -291,12 +299,13 @@ Licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 #### Эквалайзер
 
 - Четыре встроенных пресета: По умолчанию, Басы, Высокие и Вокал.
-- Редактор пользовательского эквалайзера FreeBuds 6i:
+- Редактор пользовательского эквалайзера FreeBuds 6i и FreeBuds SE 4 ANC:
   - до трёх пресетов;
   - 10 полос: 60 Гц, 125 Гц, 250 Гц, 500 Гц, 1 кГц, 2 кГц, 4 кГц, 8 кГц, 12 кГц и 16 кГц;
   - диапазон от −6,0 до +6,0 дБ;
   - шаг 0,5 дБ;
-  - создание, переименование, редактирование, выбор, сброс и удаление пресетов.
+  - создание, переименование, редактирование, выбор, сброс и удаление пресетов;
+  - переносимый импорт и экспорт JSON для FreeBuds 6i и FreeBuds SE 4 ANC через системный выбор файлов Android.
 
 #### Сведения об устройстве и диагностика
 
@@ -308,12 +317,13 @@ Licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 - вычисленные даты производства по серийным номерам;
 - предупреждение, если наушники предположительно произведены в разные периоды;
 - неизвестные TLV-поля сведений об устройстве;
-- диагностика эквалайзера FreeBuds 6i;
+- диагностика эквалайзера FreeBuds 6i и FreeBuds SE 4 ANC;
 - копирование сырых ответов протокола MBB.
 
 Автоматическое определение цвета использует подтверждённые значения сведений об устройстве:
 
 - FreeBuds 4i: белый; чёрный и красный пока доступны как ручной выбор до подтверждения кодов;
+- FreeBuds SE 4 ANC: чёрный определяется автоматически; белый и синий доступны вручную до подтверждения их кодов;
 - FreeBuds 5i: белый, голубой и чёрный;
 - FreeBuds 6i: белый, чёрный и фиолетовый.
 
@@ -347,7 +357,11 @@ FreeBuddy Next предоставляет четыре Glance-виджета:
 - Системная, светлая и тёмная тема приложения.
 - Динамические цвета Material You.
 - Возможность скрыть декоративные эмодзи.
-- Принудительный выбор цвета для каждого комплекта наушников.
+- Принудительный выбор цвета для каждого физического комплекта наушников.
+- Общий редактор интерфейса:
+  - изменение порядка блоков главного экрана и разделов настроек наушников;
+  - масштабирование изображения, строк заряда и кнопок ANC;
+  - реальные превью компонентов и сброс к стандартной раскладке.
 - Английская, русская, польская и немецкая локализации.
 - Семантика TalkBack для заголовков, изменений статуса, переключателей, радиокнопок, ползунков, виджетов и интерактивных карточек.
 
@@ -364,7 +378,7 @@ FreeBuddy Next является нативным Android-приложением.
 - протокол Huawei MBB с проверкой CRC16-XMODEM;
 - AndroidX Glance App Widgets;
 - Preferences DataStore;
-- Gradle 8.14.3;
+- Gradle 8.14.4;
 - Android Gradle Plugin 8.13.2;
 - JDK 21.
 

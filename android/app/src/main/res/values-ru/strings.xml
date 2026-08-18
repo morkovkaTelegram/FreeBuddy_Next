@@ -24,7 +24,7 @@
     <string name="left_bud_short">Левый</string>
     <string name="right_bud_short">Правый</string>
     <string name="headphones_settings">Настройки наушников 🔧</string>
-    <string name="anc_title">Управление шумоподавлением</string>
+    <string name="anc_title">Шумоподавление</string>
     <string name="anc_off">Выключено</string>
     <string name="anc_noise">Шумоподавление</string>
     <string name="anc_transparency">Прозрачность</string>
@@ -185,8 +185,10 @@
     <string name="interface_editor_move_down">Переместить ниже</string>
     <string name="interface_editor_block_image">Изображение наушников</string>
     <string name="interface_editor_block_battery">Заряд</string>
-    <string name="interface_editor_block_anc">Управление шумоподавлением</string>
+    <string name="interface_editor_block_anc">Шумоподавление</string>
     <string name="interface_editor_block_dual_connect">Двойное подключение</string>
     <string name="interface_editor_block_settings_button">Настройки наушников</string>
     <string name="interface_editor_default">По умолчанию</string>
+    <string name="action_volume_up">Увеличить громкость</string>
+    <string name="action_volume_down">Уменьшить громкость</string>
 </resources>

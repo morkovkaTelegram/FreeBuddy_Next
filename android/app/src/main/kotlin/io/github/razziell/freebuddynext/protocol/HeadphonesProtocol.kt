@@ -43,6 +43,15 @@ interface HoldModule : ProtocolModule {
     fun modesStateRequest(): MbbCommand
 }
 
+
+interface SplitHoldModule : ProtocolModule {
+    val availableActions: List<SplitHoldAction>
+    fun setAction(side: EarbudSide, value: SplitHoldAction): MbbCommand
+    fun setModes(side: EarbudSide, modes: Set<AncMode>): MbbCommand
+    fun actionStateRequest(): MbbCommand
+    fun modesStateRequest(): MbbCommand
+}
+
 interface SwipeModule : ProtocolModule {
     fun set(value: Swipe): MbbCommand
     fun stateRequest(): MbbCommand
@@ -128,6 +137,7 @@ object HeadphonesProtocolRegistry {
         FreeBuds5iProtocol,
         FreeBuds6iProtocol,
         FreeBuds4iProtocol,
+        FreeBudsSe4AncProtocol,
     )
 
     fun findByBluetoothName(name: String?): HeadphonesProtocol? =

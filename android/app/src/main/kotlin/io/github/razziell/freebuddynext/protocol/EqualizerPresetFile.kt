@@ -12,6 +12,12 @@ object EqualizerPresetFileCodec {
     const val FORMAT = "freebuddy-next-equalizer-presets"
     const val VERSION = 1
 
+    fun suggestedFileName(model: String): String = when (model) {
+        "freebuds_6i" -> "EQ_6i_FBN.json"
+        "freebuds_se_4_anc" -> "EQ_SE4_ANC_FBN.json"
+        else -> "EQ_${model.replace(Regex("[^A-Za-z0-9_-]"), "_")}_FBN.json"
+    }
+
     fun encode(model: String, presets: List<CustomEqualizerPreset>): String {
         val items = JSONArray()
         presets.forEach { preset ->
@@ -30,6 +36,7 @@ object EqualizerPresetFileCodec {
 
     fun decode(
         json: String,
+        expectedModel: String,
         module: CustomEqualizerModule,
     ): EqualizerPresetFile {
         require(json.toByteArray(Charsets.UTF_8).size <= MAX_FILE_BYTES) { "File is too large" }
@@ -37,7 +44,7 @@ object EqualizerPresetFileCodec {
         require(root.optString("format") == FORMAT) { "Unsupported file format" }
         require(root.optInt("version", -1) == VERSION) { "Unsupported file version" }
         val model = root.optString("model")
-        require(model == "freebuds_6i") { "The file is not for FreeBuds 6i" }
+        require(model == expectedModel) { "The file is not for $expectedModel" }
         val source = root.getJSONArray("presets")
         val capacity = module.lastPresetId - module.firstPresetId + 1
         require(source.length() in 1..capacity) { "The file must contain 1 to $capacity presets" }

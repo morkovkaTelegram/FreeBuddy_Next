@@ -24,7 +24,7 @@
     <string name="left_bud_short">Lewa</string>
     <string name="right_bud_short">Prawa</string>
     <string name="headphones_settings">Ustawienia słuchawek 🔧</string>
-    <string name="anc_title">Sterowanie redukcją hałasu</string>
+    <string name="anc_title">Redukcja hałasu</string>
     <string name="anc_off">Wyłączone</string>
     <string name="anc_noise">Redukcja hałasu</string>
     <string name="anc_transparency">Przepuszczanie dźwięku</string>
@@ -185,8 +185,10 @@
     <string name="interface_editor_move_down">Przenieś niżej</string>
     <string name="interface_editor_block_image">Obraz słuchawek</string>
     <string name="interface_editor_block_battery">Bateria</string>
-    <string name="interface_editor_block_anc">Sterowanie redukcją hałasu</string>
+    <string name="interface_editor_block_anc">Redukcja hałasu</string>
     <string name="interface_editor_block_dual_connect">Podwójne połączenie</string>
     <string name="interface_editor_block_settings_button">Ustawienia słuchawek</string>
     <string name="interface_editor_default">Domyślnie</string>
+    <string name="action_volume_up">Zwiększ głośność</string>
+    <string name="action_volume_down">Zmniejsz głośność</string>
 </resources>

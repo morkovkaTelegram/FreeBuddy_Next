@@ -34,6 +34,8 @@ import io.github.razziell.freebuddynext.protocol.HoldModule
 import io.github.razziell.freebuddynext.protocol.LdacModule
 import io.github.razziell.freebuddynext.protocol.LowLatencyModule
 import io.github.razziell.freebuddynext.protocol.SwipeModule
+import io.github.razziell.freebuddynext.protocol.SplitHoldAction
+import io.github.razziell.freebuddynext.protocol.SplitHoldModule
 import io.github.razziell.freebuddynext.protocol.TripleTapModule
 import io.github.razziell.freebuddynext.protocol.isDualConnectChangeEvent
 import io.github.razziell.freebuddynext.protocol.module
@@ -414,7 +416,7 @@ class HeadphonesRepository(private val context: Context) {
             connected.copy(snapshot = connected.snapshot.copy(ancMode = mode))
         }
         scope.launch { WidgetStorage.saveAncAndUpdate(context, mode, connected = true) }
-        send(module.setMode(mode))
+        sendAndRefresh(module.setMode(mode), module.stateRequest(), refreshDelayMs = 400)
         return true
     }
 
@@ -422,7 +424,9 @@ class HeadphonesRepository(private val context: Context) {
         val mode = (_state.value as? ConnectionState.Connected)?.snapshot?.ancMode
             ?: AncMode.NOISE_CANCELLING
         // Models without configurable levels (e.g. 4i) return null: ignore.
-        module.setLevel(mode, level)?.let { send(it) }
+        module.setLevel(mode, level)?.let {
+            sendAndRefresh(it, module.stateRequest(), refreshDelayMs = 400)
+        }
     }
 
     fun setEq(value: EqPreset) = withModule<EqualizerModule> {
@@ -599,6 +603,56 @@ class HeadphonesRepository(private val context: Context) {
         }
         sendAndRefresh(module.setModes(value), module.modesStateRequest(), refreshDelayMs = 500)
     }
+
+    fun setSplitHoldAction(side: EarbudSide, value: SplitHoldAction) = withModule<SplitHoldModule> { module ->
+        val currentSettings = (_state.value as? ConnectionState.Connected)?.snapshot?.settings
+        val existingModes = when (side) {
+            EarbudSide.LEFT -> currentSettings?.splitHoldModesLeft
+            EarbudSide.RIGHT -> currentSettings?.splitHoldModesRight
+        }
+        val safeModes = if (value == SplitHoldAction.CYCLE_ANC) {
+            validHoldModesOrDefault(existingModes)
+        } else {
+            existingModes
+        }
+        _state.update { state ->
+            val connected = state as? ConnectionState.Connected ?: return@update state
+            val settings = connected.snapshot.settings
+            connected.copy(snapshot = connected.snapshot.copy(settings = when (side) {
+                EarbudSide.LEFT -> settings.copy(splitHoldLeft = value, splitHoldModesLeft = safeModes)
+                EarbudSide.RIGHT -> settings.copy(splitHoldRight = value, splitHoldModesRight = safeModes)
+            }))
+        }
+        scope.launch {
+            runCatching {
+                client.send(module.setAction(side, value))
+                if (value == SplitHoldAction.CYCLE_ANC && safeModes != null) {
+                    client.send(module.setModes(side, safeModes))
+                }
+            }
+            // Re-read real state even when a write failed, so optimistic UI
+            // cannot survive a dropped command on a dying socket.
+            delay(500)
+            runCatching {
+                client.send(module.actionStateRequest())
+                client.send(module.modesStateRequest())
+            }
+        }
+    }
+
+    fun setSplitHoldModes(side: EarbudSide, value: Set<AncMode>) = withModule<SplitHoldModule> { module ->
+        if (value.size < 2) return@withModule
+        _state.update { state ->
+            val connected = state as? ConnectionState.Connected ?: return@update state
+            val settings = connected.snapshot.settings
+            connected.copy(snapshot = connected.snapshot.copy(settings = when (side) {
+                EarbudSide.LEFT -> settings.copy(splitHoldModesLeft = value)
+                EarbudSide.RIGHT -> settings.copy(splitHoldModesRight = value)
+            }))
+        }
+        sendAndRefresh(module.setModes(side, value), module.modesStateRequest(), refreshDelayMs = 500)
+    }
+
     fun setSwipe(value: Swipe) = withModule<SwipeModule> {
         sendAndRefresh(it.set(value), it.stateRequest())
     }

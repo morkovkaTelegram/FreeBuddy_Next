@@ -357,3 +357,84 @@ class HuaweiDualConnectModule(
 
     private fun String.toMacBytes() = split(':').map { it.toInt(16).toByte() }.toByteArray()
 }
+
+/** FreeBuds SE 4 ANC stores hold actions and ANC cycles independently per earbud. */
+object HuaweiSe4HoldModule : SplitHoldModule {
+    override val availableActions = listOf(
+        SplitHoldAction.NONE,
+        SplitHoldAction.ASSISTANT,
+        SplitHoldAction.CYCLE_ANC,
+        SplitHoldAction.VOLUME_UP,
+        SplitHoldAction.VOLUME_DOWN,
+    )
+
+    override val initialRequests get() = listOf(actionStateRequest(), modesStateRequest())
+
+    override fun setAction(side: EarbudSide, value: SplitHoldAction) = MbbCommand(
+        43,
+        22,
+        mapOf(side.parameterId to intBytes(value.code)),
+    )
+
+    override fun setModes(side: EarbudSide, modes: Set<AncMode>): MbbCommand {
+        val value = modes.toHuaweiHoldModeCode()
+        return MbbCommand(43, 24, mapOf(side.parameterId to intBytes(value)))
+    }
+
+    override fun actionStateRequest() = MbbCommand(
+        43,
+        23,
+        mapOf(1 to byteArrayOf(), 2 to byteArrayOf()),
+    )
+
+    override fun modesStateRequest() = MbbCommand(
+        43,
+        25,
+        mapOf(1 to byteArrayOf(), 2 to byteArrayOf()),
+    )
+
+    /** Partial replies may carry a single TLV; never erase the other side. */
+    override fun reduce(snapshot: HeadphonesSnapshot, command: MbbCommand): HeadphonesSnapshot = when {
+        command.serviceId == 43 && command.commandId == 23 -> snapshot.copy(
+            settings = snapshot.settings.copy(
+                splitHoldLeft = command.arg(1)?.let { code ->
+                    SplitHoldAction.entries.firstOrNull { it.code == code }
+                } ?: snapshot.settings.splitHoldLeft,
+                splitHoldRight = command.arg(2)?.let { code ->
+                    SplitHoldAction.entries.firstOrNull { it.code == code }
+                } ?: snapshot.settings.splitHoldRight,
+            ),
+        )
+        command.serviceId == 43 && command.commandId == 25 -> snapshot.copy(
+            settings = snapshot.settings.copy(
+                splitHoldModesLeft = command.arg(1)?.toHuaweiHoldModes()
+                    ?: snapshot.settings.splitHoldModesLeft,
+                splitHoldModesRight = command.arg(2)?.toHuaweiHoldModes()
+                    ?: snapshot.settings.splitHoldModesRight,
+            ),
+        )
+        else -> snapshot
+    }
+}
+
+private val EarbudSide.parameterId: Int
+    get() = when (this) {
+        EarbudSide.LEFT -> 1
+        EarbudSide.RIGHT -> 2
+    }
+
+private fun Set<AncMode>.toHuaweiHoldModeCode(): Int = when (this) {
+    setOf(AncMode.OFF, AncMode.NOISE_CANCELLING) -> 1
+    AncMode.entries.toSet() -> 2
+    setOf(AncMode.NOISE_CANCELLING, AncMode.TRANSPARENCY) -> 3
+    setOf(AncMode.OFF, AncMode.TRANSPARENCY) -> 4
+    else -> 2
+}
+
+private fun Int.toHuaweiHoldModes(): Set<AncMode>? = when (this) {
+    1 -> setOf(AncMode.OFF, AncMode.NOISE_CANCELLING)
+    2 -> AncMode.entries.toSet()
+    3 -> setOf(AncMode.NOISE_CANCELLING, AncMode.TRANSPARENCY)
+    4 -> setOf(AncMode.OFF, AncMode.TRANSPARENCY)
+    else -> null
+}

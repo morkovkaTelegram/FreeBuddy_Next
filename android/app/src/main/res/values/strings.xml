@@ -24,7 +24,7 @@
     <string name="left_bud_short">Left</string>
     <string name="right_bud_short">Right</string>
     <string name="headphones_settings">Headphones settings 🔧</string>
-    <string name="anc_title">Noise cancellation control</string>
+    <string name="anc_title">Noise cancellation</string>
     <string name="anc_off">Off</string>
     <string name="anc_noise">Noise cancelling</string>
     <string name="anc_transparency">Transparency</string>
@@ -185,8 +185,10 @@
     <string name="interface_editor_move_down">Move down</string>
     <string name="interface_editor_block_image">Headphone image</string>
     <string name="interface_editor_block_battery">Battery</string>
-    <string name="interface_editor_block_anc">Noise cancellation control</string>
+    <string name="interface_editor_block_anc">Noise cancellation</string>
     <string name="interface_editor_block_dual_connect">Dual connection</string>
     <string name="interface_editor_block_settings_button">Headphone settings</string>
     <string name="interface_editor_default">Default</string>
+    <string name="action_volume_up">Volume up</string>
+    <string name="action_volume_down">Volume down</string>
 </resources>

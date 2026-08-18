@@ -579,6 +579,150 @@ class MbbProtocolTest {
         assertEquals(true, FreeBuds5iProtocol.module<FindEarbudsModule>() != null)
         assertEquals(true, FreeBuds6iProtocol.module<FindEarbudsModule>() != null)
         assertNull(FreeBuds4iProtocol.module<FindEarbudsModule>())
+        assertNull(FreeBudsSe4AncProtocol.module<FindEarbudsModule>())
+    }
+
+    @Test fun se4AncBlackColorIsDetectedFromRealDeviceInfo() {
+        val snapshot = FreeBudsSe4AncProtocol.reduce(
+            HeadphonesSnapshot(),
+            MbbCommand(
+                1,
+                7,
+                mapOf(
+                    10 to "BTFT0026-000169".toByteArray(),
+                    15 to "BTFT0026".toByteArray(),
+                    25 to byteArrayOf(0x02),
+                ),
+            ),
+        )
+
+        assertEquals("BTFT0026", snapshot.deviceInfo?.model)
+        assertEquals("BTFT0026-000169", snapshot.deviceInfo?.subModel)
+        assertEquals("0x02", snapshot.deviceInfo?.unknownFields?.get(25))
+        assertEquals(DeviceColor.BLACK, FreeBudsSe4AncProtocol.detectColor(snapshot.deviceInfo))
+    }
+
+    @Test fun se4AncProfileContainsOnlyVerifiedFeatureModules() {
+        assertEquals(
+            FreeBudsSe4AncProtocol,
+            HeadphonesProtocolRegistry.findByBluetoothName("HUAWEI FreeBuds SE 4 ANC"),
+        )
+        assertEquals(true, FreeBudsSe4AncProtocol.module<BatteryModule>() != null)
+        assertEquals(true, FreeBudsSe4AncProtocol.module<AncModule>()!!.supportsLevels)
+        assertEquals(true, FreeBudsSe4AncProtocol.module<DoubleTapModule>() != null)
+        assertEquals(true, FreeBudsSe4AncProtocol.module<TripleTapModule>() != null)
+        assertEquals(true, FreeBudsSe4AncProtocol.module<SplitHoldModule>() != null)
+        assertEquals(true, FreeBudsSe4AncProtocol.module<EqualizerModule>() != null)
+        assertEquals(true, FreeBudsSe4AncProtocol.module<CustomEqualizerModule>() != null)
+        assertEquals(true, FreeBudsSe4AncProtocol.module<LowLatencyModule>() != null)
+        assertNull(FreeBudsSe4AncProtocol.module<AutoPauseModule>())
+        assertNull(FreeBudsSe4AncProtocol.module<SwipeModule>())
+        assertNull(FreeBudsSe4AncProtocol.module<LdacModule>())
+        assertNull(FreeBudsSe4AncProtocol.module<DualConnectModule>())
+    }
+
+    @Test fun se4AncParsesRealAncModesAndSupportsDynamicLevels() {
+        val module = FreeBudsSe4AncProtocol.module<AncModule>()!!
+        assertEquals(true, module.supportsLevels)
+        assertEquals(true, module.supportsDynamicLevel)
+
+        fun reduce(raw: String) = module.reduce(
+            HeadphonesSnapshot(),
+            MbbCommand.parse(raw.hexBytes()),
+        )
+
+        assertEquals(AncMode.OFF, reduce("5A0007002B2A010201002600").ancMode)
+        assertEquals(AncLevel.COMFORT, reduce("5A0007002B2A010201002600").ancLevel)
+        assertEquals(AncMode.NOISE_CANCELLING, reduce("5A0007002B2A010201013621").ancMode)
+        assertEquals(AncLevel.COMFORT, reduce("5A0007002B2A010201013621").ancLevel)
+        assertEquals(AncMode.TRANSPARENCY, reduce("5A0007002B2A010202025311").ancMode)
+        assertEquals(AncLevel.ULTRA, reduce("5A0007002B2A010202025311").ancLevel)
+
+        assertArrayEquals(
+            MbbCommand(43, 4, mapOf(1 to intBytes(AncMode.NOISE_CANCELLING.code, 255))).toPayload(),
+            module.setMode(AncMode.NOISE_CANCELLING).toPayload(),
+        )
+        assertArrayEquals(
+            MbbCommand(43, 4, mapOf(1 to intBytes(AncMode.NOISE_CANCELLING.code, AncLevel.DYNAMIC.code))).toPayload(),
+            module.setLevel(AncMode.NOISE_CANCELLING, AncLevel.DYNAMIC)!!.toPayload(),
+        )
+    }
+
+    @Test fun se4AncParsesRealCustomEqualizerResponse() {
+        val module = FreeBudsSe4AncProtocol.module<CustomEqualizerModule>()!!
+        val snapshot = module.reduce(
+            HeadphonesSnapshot(),
+            MbbCommand(
+                43,
+                74,
+                mapOf(
+                    1 to byteArrayOf(1),
+                    2 to byteArrayOf(100),
+                    3 to byteArrayOf(1, 2, 3, 9),
+                    4 to byteArrayOf(1),
+                    5 to byteArrayOf(10),
+                    6 to byteArrayOf(25, 30, 10, 15, 20, 25, 20, 15, 10, 0),
+                    7 to "My sound effect 1".toByteArray() + ByteArray(7),
+                    8 to byteArrayOf(100, 10, 25, 30, 10, 15, 20, 25, 20, 15, 10, 0) +
+                        "My sound effect 1".toByteArray() + ByteArray(7),
+                ),
+            ),
+        )
+
+        assertEquals(100, snapshot.equalizerDiagnostics?.activePresetId)
+        val preset = snapshot.equalizerDiagnostics!!.customPresets.single()
+        assertEquals(100, preset.id)
+        assertEquals("My sound effect 1", preset.name)
+        assertEquals(listOf(25, 30, 10, 15, 20, 25, 20, 15, 10, 0), preset.bands)
+    }
+
+    @Test fun se4AncHoldWritesAndParsesEachEarbudIndependently() {
+        val module = FreeBudsSe4AncProtocol.module<SplitHoldModule>()!!
+        val left = module.setAction(EarbudSide.LEFT, SplitHoldAction.VOLUME_UP)
+        assertEquals(setOf(1), left.args.keys)
+        assertArrayEquals(byteArrayOf(18), left.args[1])
+        val right = module.setAction(EarbudSide.RIGHT, SplitHoldAction.VOLUME_DOWN)
+        assertEquals(setOf(2), right.args.keys)
+        assertArrayEquals(byteArrayOf(19), right.args[2])
+
+        val parsed = module.reduce(
+            HeadphonesSnapshot(),
+            MbbCommand(43, 23, mapOf(1 to byteArrayOf(10), 2 to byteArrayOf(0))),
+        )
+        assertEquals(SplitHoldAction.CYCLE_ANC, parsed.settings.splitHoldLeft)
+        assertEquals(SplitHoldAction.ASSISTANT, parsed.settings.splitHoldRight)
+
+        val modes = module.reduce(
+            parsed,
+            MbbCommand(43, 25, mapOf(1 to byteArrayOf(1), 2 to byteArrayOf(4))),
+        )
+        assertEquals(setOf(AncMode.OFF, AncMode.NOISE_CANCELLING), modes.settings.splitHoldModesLeft)
+        assertEquals(setOf(AncMode.OFF, AncMode.TRANSPARENCY), modes.settings.splitHoldModesRight)
+    }
+
+    @Test fun se4AncPartialHoldReplyDoesNotEraseTheOtherSide() {
+        val module = FreeBudsSe4AncProtocol.module<SplitHoldModule>()!!
+        val both = module.reduce(
+            HeadphonesSnapshot(),
+            MbbCommand(43, 23, mapOf(1 to byteArrayOf(10), 2 to byteArrayOf(18))),
+        )
+        val leftOnly = module.reduce(
+            both,
+            MbbCommand(43, 23, mapOf(1 to byteArrayOf(0))),
+        )
+        assertEquals(SplitHoldAction.ASSISTANT, leftOnly.settings.splitHoldLeft)
+        assertEquals(SplitHoldAction.VOLUME_UP, leftOnly.settings.splitHoldRight)
+
+        val modes = module.reduce(
+            leftOnly,
+            MbbCommand(43, 25, mapOf(1 to byteArrayOf(2), 2 to byteArrayOf(3))),
+        )
+        val rightOnly = module.reduce(
+            modes,
+            MbbCommand(43, 25, mapOf(2 to byteArrayOf(4))),
+        )
+        assertEquals(AncMode.entries.toSet(), rightOnly.settings.splitHoldModesLeft)
+        assertEquals(setOf(AncMode.OFF, AncMode.TRANSPARENCY), rightOnly.settings.splitHoldModesRight)
     }
 
 }
