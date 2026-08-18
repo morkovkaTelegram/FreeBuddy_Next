@@ -459,6 +459,32 @@ class MbbProtocolTest {
         assertArrayEquals(intBytes(1), command.args[5])
     }
 
+    @Test fun freeBuds6iExposesExtendedBuiltInEqPresets() {
+        val module = FreeBuds6iProtocol.module<CustomEqualizerModule>()!!
+        assertEquals(
+            listOf(
+                EqPreset.DEFAULT, EqPreset.BASS, EqPreset.TREBLE, EqPreset.VOICES,
+                EqPreset.CLASSICS, EqPreset.HIFI,
+            ),
+            module.builtInPresets,
+        )
+        // Real Chinese 6i dump: active preset id 200 (Classics).
+        assertEquals(200, EqPreset.CLASSICS.code)
+        assertEquals(201, EqPreset.HIFI.code)
+        // Selecting Classics must write 43/73 with TLV 1 = 200 (0xC8).
+        val command = module.selectPreset(EqPreset.CLASSICS)
+        assertEquals(43, command.serviceId)
+        assertEquals(73, command.commandId)
+        assertEquals(listOf(200.toByte()), command.args[1]!!.toList())
+    }
+
+    @Test fun basicModelsKeepFourBuiltInEqPresets() {
+        assertEquals(
+            listOf(EqPreset.DEFAULT, EqPreset.BASS, EqPreset.TREBLE, EqPreset.VOICES),
+            FreeBuds5iProtocol.module<EqualizerModule>()!!.builtInPresets,
+        )
+    }
+
     @Test fun freeBuds6iCustomEqualizerDeleteUsesActionTwoAndSignedBands() {
         val command = FreeBuds6iProtocol.module<CustomEqualizerModule>()!!.deletePreset(
             CustomEqualizerPreset(

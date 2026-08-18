@@ -46,7 +46,12 @@ enum class DoubleTap(val code: Int) {
 enum class TripleTap(val code: Int) { NONE(255), NEXT(2), PREVIOUS(7) }
 enum class Hold(val code: Int) { NONE(255), CYCLE_ANC(10) }
 enum class Swipe(val code: Int) { NONE(255), VOLUME(0) }
-enum class EqPreset(val code: Int) { DEFAULT(1), BASS(2), TREBLE(3), VOICES(9) }
+enum class EqPreset(val code: Int) {
+    DEFAULT(1), BASS(2), TREBLE(3), VOICES(9),
+
+    /** Extended built-in presets confirmed on FreeBuds 6i (Audio Connect ids). */
+    CLASSICS(200), HIFI(201),
+}
 enum class DualConnectionState { DISCONNECTED, CONNECTED, PLAYING }
 enum class EarbudSide(val code: Int) { LEFT(0), RIGHT(1) }
 

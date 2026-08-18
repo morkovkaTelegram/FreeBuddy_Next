@@ -51,6 +51,8 @@
     <string name="eq_bass">Wzmocnienie basów</string>
     <string name="eq_treble">Wzmocnienie sopranów</string>
     <string name="eq_voices">Wokal</string>
+    <string name="eq_classics">Klasyka</string>
+    <string name="eq_hifi">Hi-Fi</string>
     <string name="auto_pause">Automatyczna pauza ⏸️</string>
     <string name="low_latency">Niskie opóźnienie 🎮</string>
     <string name="ldac">Kodek LDAC 🎵</string>
@@ -160,4 +162,23 @@
     <string name="find_earbuds_stop">Zatrzymaj sygnał ⏹️</string>
     <string name="find_earbuds_local_only">Działa tylko wtedy, gdy słuchawki są połączone z tym urządzeniem.</string>
     <string name="find_earbuds_confirm">Kontynuuj</string>
+    <string name="interface_editor">Edytor interfejsu</string>
+    <string name="interface_editor_description">Dostosuj kolejność i rozmiar bloków ekranu głównego oraz sekcji ustawień słuchawek.</string>
+    <string name="interface_editor_common_layout">Wspólny układ interfejsu</string>
+    <string name="interface_editor_unavailable_for_model">Niedostępne dla %1$s</string>
+    <string name="interface_editor_home_order">Kolejność ekranu głównego</string>
+    <string name="interface_editor_sizes">Rozmiary ekranu głównego</string>
+    <string name="interface_editor_image_scale">Skala obrazu słuchawek</string>
+    <string name="interface_editor_battery_height">Wysokość wiersza baterii</string>
+    <string name="interface_editor_anc_size">Skala przycisków ANC</string>
+    <string name="interface_editor_settings_order">Kolejność ustawień słuchawek</string>
+    <string name="interface_editor_reset">Resetuj układ</string>
+    <string name="interface_editor_move_up">Przenieś wyżej</string>
+    <string name="interface_editor_move_down">Przenieś niżej</string>
+    <string name="interface_editor_block_image">Obraz słuchawek</string>
+    <string name="interface_editor_block_battery">Bateria</string>
+    <string name="interface_editor_block_anc">Sterowanie redukcją hałasu</string>
+    <string name="interface_editor_block_dual_connect">Podwójne połączenie</string>
+    <string name="interface_editor_block_settings_button">Ustawienia słuchawek</string>
+    <string name="interface_editor_default">Domyślnie</string>
 </resources>

@@ -18,6 +18,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -43,6 +44,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -106,6 +109,11 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.razziell.freebuddynext.BuildConfig
 import io.github.razziell.freebuddynext.R
 import io.github.razziell.freebuddynext.data.HeadphonesIdentity
+import io.github.razziell.freebuddynext.data.HomeBlock
+import io.github.razziell.freebuddynext.data.SettingsBlock
+import io.github.razziell.freebuddynext.data.scaleDp
+import io.github.razziell.freebuddynext.data.InterfaceLayout
+import io.github.razziell.freebuddynext.data.InterfaceLayoutDefaults
 import io.github.razziell.freebuddynext.data.ThemeStore
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -147,7 +155,7 @@ import io.github.razziell.freebuddynext.protocol.Hold
 import io.github.razziell.freebuddynext.protocol.Swipe
 import io.github.razziell.freebuddynext.protocol.TripleTap
 
-private enum class Screen { HOME, HEADPHONES_SETTINGS, FIND_EARBUDS, ABOUT }
+private enum class Screen { HOME, HEADPHONES_SETTINGS, FIND_EARBUDS, ABOUT, INTERFACE_EDITOR }
 
 
 private val AppCardShape = RoundedCornerShape(16.dp)
@@ -192,7 +200,17 @@ fun FreeBuddyApp(repository: HeadphonesRepository, requestBluetoothPermission: (
                     back = { screen = Screen.HOME },
                 )
                 Screen.FIND_EARBUDS -> FindEarbudsScreen(state, repository) { screen = Screen.HEADPHONES_SETTINGS }
-                Screen.ABOUT -> AboutScreen(activeIdentity) { screen = Screen.HOME }
+                Screen.ABOUT -> AboutScreen(
+                    activeIdentity = activeIdentity,
+                    openInterfaceEditor = { screen = Screen.INTERFACE_EDITOR },
+                    back = { screen = Screen.HOME },
+                )
+                Screen.INTERFACE_EDITOR -> InterfaceEditorScreen(
+                    identity = activeIdentity,
+                    snapshot = activeSnapshot,
+                    repository = repository,
+                    back = { screen = Screen.ABOUT },
+                )
             }
         }
     }
@@ -245,19 +263,28 @@ private fun StatusContent(@StringRes title: Int, @StringRes description: Int, @S
 }
 
 @Composable
-private fun ConnectedContent(snapshot: HeadphonesSnapshot, repository: HeadphonesRepository, openSettings: () -> Unit) {
+private fun ConnectedContent(
+    snapshot: HeadphonesSnapshot,
+    repository: HeadphonesRepository,
+    openSettings: () -> Unit,
+) {
     val context = LocalContext.current
     val colorIdentity = snapshot.colorIdentity()
-    // remember(): ThemeStore builds a new Flow instance on every call, and
-    // collectAsStateWithLifecycle restarts its collector when the instance
-    // changes - without remember every recomposition re-subscribed DataStore.
     val forceColor by remember(colorIdentity) { ThemeStore.forceHeadphonesColor(context, colorIdentity) }
         .collectAsStateWithLifecycle(initialValue = false)
     val storedColor by remember(colorIdentity) { ThemeStore.headphonesColor(context, colorIdentity) }
         .collectAsStateWithLifecycle(initialValue = DeviceColor.BLACK.name)
+    val layout by remember { ThemeStore.interfaceLayout(context) }
+        .collectAsStateWithLifecycle(initialValue = InterfaceLayout())
     val selectedColor = storedColor.toDeviceColor()
+    val protocol = HeadphonesProtocolRegistry.findById(snapshot.protocolId)
+    val ancModule = protocol?.module<AncModule>()
+    val dualModule = protocol?.module<DualConnectModule>()
 
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         item {
             Column(
                 Modifier.fillMaxWidth().padding(top = 12.dp),
@@ -278,30 +305,47 @@ private fun ConnectedContent(snapshot: HeadphonesSnapshot, repository: Headphone
                 )
             }
         }
-        item {
-            var showInfo by remember { mutableStateOf(false) }
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                val deviceInfoDescription = stringResource(R.string.device_info_button, snapshot.name)
-                Image(
-                    painter = painterResource(headphonesImage(snapshot, forceColor, selectedColor)),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(width = 260.dp, height = 180.dp)
-                        .semantics {
-                            contentDescription = deviceInfoDescription
-                            role = Role.Button
-                        }
-                        .clickable { showInfo = true },
-                    contentScale = ContentScale.Fit,
-                )
+        layout.homeOrder.forEach { block ->
+            when (block) {
+                HomeBlock.HEADPHONES_IMAGE -> item(key = block.name) {
+                    var showInfo by remember { mutableStateOf(false) }
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        val description = stringResource(R.string.device_info_button, snapshot.name)
+                        val scale = layout.imageScalePercent / 100f
+                        Image(
+                            painter = painterResource(headphonesImage(snapshot, forceColor, selectedColor)),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height((180 * scale).dp)
+                                .semantics {
+                                    contentDescription = description
+                                    role = Role.Button
+                                }
+                                .clickable { showInfo = true },
+                            contentScale = ContentScale.Fit,
+                        )
+                    }
+                    if (showInfo) {
+                        DeviceInfoDialog(snapshot, repository, onDismiss = { showInfo = false })
+                    }
+                }
+                HomeBlock.BATTERY -> item(key = block.name) {
+                    BatteryCard(snapshot.battery, scaleDp(InterfaceLayoutDefaults.BATTERY_ROW_HEIGHT_DP, layout.batteryScalePercent).dp)
+                }
+                HomeBlock.ANC -> if (ancModule != null) item(key = block.name) {
+                    AncCard(snapshot, repository, ancModule, scaleDp(InterfaceLayoutDefaults.ANC_BUTTON_SIZE_DP, layout.ancScalePercent).dp)
+                }
+                HomeBlock.DUAL_CONNECT -> if (dualModule != null) item(key = block.name) {
+                    DualConnectCard(snapshot, repository, dualModule)
+                }
+                HomeBlock.SETTINGS_BUTTON -> item(key = block.name) {
+                    Button(onClick = openSettings, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.headphones_settings))
+                    }
+                }
             }
-            if (showInfo) DeviceInfoDialog(snapshot, repository, onDismiss = { showInfo = false })
         }
-        item { BatteryCard(snapshot.battery) }
-        val protocol = HeadphonesProtocolRegistry.findById(snapshot.protocolId)
-        protocol?.module<AncModule>()?.let { anc -> item { AncCard(snapshot, repository, anc) } }
-        protocol?.module<DualConnectModule>()?.let { dual -> item { DualConnectCard(snapshot, repository, dual) } }
-        item { Button(onClick = openSettings, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.headphones_settings)) } }
         item { Spacer(Modifier.height(24.dp)) }
     }
 }
@@ -442,8 +486,8 @@ private fun DeviceInfoDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
-        dismissButton = {
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
+        confirmButton = {
             TextButton(
                 onClick = {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -784,12 +828,12 @@ private fun DualDeviceSheet(
 }
 
 @Composable
-private fun BatteryCard(battery: BatteryLevels) {
+private fun BatteryCard(battery: BatteryLevels, rowHeight: androidx.compose.ui.unit.Dp) {
     Card(Modifier.fillMaxWidth(), shape = AppCardShape) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            BatteryRow(R.drawable.left_earbud, R.string.left_bud_short, battery.left, battery.chargingLeft)
-            BatteryRow(R.drawable.right_earbud, R.string.right_bud_short, battery.right, battery.chargingRight)
-            BatteryRow(R.drawable.earbuds_case, R.string.case_label, battery.case, battery.chargingCase)
+            BatteryRow(R.drawable.left_earbud, R.string.left_bud_short, battery.left, battery.chargingLeft, rowHeight)
+            BatteryRow(R.drawable.right_earbud, R.string.right_bud_short, battery.right, battery.chargingRight, rowHeight)
+            BatteryRow(R.drawable.earbuds_case, R.string.case_label, battery.case, battery.chargingCase, rowHeight)
         }
     }
 }
@@ -800,6 +844,7 @@ private fun BatteryRow(
     @StringRes label: Int,
     level: Int?,
     charging: Boolean,
+    rowHeight: androidx.compose.ui.unit.Dp,
 ) {
     val validLevel = BatteryLevel.validOrNull(level)
     val fraction = BatteryLevel.fraction(validLevel)
@@ -809,7 +854,7 @@ private fun BatteryRow(
     Box(
         Modifier
             .fillMaxWidth()
-            .height(56.dp)
+            .height(rowHeight)
             .clip(shape)
             .background(MaterialTheme.colorScheme.secondaryContainer),
     ) {
@@ -850,7 +895,13 @@ private fun BatteryRow(
 }
 
 @Composable
-private fun AncCard(snapshot: HeadphonesSnapshot, repository: HeadphonesRepository, module: AncModule) {
+private fun AncCard(
+    snapshot: HeadphonesSnapshot,
+    repository: HeadphonesRepository,
+    module: AncModule,
+    buttonSize: androidx.compose.ui.unit.Dp,
+    interactive: Boolean = true,
+) {
     Card(Modifier.fillMaxWidth(), shape = AppCardShape) {
         Column(
             Modifier.fillMaxWidth().padding(16.dp),
@@ -868,6 +919,7 @@ private fun AncCard(snapshot: HeadphonesSnapshot, repository: HeadphonesReposito
                     snapshot.ancLevel,
                     levels = if (module.supportsDynamicLevel) AncLevel.entries else AncLevel.entries.filterNot { it == AncLevel.DYNAMIC },
                     choose = repository::setAncLevel,
+                    interactive = interactive,
                 )
             }
             Row(
@@ -875,13 +927,13 @@ private fun AncCard(snapshot: HeadphonesSnapshot, repository: HeadphonesReposito
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                AncModeButton(AncMode.NOISE_CANCELLING, snapshot.ancMode, R.drawable.ic_anc_noise_control) {
+                AncModeButton(AncMode.NOISE_CANCELLING, snapshot.ancMode, R.drawable.ic_anc_noise_control, buttonSize, interactive) {
                     repository.setAncMode(AncMode.NOISE_CANCELLING)
                 }
-                AncModeButton(AncMode.OFF, snapshot.ancMode, R.drawable.ic_anc_off) {
+                AncModeButton(AncMode.OFF, snapshot.ancMode, R.drawable.ic_anc_off, buttonSize, interactive) {
                     repository.setAncMode(AncMode.OFF)
                 }
-                AncModeButton(AncMode.TRANSPARENCY, snapshot.ancMode, R.drawable.ic_anc_transparency) {
+                AncModeButton(AncMode.TRANSPARENCY, snapshot.ancMode, R.drawable.ic_anc_transparency, buttonSize, interactive) {
                     repository.setAncMode(AncMode.TRANSPARENCY)
                 }
             }
@@ -890,24 +942,33 @@ private fun AncCard(snapshot: HeadphonesSnapshot, repository: HeadphonesReposito
 }
 
 @Composable
-private fun AncModeButton(mode: AncMode, selectedMode: AncMode?, @DrawableRes icon: Int, onClick: () -> Unit) {
+private fun AncModeButton(
+    mode: AncMode,
+    selectedMode: AncMode?,
+    @DrawableRes icon: Int,
+    buttonSize: androidx.compose.ui.unit.Dp,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
     val content: @Composable () -> Unit = {
         Icon(
             painter = painterResource(icon),
             contentDescription = stringResource(mode.label()),
-            modifier = Modifier.size(38.dp),
+            modifier = Modifier.size(buttonSize * 0.6f),
         )
     }
     if (mode == selectedMode) {
         FilledIconButton(
             onClick = onClick,
-            modifier = Modifier.size(64.dp).semantics { selected = true },
+            enabled = enabled,
+            modifier = Modifier.size(buttonSize).semantics { selected = true },
             content = content,
         )
     } else {
         FilledTonalIconButton(
             onClick = onClick,
-            modifier = Modifier.size(64.dp).semantics { selected = false },
+            enabled = enabled,
+            modifier = Modifier.size(buttonSize).semantics { selected = false },
             content = content,
         )
     }
@@ -915,12 +976,17 @@ private fun AncModeButton(mode: AncMode, selectedMode: AncMode?, @DrawableRes ic
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AncLevelMenu(selected: AncLevel?, levels: List<AncLevel>, choose: (AncLevel) -> Unit) {
+private fun AncLevelMenu(
+    selected: AncLevel?,
+    levels: List<AncLevel>,
+    choose: (AncLevel) -> Unit,
+    interactive: Boolean = true,
+) {
     var expanded by remember { mutableStateOf(false) }
     val current = selected?.let { stringResource(it.label()) }.orEmpty()
     ExposedDropdownMenuBox(
         expanded = expanded,
-        onExpandedChange = { expanded = !expanded },
+        onExpandedChange = { if (interactive) expanded = !expanded },
         modifier = Modifier.fillMaxWidth(),
     ) {
         OutlinedTextField(
@@ -964,13 +1030,34 @@ private fun HeadphonesSettingsScreen(
     openFindEarbuds: () -> Unit,
     back: () -> Unit,
 ) {
-    Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.headphones_settings), Modifier.semantics { heading() }) }, navigationIcon = { IconButton(back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) } }) }) { padding ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        stringResource(R.string.headphones_settings),
+                        Modifier.semantics { heading() },
+                    )
+                },
+                navigationIcon = {
+                    IconButton(back) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
+                    }
+                },
+            )
+        },
+    ) { padding ->
         val snapshot = (state as? ConnectionState.Connected)?.snapshot
         if (snapshot == null) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { Text(stringResource(R.string.disconnected)) }
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Text(stringResource(R.string.disconnected))
+            }
             return@Scaffold
         }
-        val s = snapshot.settings
+        val context = LocalContext.current
+        val layout by remember { ThemeStore.interfaceLayout(context) }
+            .collectAsStateWithLifecycle(initialValue = InterfaceLayout())
+        val settings = snapshot.settings
         val protocol = HeadphonesProtocolRegistry.findById(snapshot.protocolId)
         val equalizer = protocol?.module<EqualizerModule>()
         val customEqualizer = protocol?.module<CustomEqualizerModule>()
@@ -982,48 +1069,127 @@ private fun HeadphonesSettingsScreen(
         val hold = protocol?.module<HoldModule>()
         val swipe = protocol?.module<SwipeModule>()
         val findEarbuds = protocol?.module<FindEarbudsModule>()
-        LazyColumn(Modifier.padding(padding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            if (equalizer != null) item {
-                if (customEqualizer != null) {
-                    CustomEqualizerSection(snapshot, repository, customEqualizer)
-                } else {
-                    EnumDropdown(R.string.equalizer, EqPreset.entries, s.eqPreset, { it.eqLabel() }, repository::setEq)
-                }
-            }
-            if (autoPause != null) item { CardSwitch(stringResource(R.string.auto_pause), s.autoPause ?: false, s.autoPause != null, stringResource(R.string.auto_pause_desc), repository::setAutoPause) }
-            if (lowLatency != null) item { CardSwitch(stringResource(R.string.low_latency), s.lowLatency ?: false, s.lowLatency != null, stringResource(R.string.low_latency_desc), repository::setLowLatency) }
-            if (ldac != null) item { CardSwitch(stringResource(R.string.ldac), s.ldac ?: false, s.ldac != null, stringResource(R.string.ldac_desc), repository::setLdac) }
-            if (findEarbuds != null) item {
-                Card(
-                    modifier = Modifier.fillMaxWidth().clickable(onClick = openFindEarbuds),
-                    shape = AppCardShape,
-                ) {
-                    Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(stringResource(R.string.find_earbuds), style = MaterialTheme.typography.titleMedium)
+        val anyGestures = doubleTap != null || tripleTap != null || hold != null || swipe != null
+
+        LazyColumn(
+            Modifier.padding(padding).padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            layout.settingsOrder.forEach { block ->
+                when (block) {
+                    SettingsBlock.EQUALIZER -> if (equalizer != null) item(key = block.name) {
+                        if (customEqualizer != null) {
+                            CustomEqualizerSection(snapshot, repository, customEqualizer)
+                        } else {
+                            EnumDropdown(
+                                R.string.equalizer,
+                                equalizer.builtInPresets,
+                                settings.eqPreset,
+                                { it.eqLabel() },
+                                repository::setEq,
+                            )
+                        }
+                    }
+                    SettingsBlock.AUTO_PAUSE -> if (autoPause != null) item(key = block.name) {
+                        CardSwitch(
+                            stringResource(R.string.auto_pause),
+                            settings.autoPause ?: false,
+                            settings.autoPause != null,
+                            stringResource(R.string.auto_pause_desc),
+                            repository::setAutoPause,
+                        )
+                    }
+                    SettingsBlock.LOW_LATENCY -> if (lowLatency != null) item(key = block.name) {
+                        CardSwitch(
+                            stringResource(R.string.low_latency),
+                            settings.lowLatency ?: false,
+                            settings.lowLatency != null,
+                            stringResource(R.string.low_latency_desc),
+                            repository::setLowLatency,
+                        )
+                    }
+                    SettingsBlock.LDAC -> if (ldac != null) item(key = block.name) {
+                        CardSwitch(
+                            stringResource(R.string.ldac),
+                            settings.ldac ?: false,
+                            settings.ldac != null,
+                            stringResource(R.string.ldac_desc),
+                            repository::setLdac,
+                        )
+                    }
+                    SettingsBlock.FIND_EARBUDS -> if (findEarbuds != null) item(key = block.name) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().clickable(onClick = openFindEarbuds),
+                            shape = AppCardShape,
+                        ) {
+                            Column(
+                                Modifier.padding(20.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text(
+                                    stringResource(R.string.find_earbuds),
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Text(
+                                    stringResource(R.string.find_earbuds_description),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                    SettingsBlock.GESTURES_TITLE -> if (anyGestures) item(key = block.name) {
                         Text(
-                            stringResource(R.string.find_earbuds_description),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            stringResource(R.string.gestures),
+                            modifier = Modifier.semantics { heading() },
+                            style = MaterialTheme.typography.titleLarge,
+                        )
+                    }
+                    SettingsBlock.DOUBLE_TAP -> if (doubleTap != null) item(key = block.name) {
+                        GesturePair(
+                            R.string.double_tap,
+                            DoubleTap.entries,
+                            settings.doubleTapLeft,
+                            settings.doubleTapRight,
+                            { it.doubleTapLabel() },
+                            { repository.setDoubleTap(left = it) },
+                            { repository.setDoubleTap(right = it) },
+                        )
+                    }
+                    SettingsBlock.TRIPLE_TAP -> if (tripleTap != null) item(key = block.name) {
+                        GesturePair(
+                            R.string.triple_tap,
+                            TripleTap.entries,
+                            settings.tripleTapLeft,
+                            settings.tripleTapRight,
+                            { it.tripleTapLabel() },
+                            { repository.setTripleTap(left = it) },
+                            { repository.setTripleTap(right = it) },
+                        )
+                    }
+                    SettingsBlock.HOLD -> if (hold != null) item(key = block.name) {
+                        EnumDropdown(
+                            R.string.hold,
+                            Hold.entries,
+                            settings.hold,
+                            { it.holdLabel() },
+                            repository::setHold,
+                        )
+                    }
+                    SettingsBlock.HOLD_MODES -> if (hold != null) item(key = block.name) {
+                        HoldModesCard(settings, repository)
+                    }
+                    SettingsBlock.SWIPE -> if (swipe != null) item(key = block.name) {
+                        EnumDropdown(
+                            R.string.swipe,
+                            Swipe.entries,
+                            settings.swipe,
+                            { it.swipeLabel() },
+                            repository::setSwipe,
                         )
                     }
                 }
             }
-            if (doubleTap != null || tripleTap != null || hold != null || swipe != null) {
-                item {
-                    Text(
-                        stringResource(R.string.gestures),
-                        modifier = Modifier.semantics { heading() },
-                        style = MaterialTheme.typography.titleLarge,
-                    )
-                }
-            }
-            if (doubleTap != null) item { GesturePair(R.string.double_tap, DoubleTap.entries, s.doubleTapLeft, s.doubleTapRight, { it.doubleTapLabel() }, { repository.setDoubleTap(left = it) }, { repository.setDoubleTap(right = it) }) }
-            if (tripleTap != null) item { GesturePair(R.string.triple_tap, TripleTap.entries, s.tripleTapLeft, s.tripleTapRight, { it.tripleTapLabel() }, { repository.setTripleTap(left = it) }, { repository.setTripleTap(right = it) }) }
-            if (hold != null) {
-                item { EnumDropdown(R.string.hold, Hold.entries, s.hold, { it.holdLabel() }, repository::setHold) }
-                item { HoldModesCard(s, repository) }
-            }
-            if (swipe != null) item { EnumDropdown(R.string.swipe, Swipe.entries, s.swipe, { it.swipeLabel() }, repository::setSwipe) }
             item { Spacer(Modifier.height(32.dp)) }
         }
     }
@@ -1146,7 +1312,7 @@ private fun CustomEqualizerSection(
 ) {
     val diagnostics = snapshot.equalizerDiagnostics
     val customPresets = diagnostics?.customPresets.orEmpty()
-    val builtIns = EqPreset.entries.map { EqualizerChoice.BuiltIn(it) }
+    val builtIns = module.builtInPresets.map { EqualizerChoice.BuiltIn(it) }
     val customs = customPresets.map { EqualizerChoice.Custom(it) }
     val choices = builtIns + customs
     val activeId = diagnostics?.activePresetId
@@ -1522,7 +1688,413 @@ private fun SettingSwitch(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AboutScreen(activeIdentity: HeadphonesIdentity?, back: () -> Unit) {
+private fun InterfaceEditorScreen(
+    identity: HeadphonesIdentity?,
+    snapshot: HeadphonesSnapshot?,
+    repository: HeadphonesRepository,
+    back: () -> Unit,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val lastIdentity by remember { ThemeStore.lastHeadphonesIdentity(context) }
+        .collectAsStateWithLifecycle(initialValue = HeadphonesIdentity("freebuds_5i"))
+    val effectiveIdentity = identity ?: lastIdentity
+    val protocol = HeadphonesProtocolRegistry.findById(effectiveIdentity.protocolId)
+        ?: HeadphonesProtocolRegistry.defaultProfile()
+    val layout by remember { ThemeStore.interfaceLayout(context) }
+        .collectAsStateWithLifecycle(initialValue = InterfaceLayout())
+    val forcePreviewColor by remember(effectiveIdentity) {
+        ThemeStore.forceHeadphonesColor(context, effectiveIdentity)
+    }.collectAsStateWithLifecycle(initialValue = false)
+    val storedPreviewColor by remember(effectiveIdentity) {
+        ThemeStore.headphonesColor(context, effectiveIdentity)
+    }.collectAsStateWithLifecycle(initialValue = DeviceColor.BLACK.name)
+    val previewColor = storedPreviewColor.toDeviceColor()
+    val connectedProtocol = snapshot?.let { HeadphonesProtocolRegistry.findById(it.protocolId) }
+    val supportedHome = connectedProtocol?.let(::supportedHomeBlocks) ?: HomeBlock.entries
+    val supportedSettings = connectedProtocol?.let(::supportedSettingsBlocks) ?: SettingsBlock.entries
+    val homeOrder = layout.homeOrder
+    val settingsOrder = layout.settingsOrder
+    val previewSnapshot = snapshot?.takeIf { it.protocolId == protocol.id } ?: HeadphonesSnapshot(
+        protocolId = protocol.id,
+        name = protocol.displayName,
+        battery = BatteryLevels(left = 60, right = 85, case = 100),
+        ancMode = AncMode.NOISE_CANCELLING,
+        ancLevel = AncLevel.ULTRA,
+    )
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        stringResource(R.string.interface_editor),
+                        Modifier.semantics { heading() },
+                    )
+                },
+                navigationIcon = {
+                    IconButton(back) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        LazyColumn(
+            Modifier.padding(padding).padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item {
+                Text(
+                    stringResource(R.string.interface_editor_common_layout),
+                    modifier = Modifier.semantics { heading() },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            item {
+                EditorSectionTitle(R.string.interface_editor_home_order)
+            }
+            items(homeOrder, key = { "home_${it.name}" }) { block ->
+                val hasDetails = block == HomeBlock.HEADPHONES_IMAGE ||
+                    block == HomeBlock.BATTERY ||
+                    block == HomeBlock.ANC
+                val supported = block in supportedHome
+                OrderEditorRow(
+                    label = stringResource(block.label()),
+                    supported = supported,
+                    unavailableText = if (supported) null else stringResource(
+                        R.string.interface_editor_unavailable_for_model,
+                        connectedProtocol?.displayName.orEmpty(),
+                    ),
+                    canMoveUp = homeOrder.indexOf(block) > 0,
+                    canMoveDown = homeOrder.indexOf(block) < homeOrder.lastIndex,
+                    onMoveUp = {
+                        scope.launch {
+                            ThemeStore.setHomeOrder(
+                                context,
+                                layout.homeOrder.move(block, -1),
+                            )
+                        }
+                    },
+                    onMoveDown = {
+                        scope.launch {
+                            ThemeStore.setHomeOrder(
+                                context,
+                                layout.homeOrder.move(block, 1),
+                            )
+                        }
+                    },
+                    hasDetails = hasDetails && supported,
+                ) {
+                    when (block) {
+                        HomeBlock.HEADPHONES_IMAGE -> {
+                            LayoutSlider(
+                                label = stringResource(R.string.interface_editor_image_scale),
+                                value = layout.imageScalePercent,
+                                defaultValue = InterfaceLayoutDefaults.IMAGE_SCALE_PERCENT,
+                                range = 70..140,
+                                step = 5,
+                                suffix = "%",
+                                onValue = { image ->
+                                    scope.launch {
+                                        ThemeStore.setInterfaceScales(
+                                            context,
+                                            image,
+                                            layout.batteryScalePercent,
+                                            layout.ancScalePercent,
+                                        )
+                                    }
+                                },
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            val scale = layout.imageScalePercent / 100f
+                            Image(
+                                painter = painterResource(
+                                    headphonesImage(
+                                        previewSnapshot,
+                                        forceColor = forcePreviewColor,
+                                        selectedColor = previewColor,
+                                    ),
+                                ),
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxWidth().height((180 * scale).dp),
+                                contentScale = ContentScale.Fit,
+                            )
+                        }
+
+                        HomeBlock.BATTERY -> {
+                            LayoutSlider(
+                                label = stringResource(R.string.interface_editor_battery_height),
+                                value = layout.batteryScalePercent,
+                                defaultValue = InterfaceLayoutDefaults.BATTERY_SCALE_PERCENT,
+                                range = 80..140,
+                                step = 5,
+                                suffix = "%",
+                                onValue = { scale ->
+                                    scope.launch {
+                                        ThemeStore.setInterfaceScales(
+                                            context,
+                                            layout.imageScalePercent,
+                                            scale,
+                                            layout.ancScalePercent,
+                                        )
+                                    }
+                                },
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            BatteryCard(
+                                previewSnapshot.battery,
+                                scaleDp(
+                                    InterfaceLayoutDefaults.BATTERY_ROW_HEIGHT_DP,
+                                    layout.batteryScalePercent,
+                                ).dp,
+                            )
+                        }
+
+                        HomeBlock.ANC -> {
+                            val ancModule = protocol.module<AncModule>()
+                            if (ancModule != null) {
+                                LayoutSlider(
+                                    label = stringResource(R.string.interface_editor_anc_size),
+                                    value = layout.ancScalePercent,
+                                    defaultValue = InterfaceLayoutDefaults.ANC_SCALE_PERCENT,
+                                    range = 80..125,
+                                    step = 5,
+                                    suffix = "%",
+                                    onValue = { size ->
+                                        scope.launch {
+                                            ThemeStore.setInterfaceScales(
+                                                context,
+                                                layout.imageScalePercent,
+                                                layout.batteryScalePercent,
+                                                size,
+                                            )
+                                        }
+                                    },
+                                )
+                                Spacer(Modifier.height(12.dp))
+                                AncCard(
+                                    previewSnapshot,
+                                    repository,
+                                    ancModule,
+                                    scaleDp(
+                                        InterfaceLayoutDefaults.ANC_BUTTON_SIZE_DP,
+                                        layout.ancScalePercent,
+                                    ).dp,
+                                    interactive = false,
+                                )
+                            }
+                        }
+
+                        else -> Unit
+                    }
+                }
+            }
+            item {
+                EditorSectionTitle(R.string.interface_editor_settings_order)
+            }
+            items(settingsOrder, key = { "settings_${it.name}" }) { block ->
+                val supported = block in supportedSettings
+                OrderEditorRow(
+                    label = stringResource(block.label()),
+                    supported = supported,
+                    unavailableText = if (supported) null else stringResource(
+                        R.string.interface_editor_unavailable_for_model,
+                        connectedProtocol?.displayName.orEmpty(),
+                    ),
+                    canMoveUp = settingsOrder.indexOf(block) > 0,
+                    canMoveDown = settingsOrder.indexOf(block) < settingsOrder.lastIndex,
+                    onMoveUp = {
+                        scope.launch {
+                            ThemeStore.setSettingsOrder(
+                                context,
+                                layout.settingsOrder.move(block, -1),
+                            )
+                        }
+                    },
+                    onMoveDown = {
+                        scope.launch {
+                            ThemeStore.setSettingsOrder(
+                                context,
+                                layout.settingsOrder.move(block, 1),
+                            )
+                        }
+                    },
+                )
+            }
+            item {
+                Button(
+                    onClick = {
+                        scope.launch { ThemeStore.resetInterfaceLayout(context) }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.interface_editor_reset))
+                }
+            }
+            item { Spacer(Modifier.height(24.dp)) }
+        }
+    }
+}
+
+private fun supportedHomeBlocks(
+    protocol: io.github.razziell.freebuddynext.protocol.HeadphonesProtocol,
+): List<HomeBlock> = HomeBlock.entries.filter { block ->
+    when (block) {
+        HomeBlock.ANC -> protocol.module<AncModule>() != null
+        HomeBlock.DUAL_CONNECT -> protocol.module<DualConnectModule>() != null
+        else -> true
+    }
+}
+
+private fun supportedSettingsBlocks(
+    protocol: io.github.razziell.freebuddynext.protocol.HeadphonesProtocol,
+): List<SettingsBlock> {
+    val gestures = protocol.module<DoubleTapModule>() != null ||
+        protocol.module<TripleTapModule>() != null ||
+        protocol.module<HoldModule>() != null ||
+        protocol.module<SwipeModule>() != null
+    return SettingsBlock.entries.filter { block ->
+        when (block) {
+            SettingsBlock.EQUALIZER -> protocol.module<EqualizerModule>() != null
+            SettingsBlock.AUTO_PAUSE -> protocol.module<AutoPauseModule>() != null
+            SettingsBlock.LOW_LATENCY -> protocol.module<LowLatencyModule>() != null
+            SettingsBlock.LDAC -> protocol.module<LdacModule>() != null
+            SettingsBlock.FIND_EARBUDS -> protocol.module<FindEarbudsModule>() != null
+            SettingsBlock.GESTURES_TITLE -> gestures
+            SettingsBlock.DOUBLE_TAP -> protocol.module<DoubleTapModule>() != null
+            SettingsBlock.TRIPLE_TAP -> protocol.module<TripleTapModule>() != null
+            SettingsBlock.HOLD, SettingsBlock.HOLD_MODES -> protocol.module<HoldModule>() != null
+            SettingsBlock.SWIPE -> protocol.module<SwipeModule>() != null
+        }
+    }
+}
+
+private fun <T> List<T>.move(value: T, offset: Int): List<T> {
+    val from = indexOf(value)
+    if (from < 0) return this
+    val to = (from + offset).coerceIn(indices)
+    if (from == to) return this
+    return toMutableList().apply {
+        this[from] = this[to]
+        this[to] = value
+    }
+}
+
+@Composable
+private fun EditorSectionTitle(@StringRes title: Int) {
+    Text(
+        stringResource(title),
+        modifier = Modifier.fillMaxWidth().semantics { heading() },
+        style = MaterialTheme.typography.titleLarge,
+    )
+}
+
+@Composable
+private fun OrderEditorRow(
+    label: String,
+    supported: Boolean = true,
+    unavailableText: String? = null,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    hasDetails: Boolean = false,
+    details: @Composable ColumnScope.() -> Unit = {},
+) {
+    Card(Modifier.fillMaxWidth(), shape = AppCardShape) {
+        Column {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (supported) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                        },
+                    )
+                    if (unavailableText != null) {
+                        Text(
+                            unavailableText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                        )
+                    }
+                }
+                IconButton(onClick = onMoveUp, enabled = canMoveUp) {
+                    Icon(Icons.Default.ArrowUpward, stringResource(R.string.interface_editor_move_up))
+                }
+                IconButton(onClick = onMoveDown, enabled = canMoveDown) {
+                    Icon(Icons.Default.ArrowDownward, stringResource(R.string.interface_editor_move_down))
+                }
+            }
+            if (hasDetails) {
+                Column(
+                    Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+                    content = details,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LayoutSlider(
+    label: String,
+    value: Int,
+    defaultValue: Int,
+    range: IntRange,
+    step: Int,
+    suffix: String,
+    onValue: (Int) -> Unit,
+) {
+    // Local value during drag; persisted once on release to avoid a DataStore
+    // write (and preference-file rewrite) for every crossed step.
+    var dragValue by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(value) { dragValue = null }
+    val shownValue = dragValue ?: value
+    val isDefault = shownValue == defaultValue
+    Column {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label)
+            Text(
+                "$shownValue$suffix",
+                color = if (isDefault) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Slider(
+            value = shownValue.toFloat(),
+            onValueChange = { raw ->
+                dragValue = ((raw.roundToInt() + step / 2) / step * step)
+                    .coerceIn(range.first, range.last)
+            },
+            onValueChangeFinished = {
+                dragValue?.takeIf { it != value }?.let(onValue)
+            },
+            valueRange = range.first.toFloat()..range.last.toFloat(),
+            steps = ((range.last - range.first) / step - 1).coerceAtLeast(0),
+            modifier = Modifier.semantics {
+                contentDescription = label
+                stateDescription = "$shownValue$suffix"
+            },
+        )
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AboutScreen(
+    activeIdentity: HeadphonesIdentity?,
+    openInterfaceEditor: () -> Unit,
+    back: () -> Unit,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val themeMode by remember { ThemeStore.themeMode(context) }
@@ -1584,6 +2156,24 @@ private fun AboutScreen(activeIdentity: HeadphonesIdentity?, back: () -> Unit) {
                     )
                 }
                 Switch(checked = showEmojis, onCheckedChange = null)
+            }
+            Row(
+                Modifier.fillMaxWidth()
+                    .clickable(role = Role.Button, onClick = openInterfaceEditor)
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.interface_editor),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        stringResource(R.string.interface_editor_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Text(
                 stringResource(R.string.headphones_color_for_model, colorProtocol.displayName),
@@ -1678,6 +2268,28 @@ private fun HeadphonesSnapshot.colorIdentity() = HeadphonesIdentity(
 private fun String.toDeviceColor(): DeviceColor =
     runCatching { DeviceColor.valueOf(this) }.getOrDefault(DeviceColor.BLACK)
 
+private fun HomeBlock.label(): Int = when (this) {
+    HomeBlock.HEADPHONES_IMAGE -> R.string.interface_editor_block_image
+    HomeBlock.BATTERY -> R.string.interface_editor_block_battery
+    HomeBlock.ANC -> R.string.interface_editor_block_anc
+    HomeBlock.DUAL_CONNECT -> R.string.interface_editor_block_dual_connect
+    HomeBlock.SETTINGS_BUTTON -> R.string.interface_editor_block_settings_button
+}
+
+private fun SettingsBlock.label(): Int = when (this) {
+    SettingsBlock.EQUALIZER -> R.string.equalizer
+    SettingsBlock.AUTO_PAUSE -> R.string.auto_pause
+    SettingsBlock.LOW_LATENCY -> R.string.low_latency
+    SettingsBlock.LDAC -> R.string.ldac
+    SettingsBlock.FIND_EARBUDS -> R.string.find_earbuds
+    SettingsBlock.GESTURES_TITLE -> R.string.gestures
+    SettingsBlock.DOUBLE_TAP -> R.string.double_tap
+    SettingsBlock.TRIPLE_TAP -> R.string.triple_tap
+    SettingsBlock.HOLD -> R.string.hold
+    SettingsBlock.HOLD_MODES -> R.string.hold_modes
+    SettingsBlock.SWIPE -> R.string.swipe
+}
+
 private fun DeviceColor.label() = when (this) {
     DeviceColor.BLACK -> R.string.headphones_color_black
     DeviceColor.WHITE -> R.string.headphones_color_white
@@ -1695,7 +2307,7 @@ private fun ThemeStore.ThemeMode.label() = when (this) {
 @Composable private fun AncMode.label() = when (this) { AncMode.OFF -> R.string.anc_off; AncMode.NOISE_CANCELLING -> R.string.anc_noise; AncMode.TRANSPARENCY -> R.string.anc_transparency }
 @Composable private fun AncMode.description() = when (this) { AncMode.OFF -> R.string.anc_off_desc; AncMode.NOISE_CANCELLING -> R.string.anc_noise_desc; AncMode.TRANSPARENCY -> R.string.anc_transparency_desc }
 @Composable private fun AncLevel.label() = when (this) { AncLevel.NORMAL -> R.string.anc_normal; AncLevel.COMFORT -> R.string.anc_comfort; AncLevel.ULTRA -> R.string.anc_ultra; AncLevel.DYNAMIC -> R.string.anc_dynamic }
-@Composable private fun EqPreset.eqLabel() = stringResource(when (this) { EqPreset.DEFAULT -> R.string.eq_default; EqPreset.BASS -> R.string.eq_bass; EqPreset.TREBLE -> R.string.eq_treble; EqPreset.VOICES -> R.string.eq_voices })
+@Composable private fun EqPreset.eqLabel() = stringResource(when (this) { EqPreset.DEFAULT -> R.string.eq_default; EqPreset.BASS -> R.string.eq_bass; EqPreset.TREBLE -> R.string.eq_treble; EqPreset.VOICES -> R.string.eq_voices; EqPreset.CLASSICS -> R.string.eq_classics; EqPreset.HIFI -> R.string.eq_hifi })
 @Composable private fun DoubleTap.doubleTapLabel() = stringResource(when (this) { DoubleTap.NONE -> R.string.action_none; DoubleTap.ASSISTANT -> R.string.action_assistant; DoubleTap.PLAY_PAUSE -> R.string.action_play_pause; DoubleTap.NEXT -> R.string.action_next; DoubleTap.PREVIOUS -> R.string.action_previous })
 @Composable private fun TripleTap.tripleTapLabel() = stringResource(when (this) { TripleTap.NONE -> R.string.action_none; TripleTap.NEXT -> R.string.action_next; TripleTap.PREVIOUS -> R.string.action_previous })
 @Composable private fun Hold.holdLabel() = stringResource(if (this == Hold.NONE) R.string.action_none else R.string.action_cycle_anc)

@@ -59,6 +59,10 @@ interface LdacModule : ProtocolModule {
 }
 
 interface EqualizerModule : ProtocolModule {
+    /** Built-in presets actually available on this model. */
+    val builtInPresets: List<EqPreset>
+        get() = listOf(EqPreset.DEFAULT, EqPreset.BASS, EqPreset.TREBLE, EqPreset.VOICES)
+
     fun selectPreset(value: EqPreset): MbbCommand
     fun stateRequest(): MbbCommand
 }

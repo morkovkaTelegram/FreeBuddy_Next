@@ -9,6 +9,12 @@ object HuaweiCustomEqualizerModule : CustomEqualizerModule {
     override val step = 5
     override val maxNameBytes = 24
 
+    /** 6i firmware exposes the extended Classics/Hi-Fi presets (ids 200/201). */
+    override val builtInPresets = listOf(
+        EqPreset.DEFAULT, EqPreset.BASS, EqPreset.TREBLE, EqPreset.VOICES,
+        EqPreset.CLASSICS, EqPreset.HIFI,
+    )
+
     override val initialRequests get() = listOf(stateRequest())
     override fun selectPreset(value: EqPreset) = MbbCommand(43, 73, mapOf(1 to intBytes(value.code)))
     override fun stateRequest() = MbbCommand(43, 74, (1..8).associateWith { byteArrayOf() })

@@ -51,6 +51,8 @@
     <string name="eq_bass">Усиление басов</string>
     <string name="eq_treble">Усиление высоких</string>
     <string name="eq_voices">Вокал</string>
+    <string name="eq_classics">Классика</string>
+    <string name="eq_hifi">Hi-Fi</string>
     <string name="auto_pause">Автоматическая пауза ⏸️</string>
     <string name="low_latency">Низкая задержка 🎮</string>
     <string name="ldac">Кодек LDAC 🎵</string>
@@ -160,4 +162,23 @@
     <string name="find_earbuds_stop">Остановить сигнал ⏹️</string>
     <string name="find_earbuds_local_only">Работает только при подключении наушников к этому устройству.</string>
     <string name="find_earbuds_confirm">Продолжить</string>
+    <string name="interface_editor">Редактор интерфейса</string>
+    <string name="interface_editor_description">Настройка порядка и размеров блоков главного экрана и разделов настроек наушников.</string>
+    <string name="interface_editor_common_layout">Общая раскладка интерфейса</string>
+    <string name="interface_editor_unavailable_for_model">Недоступно для %1$s</string>
+    <string name="interface_editor_home_order">Порядок главного экрана</string>
+    <string name="interface_editor_sizes">Размеры главного экрана</string>
+    <string name="interface_editor_image_scale">Масштаб изображения наушников</string>
+    <string name="interface_editor_battery_height">Высота строки заряда</string>
+    <string name="interface_editor_anc_size">Размер кнопок шумоподавления</string>
+    <string name="interface_editor_settings_order">Порядок настроек наушников</string>
+    <string name="interface_editor_reset">Сбросить расположение</string>
+    <string name="interface_editor_move_up">Переместить выше</string>
+    <string name="interface_editor_move_down">Переместить ниже</string>
+    <string name="interface_editor_block_image">Изображение наушников</string>
+    <string name="interface_editor_block_battery">Заряд</string>
+    <string name="interface_editor_block_anc">Управление шумоподавлением</string>
+    <string name="interface_editor_block_dual_connect">Двойное подключение</string>
+    <string name="interface_editor_block_settings_button">Настройки наушников</string>
+    <string name="interface_editor_default">По умолчанию</string>
 </resources>

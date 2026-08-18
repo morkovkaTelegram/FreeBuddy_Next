@@ -51,6 +51,8 @@
     <string name="eq_bass">Bassverstärkung</string>
     <string name="eq_treble">Höhenverstärkung</string>
     <string name="eq_voices">Gesang</string>
+    <string name="eq_classics">Klassik</string>
+    <string name="eq_hifi">Hi-Fi</string>
     <string name="auto_pause">Auto-Pause ⏸️</string>
     <string name="low_latency">Niedrige Latenz 🎮</string>
     <string name="ldac">LDAC-Codec 🎵</string>
@@ -160,4 +162,23 @@
     <string name="find_earbuds_stop">Signalton stoppen ⏹️</string>
     <string name="find_earbuds_local_only">Funktioniert nur, wenn die Ohrhörer mit diesem Gerät verbunden sind.</string>
     <string name="find_earbuds_confirm">Fortfahren</string>
+    <string name="interface_editor">Oberflächeneditor</string>
+    <string name="interface_editor_description">Reihenfolge und Größe der Startseitenblöcke und Kopfhörereinstellungen anpassen.</string>
+    <string name="interface_editor_common_layout">Gemeinsames Oberflächenlayout</string>
+    <string name="interface_editor_unavailable_for_model">Für %1$s nicht verfügbar</string>
+    <string name="interface_editor_home_order">Reihenfolge der Startseite</string>
+    <string name="interface_editor_sizes">Größen der Startseite</string>
+    <string name="interface_editor_image_scale">Skalierung des Kopfhörerbilds</string>
+    <string name="interface_editor_battery_height">Höhe der Akkuzeile</string>
+    <string name="interface_editor_anc_size">Größe der ANC-Schaltflächen</string>
+    <string name="interface_editor_settings_order">Reihenfolge der Kopfhörereinstellungen</string>
+    <string name="interface_editor_reset">Layout zurücksetzen</string>
+    <string name="interface_editor_move_up">Nach oben verschieben</string>
+    <string name="interface_editor_move_down">Nach unten verschieben</string>
+    <string name="interface_editor_block_image">Kopfhörerbild</string>
+    <string name="interface_editor_block_battery">Akku</string>
+    <string name="interface_editor_block_anc">Steuerung der Geräuschunterdrückung</string>
+    <string name="interface_editor_block_dual_connect">Doppelverbindung</string>
+    <string name="interface_editor_block_settings_button">Kopfhörereinstellungen</string>
+    <string name="interface_editor_default">Standard</string>
 </resources>

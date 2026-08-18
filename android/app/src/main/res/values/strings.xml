@@ -51,6 +51,8 @@
     <string name="eq_bass">Bass boost</string>
     <string name="eq_treble">Treble boost</string>
     <string name="eq_voices">Vocals</string>
+    <string name="eq_classics">Classics</string>
+    <string name="eq_hifi">Hi-Fi</string>
     <string name="auto_pause">Auto-pause ⏸️</string>
     <string name="low_latency">Low latency 🎮</string>
     <string name="ldac">LDAC codec 🎵</string>
@@ -160,4 +162,23 @@
     <string name="find_earbuds_stop">Stop sound ⏹️</string>
     <string name="find_earbuds_local_only">Works only while the earbuds are connected to this device.</string>
     <string name="find_earbuds_confirm">Continue</string>
+    <string name="interface_editor">Interface editor</string>
+    <string name="interface_editor_description">Customize the order and size of the main screen and headphone settings sections.</string>
+    <string name="interface_editor_common_layout">Shared interface layout</string>
+    <string name="interface_editor_unavailable_for_model">Unavailable for %1$s</string>
+    <string name="interface_editor_home_order">Main screen order</string>
+    <string name="interface_editor_sizes">Main screen sizes</string>
+    <string name="interface_editor_image_scale">Headphone image scale</string>
+    <string name="interface_editor_battery_height">Battery row scale</string>
+    <string name="interface_editor_anc_size">ANC button scale</string>
+    <string name="interface_editor_settings_order">Headphone settings order</string>
+    <string name="interface_editor_reset">Reset layout</string>
+    <string name="interface_editor_move_up">Move up</string>
+    <string name="interface_editor_move_down">Move down</string>
+    <string name="interface_editor_block_image">Headphone image</string>
+    <string name="interface_editor_block_battery">Battery</string>
+    <string name="interface_editor_block_anc">Noise cancellation control</string>
+    <string name="interface_editor_block_dual_connect">Dual connection</string>
+    <string name="interface_editor_block_settings_button">Headphone settings</string>
+    <string name="interface_editor_default">Default</string>
 </resources>

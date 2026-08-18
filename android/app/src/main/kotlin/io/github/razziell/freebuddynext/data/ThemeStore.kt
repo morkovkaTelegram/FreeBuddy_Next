@@ -18,6 +18,39 @@ data class HeadphonesIdentity(
     val caseSerial: String? = null,
 )
 
+/** Stable IDs persisted by the interface editor. Never rename existing entries. */
+enum class HomeBlock { HEADPHONES_IMAGE, BATTERY, ANC, DUAL_CONNECT, SETTINGS_BUTTON }
+
+enum class SettingsBlock {
+    EQUALIZER,
+    AUTO_PAUSE,
+    LOW_LATENCY,
+    LDAC,
+    FIND_EARBUDS,
+    GESTURES_TITLE,
+    DOUBLE_TAP,
+    TRIPLE_TAP,
+    HOLD,
+    HOLD_MODES,
+    SWIPE,
+}
+
+object InterfaceLayoutDefaults {
+    const val IMAGE_SCALE_PERCENT = 100
+    const val BATTERY_SCALE_PERCENT = 100
+    const val ANC_SCALE_PERCENT = 100
+    const val BATTERY_ROW_HEIGHT_DP = 56
+    const val ANC_BUTTON_SIZE_DP = 64
+}
+
+data class InterfaceLayout(
+    val homeOrder: List<HomeBlock> = HomeBlock.entries,
+    val settingsOrder: List<SettingsBlock> = SettingsBlock.entries,
+    val imageScalePercent: Int = InterfaceLayoutDefaults.IMAGE_SCALE_PERCENT,
+    val batteryScalePercent: Int = InterfaceLayoutDefaults.BATTERY_SCALE_PERCENT,
+    val ancScalePercent: Int = InterfaceLayoutDefaults.ANC_SCALE_PERCENT,
+)
+
 /** User-selected appearance settings, persisted via DataStore Preferences. */
 object ThemeStore {
     enum class ThemeMode { SYSTEM, LIGHT, DARK }
@@ -100,6 +133,69 @@ object ThemeStore {
         }
     }
 
+    fun interfaceLayout(context: Context): Flow<InterfaceLayout> =
+        context.themeDataStore.data.map { prefs ->
+            InterfaceLayout(
+                homeOrder = parseOrder(
+                    prefs[stringPreferencesKey("home_layout_order")],
+                    HomeBlock.entries,
+                ),
+                settingsOrder = parseOrder(
+                    prefs[stringPreferencesKey("settings_layout_order")],
+                    SettingsBlock.entries,
+                ),
+                imageScalePercent = (prefs[stringPreferencesKey("home_image_scale")]?.toIntOrNull()
+                    ?: InterfaceLayoutDefaults.IMAGE_SCALE_PERCENT).coerceIn(70, 140).snap(5),
+                batteryScalePercent = (
+                    prefs[stringPreferencesKey("home_battery_scale")]?.toIntOrNull()
+                        ?: InterfaceLayoutDefaults.BATTERY_SCALE_PERCENT
+                ).coerceIn(80, 140).snap(5),
+                ancScalePercent = (
+                    prefs[stringPreferencesKey("home_anc_scale")]?.toIntOrNull()
+                        ?: InterfaceLayoutDefaults.ANC_SCALE_PERCENT
+                ).coerceIn(80, 125).snap(5),
+            )
+        }
+
+    suspend fun setHomeOrder(context: Context, order: List<HomeBlock>) {
+        context.themeDataStore.edit {
+            it[stringPreferencesKey("home_layout_order")] =
+                normalizeOrder(order, HomeBlock.entries).joinToString(",") { block -> block.name }
+        }
+    }
+
+    suspend fun setSettingsOrder(context: Context, order: List<SettingsBlock>) {
+        context.themeDataStore.edit {
+            it[stringPreferencesKey("settings_layout_order")] =
+                normalizeOrder(order, SettingsBlock.entries).joinToString(",") { block -> block.name }
+        }
+    }
+
+    suspend fun setInterfaceScales(
+        context: Context,
+        imageScalePercent: Int,
+        batteryScalePercent: Int,
+        ancScalePercent: Int,
+    ) {
+        context.themeDataStore.edit {
+            it[stringPreferencesKey("home_image_scale")] = imageScalePercent.coerceIn(70, 140).snap(5).toString()
+            it[stringPreferencesKey("home_battery_scale")] = batteryScalePercent.coerceIn(80, 140).snap(5).toString()
+            it[stringPreferencesKey("home_anc_scale")] = ancScalePercent.coerceIn(80, 125).snap(5).toString()
+        }
+    }
+
+    suspend fun resetInterfaceLayout(context: Context) {
+        context.themeDataStore.edit {
+            listOf(
+                "home_layout_order",
+                "settings_layout_order",
+                "home_image_scale",
+                "home_battery_scale",
+                "home_anc_scale",
+            ).forEach { key -> it.remove(stringPreferencesKey(key)) }
+        }
+    }
+
     fun lastHeadphonesIdentity(context: Context): Flow<HeadphonesIdentity> =
         context.themeDataStore.data.map { prefs ->
             HeadphonesIdentity(
@@ -167,6 +263,20 @@ object ThemeStore {
         }
     }
 }
+
+internal fun scaleDp(baseDp: Int, percent: Int): Float = baseDp * percent / 100f
+
+internal inline fun <reified T : Enum<T>> parseOrder(value: String?, defaults: List<T>): List<T> {
+    val parsed = value.orEmpty().split(',').mapNotNull { name ->
+        enumValues<T>().firstOrNull { it.name == name }
+    }
+    return normalizeOrder(parsed, defaults)
+}
+
+internal fun <T> normalizeOrder(order: List<T>, defaults: List<T>): List<T> =
+    (order.filter { it in defaults } + defaults.filterNot { it in order }).distinct()
+
+internal fun Int.snap(step: Int): Int = ((this + step / 2) / step) * step
 
 internal fun protocolScope(protocolId: String): String =
     "${protocolId.preferenceKeyPart()}_model"
