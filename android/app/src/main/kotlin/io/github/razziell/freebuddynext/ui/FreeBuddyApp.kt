@@ -1,6 +1,8 @@
 package io.github.razziell.freebuddynext.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -104,6 +106,7 @@ import java.time.Month
 import java.time.format.TextStyle
 import java.util.Locale
 import androidx.compose.runtime.rememberCoroutineScope
+import android.widget.Toast
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -117,7 +120,9 @@ import io.github.razziell.freebuddynext.data.scaleDp
 import io.github.razziell.freebuddynext.data.InterfaceLayout
 import io.github.razziell.freebuddynext.data.InterfaceLayoutDefaults
 import io.github.razziell.freebuddynext.data.ThemeStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 import io.github.razziell.freebuddynext.bluetooth.ConnectionState
 import io.github.razziell.freebuddynext.bluetooth.HeadphonesRepository
@@ -145,6 +150,8 @@ import io.github.razziell.freebuddynext.protocol.BatteryLevel
 import io.github.razziell.freebuddynext.protocol.BatteryLevels
 import io.github.razziell.freebuddynext.protocol.DoubleTap
 import io.github.razziell.freebuddynext.protocol.CustomEqualizerPreset
+import io.github.razziell.freebuddynext.protocol.EqualizerPresetFile
+import io.github.razziell.freebuddynext.protocol.EqualizerPresetFileCodec
 import io.github.razziell.freebuddynext.protocol.DualConnectDevice
 import io.github.razziell.freebuddynext.protocol.DeviceColor
 import io.github.razziell.freebuddynext.protocol.DeviceInfo
@@ -1339,6 +1346,52 @@ private fun CustomEqualizerSection(
     var editing by remember { mutableStateOf<CustomEqualizerPreset?>(null) }
     val canCreate = customPresets.size < (module.lastPresetId - module.firstPresetId + 1)
     val defaultCustomName = stringResource(R.string.eq_custom_default_name)
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val exportDone = stringResource(R.string.eq_export_done)
+    val exportFailed = stringResource(R.string.eq_export_failed)
+    val importFailed = stringResource(R.string.eq_import_failed)
+    var pendingImport by remember { mutableStateOf<EqualizerPresetFile?>(null) }
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        if (uri != null) scope.launch {
+            val success = withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.openOutputStream(uri, "wt")!!.bufferedWriter().use {
+                        it.write(EqualizerPresetFileCodec.encode("freebuds_6i", customPresets))
+                    }
+                }.isSuccess
+            }
+            Toast.makeText(context, if (success) exportDone else exportFailed, Toast.LENGTH_LONG).show()
+        }
+    }
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) scope.launch {
+            val decoded = withContext(Dispatchers.IO) {
+                runCatching {
+                    val bytes = context.contentResolver.openInputStream(uri)!!.use { input ->
+                        val output = java.io.ByteArrayOutputStream()
+                        val buffer = ByteArray(8 * 1024)
+                        while (true) {
+                            val read = input.read(buffer)
+                            if (read < 0) break
+                            require(output.size() + read <= EqualizerPresetFileCodec.MAX_FILE_BYTES) {
+                                "File is too large"
+                            }
+                            output.write(buffer, 0, read)
+                        }
+                        output.toByteArray()
+                    }
+                    EqualizerPresetFileCodec.decode(bytes.toString(Charsets.UTF_8), module)
+                }
+            }
+            decoded.onSuccess { pendingImport = it }
+                .onFailure { Toast.makeText(context, importFailed, Toast.LENGTH_LONG).show() }
+        }
+    }
     val currentLabel = when (selected) {
         is EqualizerChoice.BuiltIn -> selected.preset.eqLabel()
         is EqualizerChoice.Custom -> selected.preset.name
@@ -1387,6 +1440,23 @@ private fun CustomEqualizerSection(
                 }
             }
         }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(
+                onClick = { importLauncher.launch(arrayOf("application/json", "text/json", "text/plain", "application/octet-stream")) },
+            ) {
+                Icon(Icons.Default.ArrowDownward, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.eq_import))
+            }
+            TextButton(
+                onClick = { exportLauncher.launch("FreeBuddy_Next_FreeBuds_6i_EQ.json") },
+                enabled = customPresets.isNotEmpty(),
+            ) {
+                Icon(Icons.Default.ArrowUpward, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.eq_export))
+            }
+        }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
             val activeCustom = (selected as? EqualizerChoice.Custom)?.preset
             if (activeCustom != null) {
@@ -1415,6 +1485,30 @@ private fun CustomEqualizerSection(
                 }
             }
         }
+    }
+
+    pendingImport?.let { file ->
+        AlertDialog(
+            onDismissRequest = { pendingImport = null },
+            title = { Text(stringResource(R.string.eq_import_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(stringResource(R.string.eq_import_confirmation, file.presets.size))
+                    file.presets.forEach { preset ->
+                        Text("${preset.id}: ${preset.name}", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    repository.replaceCustomEq(file.presets)
+                    pendingImport = null
+                }) { Text(stringResource(R.string.eq_import_replace)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingImport = null }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
     }
 
     editing?.let { preset ->

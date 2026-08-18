@@ -457,6 +457,36 @@ class HeadphonesRepository(private val context: Context) {
         sendAndRefresh(module.deletePreset(preset), module.stateRequest(), refreshDelayMs = 500)
     }
 
+    fun replaceCustomEq(presets: List<CustomEqualizerPreset>) = withModule<CustomEqualizerModule> { module ->
+        if (presets.isEmpty()) return@withModule
+        val current = (_state.value as? ConnectionState.Connected)
+            ?.snapshot?.equalizerDiagnostics?.customPresets.orEmpty()
+        _state.update { state ->
+            val connected = state as? ConnectionState.Connected ?: return@update state
+            val diagnostics = connected.snapshot.equalizerDiagnostics ?: EqualizerDiagnostics()
+            connected.copy(snapshot = connected.snapshot.copy(
+                equalizerDiagnostics = diagnostics.copy(
+                    activePresetId = presets.last().id,
+                    customPresets = presets,
+                ),
+            ))
+        }
+        scope.launch {
+            runCatching {
+                current.forEach { preset ->
+                    client.send(module.deletePreset(preset))
+                    delay(100)
+                }
+                presets.forEach { preset ->
+                    client.send(module.savePreset(preset))
+                    delay(150)
+                }
+                delay(500)
+                client.send(module.stateRequest())
+            }
+        }
+    }
+
     fun setAutoPause(value: Boolean) = withModule<AutoPauseModule> {
         sendAndRefresh(it.setEnabled(value), it.stateRequest())
     }

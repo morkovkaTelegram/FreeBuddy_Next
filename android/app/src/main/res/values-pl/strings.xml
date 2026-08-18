@@ -137,6 +137,14 @@
     <string name="device_info_eq_tlv">EQ TLV %1$d</string>
     <string name="device_info_copy_raw">Kopiuj surowe dane</string>
     <string name="device_info_clipboard_label">Diagnostyka FreeBuddy Next</string>
+    <string name="eq_export">Eksportuj</string>
+    <string name="eq_import">Importuj</string>
+    <string name="eq_export_done">Presety wyeksportowano</string>
+    <string name="eq_export_failed">Nie udało się wyeksportować presetów</string>
+    <string name="eq_import_failed">Nie udało się zaimportować presetów. Sprawdź format pliku i wartości.</string>
+    <string name="eq_import_title">Zaimportować presety korektora?</string>
+    <string name="eq_import_confirmation">Bieżące własne presety zostaną zastąpione przez %1$d presetów z pliku.</string>
+    <string name="eq_import_replace">Zastąp presety</string>
     <string name="eq_custom_create">Utwórz preset</string>
     <string name="eq_custom_edit">Edytuj</string>
     <string name="eq_custom_editor_title">Niestandardowy korektor</string>

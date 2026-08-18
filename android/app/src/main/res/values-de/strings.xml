@@ -137,6 +137,14 @@
     <string name="device_info_eq_tlv">EQ-TLV %1$d</string>
     <string name="device_info_copy_raw">Rohdaten kopieren</string>
     <string name="device_info_clipboard_label">FreeBuddy Next-Diagnose</string>
+    <string name="eq_export">Exportieren</string>
+    <string name="eq_import">Importieren</string>
+    <string name="eq_export_done">Presets exportiert</string>
+    <string name="eq_export_failed">Presets konnten nicht exportiert werden</string>
+    <string name="eq_import_failed">Presets konnten nicht importiert werden. Dateiformat und Werte prüfen.</string>
+    <string name="eq_import_title">Equalizer-Presets importieren?</string>
+    <string name="eq_import_confirmation">Die aktuellen benutzerdefinierten Presets werden durch %1$d Presets aus der Datei ersetzt.</string>
+    <string name="eq_import_replace">Presets ersetzen</string>
     <string name="eq_custom_create">Preset erstellen</string>
     <string name="eq_custom_edit">Bearbeiten</string>
     <string name="eq_custom_editor_title">Benutzerdefinierter Equalizer</string>

@@ -137,6 +137,14 @@
     <string name="device_info_eq_tlv">EQ TLV %1$d</string>
     <string name="device_info_copy_raw">Копировать сырые данные</string>
     <string name="device_info_clipboard_label">Диагностика FreeBuddy Next</string>
+    <string name="eq_export">Экспорт</string>
+    <string name="eq_import">Импорт</string>
+    <string name="eq_export_done">Пресеты экспортированы</string>
+    <string name="eq_export_failed">Не удалось экспортировать пресеты</string>
+    <string name="eq_import_failed">Не удалось импортировать пресеты. Проверьте формат файла и значения.</string>
+    <string name="eq_import_title">Импортировать пресеты эквалайзера?</string>
+    <string name="eq_import_confirmation">Текущие пользовательские пресеты будут заменены на %1$d пресета из файла.</string>
+    <string name="eq_import_replace">Заменить пресеты</string>
     <string name="eq_custom_create">Создать пресет</string>
     <string name="eq_custom_edit">Изменить</string>
     <string name="eq_custom_editor_title">Пользовательский эквалайзер</string>
