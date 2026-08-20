@@ -10,14 +10,14 @@ A native Android application for controlling supported Huawei FreeBuds.
 >
 > Artificial intelligence tools were used to assist with code analysis, implementation, debugging, testing, and documentation. Technical decisions, validation on real devices, and responsibility for the final result remain with the project maintainer.
 
-Current version: **0.4.2 (versionCode 44)**
+Current version: **0.4.3 (versionCode 45)**
 
 ### Supported headphones
 
 | Model | Status | Notes |
 |---|---|---|
 | HUAWEI FreeBuds 4i | Supported and tested on a real device | Battery, basic ANC, auto-pause, double-tap, hold controls, device information and white color detection |
-| HUAWEI FreeBuds SE 4 ANC | Supported and tested on a real device | Battery, basic ANC, double/triple tap, independent left/right hold actions, built-in and custom EQ, low latency, device information and black color detection |
+| HUAWEI FreeBuds SE 4 ANC | Supported and tested on a real device | Battery, ANC modes and levels, double/triple tap, independent left/right hold actions, built-in and custom EQ, low latency, device information and black color detection |
 | HUAWEI FreeBuds 5i | Supported and tested | Battery, ANC, gestures, EQ, LDAC, low latency, Dual Connect, local sound-based finding, device information and color detection |
 | HUAWEI FreeBuds 6i | Supported and tested on real devices | Battery, ANC, gestures, built-in and custom EQ, LDAC, low latency, Dual Connect, local sound-based finding, device information and color detection |
 
@@ -251,14 +251,14 @@ Licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 >
 > При анализе кода, разработке, отладке, тестировании и подготовке документации использовались инструменты искусственного интеллекта. Технические решения, проверка на реальных устройствах и ответственность за итоговый результат остаются за сопровождающим проекта.
 
-Текущая версия: **0.4.2 (versionCode 44)**
+Текущая версия: **0.4.3 (versionCode 45)**
 
 ### Поддерживаемые наушники
 
 | Модель | Статус | Примечания |
 |---|---|---|
 | HUAWEI FreeBuds 4i | Поддерживаются и проверены на реальном устройстве | Заряд, базовый ANC, автопауза, двойное касание, удержание, сведения об устройстве и определение белого цвета |
-| HUAWEI FreeBuds SE 4 ANC | Поддерживается и проверен на реальном устройстве | Заряд, базовый ANC, двойное/тройное касание, раздельные действия удержания, встроенный и пользовательский эквалайзер, низкая задержка, сведения об устройстве и определение чёрного цвета |
+| HUAWEI FreeBuds SE 4 ANC | Поддерживается и проверен на реальном устройстве | Заряд, режимы и уровни ANC, двойное/тройное касание, раздельные действия удержания, встроенный и пользовательский эквалайзер, низкая задержка, сведения об устройстве и определение чёрного цвета |
 | HUAWEI FreeBuds 5i | Поддерживаются и протестированы | Заряд, ANC, жесты, эквалайзер, LDAC, низкая задержка, Dual Connect, локальный звуковой поиск, сведения об устройстве и определение цвета |
 | HUAWEI FreeBuds 6i | Поддерживаются и проверены на реальных устройствах | Заряд, ANC, жесты, встроенный и пользовательский эквалайзер, LDAC, низкая задержка, Dual Connect, локальный звуковой поиск, сведения об устройстве и определение цвета |
 
