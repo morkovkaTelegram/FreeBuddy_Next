@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FreeBuddy Next</string>
     <string name="about">О FreeBuddy Next ℹ️</string>
@@ -191,4 +191,17 @@
     <string name="interface_editor_default">По умолчанию</string>
     <string name="action_volume_up">Увеличить громкость</string>
     <string name="action_volume_down">Уменьшить громкость</string>
+    <string name="interface_layout_transfer_description">Сохранение или восстановление порядка и масштабов.</string>
+    <string name="interface_layout_import">Импорт</string>
+    <string name="interface_layout_export">Экспорт</string>
+    <string name="interface_layout_export_done">Расположение интерфейса экспортировано.</string>
+    <string name="interface_layout_export_failed">Не удалось экспортировать расположение интерфейса.</string>
+    <string name="interface_layout_import_failed">Не удалось импортировать расположение. Проверьте формат файла и значения.</string>
+    <string name="interface_layout_import_done">Расположение интерфейса восстановлено.</string>
+    <string name="interface_layout_import_title">Восстановить расположение интерфейса?</string>
+    <string name="interface_layout_import_confirmation">Текущий порядок и масштабы будут заменены. Изображение: %1$d%%, заряд: %2$d%%, ANC: %3$d%%.</string>
+    <string name="interface_layout_import_hidden">Скрытых блоков: %1$d</string>
+    <string name="interface_layout_import_replace">Восстановить</string>
+    <string name="interface_editor_hide">Скрыть пункт</string>
+    <string name="interface_editor_show">Показать пункт</string>
 </resources>

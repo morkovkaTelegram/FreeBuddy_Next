@@ -21,6 +21,12 @@ data class HeadphonesIdentity(
 /** Stable IDs persisted by the interface editor. Never rename existing entries. */
 enum class HomeBlock { HEADPHONES_IMAGE, BATTERY, ANC, DUAL_CONNECT, SETTINGS_BUTTON }
 
+val REQUIRED_HOME_BLOCKS: Set<HomeBlock> = setOf(
+    HomeBlock.HEADPHONES_IMAGE,
+    HomeBlock.BATTERY,
+    HomeBlock.SETTINGS_BUTTON,
+)
+
 enum class SettingsBlock {
     EQUALIZER,
     AUTO_PAUSE,
@@ -49,6 +55,8 @@ data class InterfaceLayout(
     val imageScalePercent: Int = InterfaceLayoutDefaults.IMAGE_SCALE_PERCENT,
     val batteryScalePercent: Int = InterfaceLayoutDefaults.BATTERY_SCALE_PERCENT,
     val ancScalePercent: Int = InterfaceLayoutDefaults.ANC_SCALE_PERCENT,
+    val hiddenHomeBlocks: Set<HomeBlock> = emptySet(),
+    val hiddenSettingsBlocks: Set<SettingsBlock> = emptySet(),
 )
 
 /** User-selected appearance settings, persisted via DataStore Preferences. */
@@ -154,6 +162,12 @@ object ThemeStore {
                     prefs[stringPreferencesKey("home_anc_scale")]?.toIntOrNull()
                         ?: InterfaceLayoutDefaults.ANC_SCALE_PERCENT
                 ).coerceIn(80, 125).snap(5),
+                hiddenHomeBlocks = parseSelection<HomeBlock>(
+                    prefs[stringPreferencesKey("home_layout_hidden")],
+                ) - REQUIRED_HOME_BLOCKS,
+                hiddenSettingsBlocks = parseSelection(
+                    prefs[stringPreferencesKey("settings_layout_hidden")],
+                ),
             )
         }
 
@@ -171,6 +185,27 @@ object ThemeStore {
         }
     }
 
+    suspend fun setHomeBlockVisible(context: Context, block: HomeBlock, visible: Boolean) {
+        if (block in REQUIRED_HOME_BLOCKS && !visible) return
+        context.themeDataStore.edit { prefs ->
+            val hidden = parseSelection<HomeBlock>(prefs[stringPreferencesKey("home_layout_hidden")])
+                .toMutableSet()
+                .apply { if (visible) remove(block) else add(block) }
+            prefs[stringPreferencesKey("home_layout_hidden")] =
+                hidden.joinToString(",") { it.name }
+        }
+    }
+
+    suspend fun setSettingsBlockVisible(context: Context, block: SettingsBlock, visible: Boolean) {
+        context.themeDataStore.edit { prefs ->
+            val hidden = parseSelection<SettingsBlock>(prefs[stringPreferencesKey("settings_layout_hidden")])
+                .toMutableSet()
+                .apply { if (visible) remove(block) else add(block) }
+            prefs[stringPreferencesKey("settings_layout_hidden")] =
+                hidden.joinToString(",") { it.name }
+        }
+    }
+
     suspend fun setInterfaceScales(
         context: Context,
         imageScalePercent: Int,
@@ -184,6 +219,29 @@ object ThemeStore {
         }
     }
 
+    /** Atomically replaces the shared order and scales after a validated import. */
+    suspend fun setInterfaceLayout(context: Context, layout: InterfaceLayout) {
+        context.themeDataStore.edit {
+            it[stringPreferencesKey("home_layout_order")] =
+                normalizeOrder(layout.homeOrder, HomeBlock.entries).joinToString(",") { block -> block.name }
+            it[stringPreferencesKey("settings_layout_order")] =
+                normalizeOrder(layout.settingsOrder, SettingsBlock.entries).joinToString(",") { block -> block.name }
+            it[stringPreferencesKey("home_image_scale")] =
+                layout.imageScalePercent.coerceIn(70, 140).snap(5).toString()
+            it[stringPreferencesKey("home_battery_scale")] =
+                layout.batteryScalePercent.coerceIn(80, 140).snap(5).toString()
+            it[stringPreferencesKey("home_anc_scale")] =
+                layout.ancScalePercent.coerceIn(80, 125).snap(5).toString()
+            it[stringPreferencesKey("home_layout_hidden")] =
+                layout.hiddenHomeBlocks.filter { block ->
+                    block in HomeBlock.entries && block !in REQUIRED_HOME_BLOCKS
+                }.joinToString(",") { block -> block.name }
+            it[stringPreferencesKey("settings_layout_hidden")] =
+                layout.hiddenSettingsBlocks.filter { block -> block in SettingsBlock.entries }
+                    .joinToString(",") { block -> block.name }
+        }
+    }
+
     suspend fun resetInterfaceLayout(context: Context) {
         context.themeDataStore.edit {
             listOf(
@@ -192,6 +250,8 @@ object ThemeStore {
                 "home_image_scale",
                 "home_battery_scale",
                 "home_anc_scale",
+                "home_layout_hidden",
+                "settings_layout_hidden",
             ).forEach { key -> it.remove(stringPreferencesKey(key)) }
         }
     }
@@ -275,6 +335,11 @@ internal inline fun <reified T : Enum<T>> parseOrder(value: String?, defaults: L
 
 internal fun <T> normalizeOrder(order: List<T>, defaults: List<T>): List<T> =
     (order.filter { it in defaults } + defaults.filterNot { it in order }).distinct()
+
+internal inline fun <reified T : Enum<T>> parseSelection(value: String?): Set<T> =
+    value.orEmpty().split(',').mapNotNull { name ->
+        enumValues<T>().firstOrNull { it.name == name }
+    }.toSet()
 
 internal fun Int.snap(step: Int): Int = ((this + step / 2) / step) * step
 

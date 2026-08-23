@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FreeBuddy Next</string>
     <string name="about">O FreeBuddy Next ℹ️</string>
@@ -191,4 +191,17 @@
     <string name="interface_editor_default">Domyślnie</string>
     <string name="action_volume_up">Zwiększ głośność</string>
     <string name="action_volume_down">Zmniejsz głośność</string>
+    <string name="interface_layout_transfer_description">Zapisz lub przywróć kolejność i skale.</string>
+    <string name="interface_layout_import">Importuj</string>
+    <string name="interface_layout_export">Eksportuj</string>
+    <string name="interface_layout_export_done">Układ interfejsu został wyeksportowany.</string>
+    <string name="interface_layout_export_failed">Nie udało się wyeksportować układu interfejsu.</string>
+    <string name="interface_layout_import_failed">Nie udało się zaimportować układu. Sprawdź format pliku i wartości.</string>
+    <string name="interface_layout_import_done">Układ interfejsu został przywrócony.</string>
+    <string name="interface_layout_import_title">Przywrócić układ interfejsu?</string>
+    <string name="interface_layout_import_confirmation">Bieżąca kolejność i skale zostaną zastąpione. Obraz: %1$d%%, bateria: %2$d%%, ANC: %3$d%%.</string>
+    <string name="interface_layout_import_hidden">Ukryte bloki: %1$d</string>
+    <string name="interface_layout_import_replace">Przywróć</string>
+    <string name="interface_editor_hide">Ukryj element</string>
+    <string name="interface_editor_show">Pokaż element</string>
 </resources>

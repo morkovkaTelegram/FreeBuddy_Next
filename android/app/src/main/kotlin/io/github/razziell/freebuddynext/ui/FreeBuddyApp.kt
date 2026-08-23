@@ -48,6 +48,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.Refresh
@@ -81,6 +83,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -120,6 +123,9 @@ import io.github.razziell.freebuddynext.data.SettingsBlock
 import io.github.razziell.freebuddynext.data.scaleDp
 import io.github.razziell.freebuddynext.data.InterfaceLayout
 import io.github.razziell.freebuddynext.data.InterfaceLayoutDefaults
+import io.github.razziell.freebuddynext.data.REQUIRED_HOME_BLOCKS
+import io.github.razziell.freebuddynext.data.InterfaceLayoutFile
+import io.github.razziell.freebuddynext.data.InterfaceLayoutFileCodec
 import io.github.razziell.freebuddynext.data.ThemeStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -331,7 +337,7 @@ private fun ConnectedContent(
                 )
             }
         }
-        layout.homeOrder.forEach { block ->
+        layout.homeOrder.filterNot { it in layout.hiddenHomeBlocks }.forEach { block ->
             when (block) {
                 HomeBlock.HEADPHONES_IMAGE -> item(key = block.name) {
                     var showInfo by remember { mutableStateOf(false) }
@@ -1144,7 +1150,7 @@ private fun HeadphonesSettingsScreen(
             Modifier.padding(padding).padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            layout.settingsOrder.forEach { block ->
+            layout.settingsOrder.filterNot { it in layout.hiddenSettingsBlocks }.forEach { block ->
                 when (block) {
                     SettingsBlock.EQUALIZER -> if (equalizer != null) item(key = block.name) {
                         if (customEqualizer != null) {
@@ -1981,6 +1987,64 @@ private fun InterfaceEditorScreen(
         ancMode = AncMode.NOISE_CANCELLING,
         ancLevel = AncLevel.ULTRA,
     )
+    val layoutExportDone = stringResource(R.string.interface_layout_export_done)
+    val layoutExportFailed = stringResource(R.string.interface_layout_export_failed)
+    val layoutImportFailed = stringResource(R.string.interface_layout_import_failed)
+    val layoutImportDone = stringResource(R.string.interface_layout_import_done)
+    var pendingLayoutImportJson by rememberSaveable { mutableStateOf<String?>(null) }
+    val pendingLayoutImport = remember(pendingLayoutImportJson) {
+        pendingLayoutImportJson?.let { json ->
+            runCatching { InterfaceLayoutFileCodec.decode(json) }.getOrNull()
+        }
+    }
+    val layoutExportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        if (uri != null) scope.launch {
+            val success = withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.openOutputStream(uri, "wt")!!.bufferedWriter().use { writer ->
+                        writer.write(InterfaceLayoutFileCodec.encode(layout))
+                    }
+                }.isSuccess
+            }
+            Toast.makeText(
+                context,
+                if (success) layoutExportDone else layoutExportFailed,
+                Toast.LENGTH_LONG,
+            ).show()
+        }
+    }
+    val layoutImportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) scope.launch {
+            val decoded = withContext(Dispatchers.IO) {
+                runCatching {
+                    val bytes = context.contentResolver.openInputStream(uri)!!.use { input ->
+                        val output = java.io.ByteArrayOutputStream()
+                        val buffer = ByteArray(4 * 1024)
+                        while (true) {
+                            val read = input.read(buffer)
+                            if (read < 0) break
+                            require(output.size() + read <= InterfaceLayoutFileCodec.MAX_FILE_BYTES) {
+                                "File is too large"
+                            }
+                            output.write(buffer, 0, read)
+                        }
+                        output.toByteArray()
+                    }
+                    val text = bytes.toString(Charsets.UTF_8)
+                    InterfaceLayoutFileCodec.decode(text)
+                    text
+                }
+            }
+            decoded.onSuccess { pendingLayoutImportJson = it }
+                .onFailure {
+                    Toast.makeText(context, layoutImportFailed, Toast.LENGTH_LONG).show()
+                }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -2019,8 +2083,14 @@ private fun InterfaceEditorScreen(
                     block == HomeBlock.BATTERY ||
                     block == HomeBlock.ANC
                 val supported = block in supportedHome
+                val visible = block !in layout.hiddenHomeBlocks
                 OrderEditorRow(
                     label = stringResource(block.label()),
+                    visible = visible,
+                    canChangeVisibility = block !in REQUIRED_HOME_BLOCKS,
+                    onVisibilityChange = { show ->
+                        scope.launch { ThemeStore.setHomeBlockVisible(context, block, show) }
+                    },
                     supported = supported,
                     unavailableText = if (supported) null else stringResource(
                         R.string.interface_editor_unavailable_for_model,
@@ -2044,7 +2114,7 @@ private fun InterfaceEditorScreen(
                             )
                         }
                     },
-                    hasDetails = hasDetails && supported,
+                    hasDetails = hasDetails && supported && visible,
                 ) {
                     when (block) {
                         HomeBlock.HEADPHONES_IMAGE -> {
@@ -2155,8 +2225,14 @@ private fun InterfaceEditorScreen(
             }
             items(settingsOrder, key = { "settings_${it.name}" }) { block ->
                 val supported = block in supportedSettings
+                val visible = block !in layout.hiddenSettingsBlocks
                 OrderEditorRow(
                     label = stringResource(block.label()),
+                    visible = visible,
+                    canChangeVisibility = true,
+                    onVisibilityChange = { show ->
+                        scope.launch { ThemeStore.setSettingsBlockVisible(context, block, show) }
+                    },
                     supported = supported,
                     unavailableText = if (supported) null else stringResource(
                         R.string.interface_editor_unavailable_for_model,
@@ -2192,8 +2268,91 @@ private fun InterfaceEditorScreen(
                     Text(stringResource(R.string.interface_editor_reset))
                 }
             }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        stringResource(R.string.interface_layout_transfer_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Button(
+                            onClick = {
+                                layoutImportLauncher.launch(
+                                    arrayOf(
+                                        "application/json",
+                                        "text/json",
+                                        "text/plain",
+                                        "application/octet-stream",
+                                    ),
+                                )
+                            },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(Icons.Default.ArrowDownward, contentDescription = null)
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.interface_layout_import))
+                        }
+                        Button(
+                            onClick = {
+                                layoutExportLauncher.launch(InterfaceLayoutFileCodec.FILE_NAME)
+                            },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(Icons.Default.ArrowUpward, contentDescription = null)
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.interface_layout_export))
+                        }
+                    }
+                }
+            }
             item { Spacer(Modifier.height(24.dp)) }
         }
+    }
+
+    pendingLayoutImport?.let { imported ->
+        AlertDialog(
+            onDismissRequest = { pendingLayoutImportJson = null },
+            title = { Text(stringResource(R.string.interface_layout_import_title)) },
+            text = {
+                val hiddenCount =
+                    imported.layout.hiddenHomeBlocks.size + imported.layout.hiddenSettingsBlocks.size
+                var message = stringResource(
+                    R.string.interface_layout_import_confirmation,
+                    imported.layout.imageScalePercent,
+                    imported.layout.batteryScalePercent,
+                    imported.layout.ancScalePercent,
+                )
+                if (hiddenCount > 0) {
+                    message += "\n" + stringResource(
+                        R.string.interface_layout_import_hidden,
+                        hiddenCount,
+                    )
+                }
+                Text(message)
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            ThemeStore.setInterfaceLayout(context, imported.layout)
+                            pendingLayoutImportJson = null
+                            Toast.makeText(context, layoutImportDone, Toast.LENGTH_LONG).show()
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.interface_layout_import_replace))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingLayoutImportJson = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
     }
 }
 
@@ -2254,6 +2413,9 @@ private fun EditorSectionTitle(@StringRes title: Int) {
 @Composable
 private fun OrderEditorRow(
     label: String,
+    visible: Boolean,
+    canChangeVisibility: Boolean,
+    onVisibilityChange: (Boolean) -> Unit,
     supported: Boolean = true,
     unavailableText: String? = null,
     canMoveUp: Boolean,
@@ -2273,7 +2435,7 @@ private fun OrderEditorRow(
                     Text(
                         label,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = if (supported) {
+                        color = if (supported && visible) {
                             MaterialTheme.colorScheme.onSurface
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
@@ -2284,6 +2446,16 @@ private fun OrderEditorRow(
                             unavailableText,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                        )
+                    }
+                }
+                if (canChangeVisibility) {
+                    IconButton(onClick = { onVisibilityChange(!visible) }) {
+                        Icon(
+                            if (visible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            stringResource(
+                                if (visible) R.string.interface_editor_hide else R.string.interface_editor_show,
+                            ),
                         )
                     }
                 }

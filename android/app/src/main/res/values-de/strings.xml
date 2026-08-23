@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FreeBuddy Next</string>
     <string name="about">Über FreeBuddy Next ℹ️</string>
@@ -191,4 +191,17 @@
     <string name="interface_editor_default">Standard</string>
     <string name="action_volume_up">Lautstärke erhöhen</string>
     <string name="action_volume_down">Lautstärke verringern</string>
+    <string name="interface_layout_transfer_description">Reihenfolge und Skalierungen sichern oder wiederherstellen.</string>
+    <string name="interface_layout_import">Importieren</string>
+    <string name="interface_layout_export">Exportieren</string>
+    <string name="interface_layout_export_done">Oberflächenlayout wurde exportiert.</string>
+    <string name="interface_layout_export_failed">Oberflächenlayout konnte nicht exportiert werden.</string>
+    <string name="interface_layout_import_failed">Layout konnte nicht importiert werden. Dateiformat und Werte prüfen.</string>
+    <string name="interface_layout_import_done">Oberflächenlayout wurde wiederhergestellt.</string>
+    <string name="interface_layout_import_title">Oberflächenlayout wiederherstellen?</string>
+    <string name="interface_layout_import_confirmation">Die aktuelle Reihenfolge und Skalierungen werden ersetzt. Bild: %1$d%%, Akku: %2$d%%, ANC: %3$d%%.</string>
+    <string name="interface_layout_import_hidden">Ausgeblendete Blöcke: %1$d</string>
+    <string name="interface_layout_import_replace">Wiederherstellen</string>
+    <string name="interface_editor_hide">Element ausblenden</string>
+    <string name="interface_editor_show">Element anzeigen</string>
 </resources>
