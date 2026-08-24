@@ -103,6 +103,7 @@
     <string name="device_info_submodel">Podmodel</string>
     <string name="device_info_firmware">Oprogramowanie</string>
     <string name="device_info_hardware">Wersja sprzętowa</string>
+    <string name="device_info_audio_codec">Kodek audio</string>
     <string name="device_info_production_date_warning">Słuchawki wyprodukowano w różnych okresach i mogą pochodzić z różnych zestawów.</string>
     <string name="close">Zamknij</string>
     <string name="show_emojis">Pokazuj emoji</string>
@@ -204,4 +205,5 @@
     <string name="interface_layout_import_replace">Przywróć</string>
     <string name="interface_editor_hide">Ukryj element</string>
     <string name="interface_editor_show">Pokaż element</string>
+    <string name="active_codec">Aktywny kodek audio: %1$s</string>
 </resources>

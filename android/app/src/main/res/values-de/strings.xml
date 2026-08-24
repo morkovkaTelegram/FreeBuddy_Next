@@ -103,6 +103,7 @@
     <string name="device_info_submodel">Untermodell</string>
     <string name="device_info_firmware">Firmware</string>
     <string name="device_info_hardware">Hardwareversion</string>
+    <string name="device_info_audio_codec">Audio-Codec</string>
     <string name="device_info_production_date_warning">Die Ohrhörer wurden zu unterschiedlichen Zeiten hergestellt und könnten aus verschiedenen Sets stammen.</string>
     <string name="close">Schließen</string>
     <string name="show_emojis">Emojis anzeigen</string>
@@ -204,4 +205,5 @@
     <string name="interface_layout_import_replace">Wiederherstellen</string>
     <string name="interface_editor_hide">Element ausblenden</string>
     <string name="interface_editor_show">Element anzeigen</string>
+    <string name="active_codec">Aktiver Audio-Codec: %1$s</string>
 </resources>

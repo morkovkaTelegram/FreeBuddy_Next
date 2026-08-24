@@ -103,6 +103,7 @@
     <string name="device_info_submodel">Submodel</string>
     <string name="device_info_firmware">Firmware</string>
     <string name="device_info_hardware">Hardware</string>
+    <string name="device_info_audio_codec">Audio codec</string>
     <string name="device_info_production_date_warning">The earbuds were produced in different periods and may come from different sets.</string>
     <string name="close">Close</string>
     <string name="show_emojis">Show emojis</string>
@@ -204,4 +205,5 @@
     <string name="interface_layout_import_replace">Restore layout</string>
     <string name="interface_editor_hide">Hide item</string>
     <string name="interface_editor_show">Show item</string>
+    <string name="active_codec">Active audio codec: %1$s</string>
 </resources>

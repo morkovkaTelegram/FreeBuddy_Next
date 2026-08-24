@@ -72,6 +72,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -312,6 +313,7 @@ private fun ConnectedContent(
     val protocol = HeadphonesProtocolRegistry.findById(snapshot.protocolId)
     val ancModule = protocol?.module<AncModule>()
     val dualModule = protocol?.module<DualConnectModule>()
+    val activeCodec by repository.activeCodec.collectAsStateWithLifecycle()
 
     LazyColumn(
         Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -328,13 +330,34 @@ private fun ConnectedContent(
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
                 )
-                Text(
-                    snapshot.name,
-                    modifier = Modifier.semantics { heading() },
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.titleLarge,
-                    textAlign = TextAlign.Center,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        snapshot.name,
+                        modifier = Modifier.semantics { heading() },
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.titleLarge,
+                        textAlign = TextAlign.Center,
+                    )
+                    activeCodec?.let { name ->
+                        val codecDescription = stringResource(R.string.active_codec, name)
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                        ) {
+                            Text(
+                                name,
+                                modifier = Modifier
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .semantics { contentDescription = codecDescription },
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        }
+                    }
+                }
             }
         }
         layout.homeOrder.filterNot { it in layout.hiddenHomeBlocks }.forEach { block ->
@@ -359,7 +382,12 @@ private fun ConnectedContent(
                         )
                     }
                     if (showInfo) {
-                        DeviceInfoDialog(snapshot, repository, onDismiss = { showInfo = false })
+                        DeviceInfoDialog(
+                            snapshot = snapshot,
+                            activeCodec = activeCodec,
+                            repository = repository,
+                            onDismiss = { showInfo = false },
+                        )
                     }
                 }
                 HomeBlock.BATTERY -> item(key = block.name) {
@@ -418,6 +446,7 @@ private fun headphonesImage(
 @Composable
 private fun DeviceInfoDialog(
     snapshot: HeadphonesSnapshot,
+    activeCodec: String?,
     repository: HeadphonesRepository,
     onDismiss: () -> Unit,
 ) {
@@ -457,6 +486,7 @@ private fun DeviceInfoDialog(
                 DeviceInfoRow(R.string.device_info_submodel, info?.subModel)
                 DeviceInfoRow(R.string.device_info_firmware, info?.firmware)
                 DeviceInfoRow(R.string.device_info_hardware, info?.hardwareVersion)
+                DeviceInfoRow(R.string.device_info_audio_codec, activeCodec)
                 DeviceSerialRow(
                     label = stringResource(R.string.case_label),
                     serial = info?.serialNumber,
@@ -531,7 +561,10 @@ private fun DeviceInfoDialog(
                     clipboard.setPrimaryClip(
                         ClipData.newPlainText(
                             clipboardLabel,
-                            snapshot.toDiagnosticDump(repository.diagnosticLog()),
+                            snapshot.toDiagnosticDump(
+                                activeCodec = activeCodec,
+                                rawResponses = repository.diagnosticLog(),
+                            ),
                         ),
                     )
                 },
@@ -560,11 +593,15 @@ private fun DiagnosticSectionTitle(@StringRes title: Int) {
     )
 }
 
-private fun HeadphonesSnapshot.toDiagnosticDump(rawResponses: List<String>): String = buildString {
+private fun HeadphonesSnapshot.toDiagnosticDump(
+    activeCodec: String?,
+    rawResponses: List<String>,
+): String = buildString {
     appendLine("FreeBuddy Next device diagnostics")
     appendLine("protocol=$protocolId")
     appendLine("name=$name")
     appendLine("address=$address")
+    appendLine("audioCodec=${activeCodec.orEmpty()}")
     deviceInfo?.let { info ->
         appendLine("model=${info.model.orEmpty()}")
         appendLine("submodel=${info.subModel.orEmpty()}")

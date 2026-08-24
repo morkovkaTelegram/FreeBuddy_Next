@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothA2dp
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothCodecStatus
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
@@ -83,6 +84,13 @@ class HeadphonesRepository(private val context: Context) {
     private val _state = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected(emptyList()))
     val state: StateFlow<ConnectionState> = _state.asStateFlow()
 
+    /**
+     * Active A2DP codec name (SBC/AAC/LDAC/...) or null when unknown.
+     * Updated from ACTION_CODEC_CONFIG_CHANGED and cached per Bluetooth address.
+     */
+    private val _activeCodec = MutableStateFlow<String?>(null)
+    val activeCodec: StateFlow<String?> = _activeCodec.asStateFlow()
+
     private var a2dp: BluetoothA2dp? = null
     private var profileProxyRequested = false
     private var activeDevice: BluetoothDevice? = null
@@ -90,6 +98,10 @@ class HeadphonesRepository(private val context: Context) {
     private var connectJob: Job? = null
     private var livenessJob: Job? = null
     private var receiverRegistered = false
+    private val codecPreferences = context.getSharedPreferences(
+        BluetoothCodecNames.CACHE_PREFERENCES,
+        Context.MODE_PRIVATE,
+    )
 
     private val adapter: BluetoothAdapter?
         get() = context.getSystemService(BluetoothManager::class.java)?.adapter
@@ -99,12 +111,15 @@ class HeadphonesRepository(private val context: Context) {
             val action = intent?.action ?: return
             val device = getDevice(intent)
             val a2dpState = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1)
+            val codecName = if (action == BluetoothCodecNames.CODEC_CONFIG_CHANGED_ACTION) {
+                codecNameFromIntent(intent)
+            } else null
             scope.launch {
                 // BLUETOOTH_CONNECT can be revoked while the process is alive;
                 // any BluetoothDevice/proxy call then throws SecurityException,
                 // which would crash the app from an unhandled coroutine.
                 try {
-                    handleEvent(action, device, a2dpState)
+                    handleEvent(action, device, a2dpState, codecName)
                 } catch (cancel: CancellationException) {
                     throw cancel
                 } catch (_: SecurityException) {
@@ -114,8 +129,21 @@ class HeadphonesRepository(private val context: Context) {
         }
     }
 
-    private suspend fun handleEvent(action: String, device: BluetoothDevice?, a2dpState: Int) {
+    private suspend fun handleEvent(
+        action: String,
+        device: BluetoothDevice?,
+        a2dpState: Int,
+        codecName: String?,
+    ) {
         when (action) {
+            BluetoothCodecNames.CODEC_CONFIG_CHANGED_ACTION -> {
+                if (device != null && (activeDevice == null || device.sameAs(activeDevice))) {
+                    codecName?.let { name ->
+                        _activeCodec.value = name
+                        codecPreferences.edit().putString(device.address, name).apply()
+                    }
+                }
+            }
             BluetoothAdapter.ACTION_STATE_CHANGED -> refresh()
             BluetoothDevice.ACTION_ACL_CONNECTED -> if (device?.protocol() != null) {
                 delay(1200)
@@ -225,6 +253,7 @@ class HeadphonesRepository(private val context: Context) {
                     addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
                     addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
                     addAction(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED)
+                    addAction(BluetoothCodecNames.CODEC_CONFIG_CHANGED_ACTION)
                 },
                 // Bluetooth stack runs as its own uid on modern Android; its protected
                 // system broadcasts are NOT delivered to non-exported receivers.
@@ -237,6 +266,13 @@ class HeadphonesRepository(private val context: Context) {
     }
 
     fun refreshAsync() { scope.launch { refresh() } }
+
+    fun refreshCodecFromCache(address: String) {
+        if (activeDevice?.address == address) {
+            _activeCodec.value = codecPreferences.getString(address, null)
+        }
+    }
+
     fun reconnect() { scope.launch { activeDevice?.let { connect(it, force = true) } ?: refresh() } }
 
     private suspend fun refresh() {
@@ -308,6 +344,10 @@ class HeadphonesRepository(private val context: Context) {
                         client.send(it)
                         delay(35)
                     }
+                    // The active codec arrives through ACTION_CODEC_CONFIG_CHANGED.
+                    // Use the last event cached for this physical device until the
+                    // current connection emits its codec configuration.
+                    _activeCodec.value = codecPreferences.getString(device.address, null)
                     startLivenessWatch(device)
                 }.onFailure { error ->
                     if (error is CancellationException) throw error
@@ -335,6 +375,19 @@ class HeadphonesRepository(private val context: Context) {
      * getConnectionState() is a purely local binder call (no radio, the buds
      * are not woken), so this is battery-free unlike an MBB command watchdog.
      */
+    @Suppress("DEPRECATION")
+    private fun codecNameFromIntent(intent: Intent): String? {
+        val status = if (Build.VERSION.SDK_INT >= 33) {
+            intent.getParcelableExtra(
+                BluetoothCodecStatus.EXTRA_CODEC_STATUS,
+                BluetoothCodecStatus::class.java,
+            )
+        } else {
+            intent.getParcelableExtra(BluetoothCodecStatus.EXTRA_CODEC_STATUS)
+        } ?: return null
+        return BluetoothCodecNames.nameFrom(status)
+    }
+
     private fun startLivenessWatch(device: BluetoothDevice) {
         livenessJob?.cancel()
         livenessJob = scope.launch {
@@ -360,6 +413,7 @@ class HeadphonesRepository(private val context: Context) {
                     refresh()
                     break
                 }
+                // Codec changes are delivered by ACTION_CODEC_CONFIG_CHANGED.
             }
         }
     }
@@ -393,6 +447,7 @@ class HeadphonesRepository(private val context: Context) {
         val findState = (_state.value as? ConnectionState.Connected)?.snapshot?.findEarbuds
         activeDevice = null
         activeProtocol = null
+        _activeCodec.value = null
         synchronized(diagnosticLog) { diagnosticLog.clear() }
         withContext(NonCancellable) {
             if (findModule != null && findState != null) {

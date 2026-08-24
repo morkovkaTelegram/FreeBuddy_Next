@@ -103,6 +103,7 @@
     <string name="device_info_submodel">Подмодель</string>
     <string name="device_info_firmware">Прошивка</string>
     <string name="device_info_hardware">Аппаратная версия</string>
+    <string name="device_info_audio_codec">Аудиокодек</string>
     <string name="device_info_production_date_warning">Наушники произведены в разные периоды и могут быть из разных комплектов.</string>
     <string name="close">Закрыть</string>
     <string name="show_emojis">Показывать эмодзи</string>
@@ -204,4 +205,5 @@
     <string name="interface_layout_import_replace">Восстановить</string>
     <string name="interface_editor_hide">Скрыть пункт</string>
     <string name="interface_editor_show">Показать пункт</string>
+    <string name="active_codec">Активный аудиокодек: %1$s</string>
 </resources>
