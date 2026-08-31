@@ -10,7 +10,7 @@ A native Android application for controlling supported Huawei FreeBuds.
 >
 > Artificial intelligence tools were used to assist with code analysis, implementation, debugging, testing, and documentation. Technical decisions, validation on real devices, and responsibility for the final result remain with the project maintainer.
 
-Current version: **0.4.3 (versionCode 45)**
+Current version: **0.4.4 (versionCode 49)**
 
 ### Supported headphones
 
@@ -28,7 +28,8 @@ The protocol layer is model-specific and modular. `FreeBuds4iProtocol`, `FreeBud
 #### Headphone controls
 
 - Battery levels for the left earbud, right earbud and charging case.
-- Charging state reporting.
+- Charging state reporting with a stable charging indicator next to the percentage.
+- Active Bluetooth audio codec badge and codec information in device diagnostics.
 - Noise cancellation modes:
   - Off;
   - Noise cancelling;
@@ -119,8 +120,15 @@ Widget features:
 - Manual headset color override per physical headset set.
 - Shared interface layout editor:
   - reorder main-screen blocks and headphone-settings sections;
+  - show or hide optional blocks while keeping essential home-screen blocks visible;
   - scale the headphone image, battery rows and ANC buttons;
-  - real component previews and reset to defaults.
+  - real component previews and reset to defaults;
+  - import and export the complete layout as a validated JSON backup.
+- Material 3 Expressive-inspired motion and interactions:
+  - animated screen transitions and circular container transforms;
+  - sliding ANC selection indicator;
+  - visible press feedback for buttons, cards and dropdown items;
+  - consistent tonal cards and dropdown menus.
 - English, Russian, Polish and German localization.
 - TalkBack semantics for headings, status changes, switches, radio buttons, sliders, widgets and interactive cards.
 
@@ -251,7 +259,7 @@ Licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 >
 > При анализе кода, разработке, отладке, тестировании и подготовке документации использовались инструменты искусственного интеллекта. Технические решения, проверка на реальных устройствах и ответственность за итоговый результат остаются за сопровождающим проекта.
 
-Текущая версия: **0.4.3 (versionCode 45)**
+Текущая версия: **0.4.4 (versionCode 49)**
 
 ### Поддерживаемые наушники
 
@@ -269,7 +277,8 @@ Licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 #### Управление наушниками
 
 - Заряд левого наушника, правого наушника и кейса.
-- Состояние зарядки компонентов.
+- Состояние зарядки компонентов со стабильным положением значка зарядки рядом с процентами.
+- Плашка активного Bluetooth-аудиокодека и кодек в диагностической информации.
 - Режимы шумоподавления:
   - выключено;
   - шумоподавление;
@@ -360,8 +369,15 @@ FreeBuddy Next предоставляет четыре Glance-виджета:
 - Принудительный выбор цвета для каждого физического комплекта наушников.
 - Общий редактор интерфейса:
   - изменение порядка блоков главного экрана и разделов настроек наушников;
+  - скрытие необязательных блоков при сохранении обязательных элементов главного экрана;
   - масштабирование изображения, строк заряда и кнопок ANC;
-  - реальные превью компонентов и сброс к стандартной раскладке.
+  - реальные превью компонентов и сброс к стандартной раскладке;
+  - импорт и экспорт полной раскладки в виде проверяемой резервной копии JSON.
+- Анимации и взаимодействия в стиле Material 3 Expressive:
+  - анимированные переходы экранов и круговые container transform;
+  - скользящий индикатор выбранного режима ANC;
+  - заметный отклик кнопок, карточек и пунктов выпадающих меню;
+  - единые тональные карточки и выпадающие меню.
 - Английская, русская, польская и немецкая локализации.
 - Семантика TalkBack для заголовков, изменений статуса, переключателей, радиокнопок, ползунков, виджетов и интерактивных карточек.
 

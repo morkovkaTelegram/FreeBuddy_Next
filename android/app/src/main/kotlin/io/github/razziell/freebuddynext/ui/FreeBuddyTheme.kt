@@ -32,5 +32,7 @@ fun FreeBuddyTheme(content: @Composable () -> Unit) {
         dark -> darkColorScheme()
         else -> lightColorScheme()
     }
+    // NOTE: MotionScheme.expressive() is still internal in material3 1.4.0;
+    // expressive-style motion is provided by explicit spring animations in screens.
     MaterialTheme(colorScheme = colors, content = content)
 }

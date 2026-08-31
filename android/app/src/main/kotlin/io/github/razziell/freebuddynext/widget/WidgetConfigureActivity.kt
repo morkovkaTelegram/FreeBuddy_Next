@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -50,6 +51,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
@@ -213,11 +215,14 @@ private fun ConfigureScreen(
             }
             Spacer(Modifier.height(32.dp))
             Row {
-                OutlinedButton(onClick = onCancel) {
+                WidgetActionButton(onClick = onCancel, filled = false) {
                     Text(stringResource(R.string.cancel))
                 }
                 Spacer(Modifier.width(16.dp))
-                Button(onClick = { onSave(backgroundTransparency, elementTransparency, labelMode) }) {
+                WidgetActionButton(
+                    onClick = { onSave(backgroundTransparency, elementTransparency, labelMode) },
+                    filled = true,
+                ) {
                     Text(stringResource(R.string.save))
                 }
             }
@@ -537,6 +542,62 @@ private fun previewLabel(mode: Int, full: String, short: String?): String = when
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun WidgetActionButton(
+    onClick: () -> Unit,
+    filled: Boolean,
+    content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
+) {
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val scale = remember { androidx.compose.animation.core.Animatable(1f) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var pending by remember { mutableStateOf(false) }
+    val delayedClick: () -> Unit = {
+        if (!pending) {
+            pending = true
+            scope.launch {
+                try {
+                    kotlinx.coroutines.delay(120)
+                    onClick()
+                } finally {
+                    pending = false
+                }
+            }
+        }
+    }
+    androidx.compose.runtime.LaunchedEffect(interaction) {
+        interaction.interactions.collect { event ->
+            if (event is androidx.compose.foundation.interaction.PressInteraction.Press) {
+                scale.animateTo(0.9f, androidx.compose.animation.core.tween(90))
+                scale.animateTo(
+                    1f,
+                    androidx.compose.animation.core.spring(
+                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                        stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
+                    ),
+                )
+            }
+        }
+    }
+    val modifier = Modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value }
+    if (filled) {
+        Button(
+            onClick = delayedClick,
+            modifier = modifier,
+            interactionSource = interaction,
+            content = content,
+        )
+    } else {
+        OutlinedButton(
+            onClick = delayedClick,
+            modifier = modifier,
+            interactionSource = interaction,
+            content = content,
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun WidgetLabelModeMenu(selected: Int, onSelected: (Int) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val options = listOf(
@@ -568,10 +629,12 @@ private fun WidgetLabelModeMenu(selected: Int, onSelected: (Int) -> Unit) {
             shape = RoundedCornerShape(16.dp),
         ) {
             options.forEach { (mode, label) ->
-                DropdownMenuItem(
+                val isSelected = mode == selected
+                WidgetExpressiveDropdownMenuItem(
+                    selected = isSelected,
                     text = { Text(stringResource(label)) },
                     trailingIcon = {
-                        if (mode == selected) {
+                        if (isSelected) {
                             androidx.compose.material3.Icon(Icons.Default.Check, null)
                         }
                     },
@@ -583,6 +646,67 @@ private fun WidgetLabelModeMenu(selected: Int, onSelected: (Int) -> Unit) {
             }
         }
     }
+}
+
+/** Matches the main app's Expressive menu row and keeps feedback visible before dismissal. */
+@Composable
+private fun WidgetExpressiveDropdownMenuItem(
+    selected: Boolean,
+    text: @Composable () -> Unit,
+    trailingIcon: @Composable (() -> Unit)? = null,
+    onClick: () -> Unit,
+) {
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val scale = remember { androidx.compose.animation.core.Animatable(1f) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var pending by remember { mutableStateOf(false) }
+
+    androidx.compose.runtime.LaunchedEffect(interaction) {
+        interaction.interactions.collect { event ->
+            if (event is androidx.compose.foundation.interaction.PressInteraction.Press) {
+                scale.animateTo(0.97f, androidx.compose.animation.core.tween(75))
+                scale.animateTo(
+                    1f,
+                    androidx.compose.animation.core.spring(
+                        dampingRatio = 0.86f,
+                        stiffness = androidx.compose.animation.core.Spring.StiffnessMedium,
+                    ),
+                )
+            }
+        }
+    }
+
+    DropdownMenuItem(
+        text = text,
+        trailingIcon = trailingIcon,
+        interactionSource = interaction,
+        modifier = Modifier
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .heightIn(min = 52.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .then(
+                if (selected) {
+                    Modifier.background(MaterialTheme.colorScheme.secondaryContainer)
+                } else {
+                    Modifier
+                },
+            )
+            .graphicsLayer { scaleX = scale.value; scaleY = scale.value },
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp),
+        onClick = {
+            if (!pending) {
+                pending = true
+                scope.launch {
+                    try {
+                        kotlinx.coroutines.delay(120)
+                        onClick()
+                    } finally {
+                        pending = false
+                    }
+                }
+            }
+        },
+    )
 }
 
 @Composable

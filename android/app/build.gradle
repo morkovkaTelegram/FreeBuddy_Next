@@ -30,7 +30,7 @@ android {
         applicationId "io.github.razziell.freebuddynext"
         minSdk 28
         targetSdk 36
-        versionCode 46
+        versionCode 49
         versionName "0.4.4"
         ndk {
             abiFilters "armeabi-v7a", "arm64-v8a"

@@ -6,6 +6,27 @@ This file is maintained in English first, followed by a complete Russian transla
 
 - Documentation synchronized with the current implementation.
 
+## [0.4.4+49] — 2026-08
+
+### Added
+
+- Active Bluetooth audio codec badge next to the connected-headset name and codec information in the device diagnostics and copied raw dump.
+- Interface-layout JSON backup and restore, including block order, visibility and scale settings.
+- Per-block visibility controls in the interface editor, with required home-screen blocks protected from being hidden.
+
+### Changed
+
+- Added Material 3 Expressive-inspired motion: directional screen transitions, circular container transforms for diagnostics and application settings, a sliding ANC selection indicator and stronger press feedback.
+- Restyled application settings, theme choices, dropdown menus and widget configuration menus as consistent tonal cards with larger touch targets.
+- Made the ANC card more compact and stabilized the charging indicator to the left of the percentage.
+- Improved interface-editor previews, percentage-based scaling controls and import confirmation.
+
+### Fixed
+
+- Active codec detection now uses Android A2DP codec-change events instead of a restricted Android 16 binder call.
+- Dropdown items and navigation cards now keep visible feedback long enough before closing or changing screens.
+- Widget-layout import survives Activity recreation and cannot hide required home-screen blocks.
+
 ## [0.4.3+45] — 2026-08
 
 ### Changed
@@ -260,6 +281,27 @@ This file is maintained in English first, followed by a complete Russian transla
 ## [Не выпущено]
 
 - Документация синхронизирована с текущей реализацией.
+
+## [0.4.4+49] — 2026-08
+
+### Добавлено
+
+- Плашка активного Bluetooth-аудиокодека рядом с названием подключённых наушников, а также кодек в диагностическом меню и копируемом дампе.
+- Резервное копирование и восстановление раскладки интерфейса в JSON, включая порядок, видимость блоков и масштабы.
+- Управление видимостью блоков в редакторе интерфейса с защитой обязательных элементов главного экрана от скрытия.
+
+### Изменено
+
+- Добавлены анимации в стиле Material 3 Expressive: направленные переходы экранов, круговые container transform для диагностики и настроек приложения, скользящий индикатор ANC и усиленный отклик на нажатия.
+- Настройки приложения, варианты темы, выпадающие меню и меню настройки виджетов оформлены едиными тональными карточками с увеличенными областями нажатия.
+- Карточка ANC стала компактнее, а значок зарядки получил стабильную позицию слева от процентов.
+- Улучшены превью редактора интерфейса, процентные регуляторы масштаба и подтверждение импорта.
+
+### Исправлено
+
+- Активный кодек теперь определяется по системным событиям A2DP вместо ограниченного binder-вызова Android 16.
+- Пункты выпадающих меню и навигационные карточки сохраняют заметный отклик перед закрытием или сменой экрана.
+- Импорт раскладки переживает пересоздание Activity и не может скрыть обязательные блоки главного экрана.
 
 ## [0.4.3+45] — 2026-08
 

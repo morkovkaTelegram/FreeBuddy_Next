@@ -11,19 +11,47 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.updateTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,11 +59,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
@@ -61,8 +93,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -89,21 +120,34 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.focusable
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.invisibleToUser
+import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalConfiguration
@@ -129,9 +173,12 @@ import io.github.razziell.freebuddynext.data.InterfaceLayoutFile
 import io.github.razziell.freebuddynext.data.InterfaceLayoutFileCodec
 import io.github.razziell.freebuddynext.data.ThemeStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
+import kotlin.math.hypot
+import kotlin.math.max
 import io.github.razziell.freebuddynext.bluetooth.ConnectionState
 import io.github.razziell.freebuddynext.bluetooth.HeadphonesRepository
 import io.github.razziell.freebuddynext.protocol.productionDate
@@ -174,10 +221,17 @@ import io.github.razziell.freebuddynext.protocol.Hold
 import io.github.razziell.freebuddynext.protocol.Swipe
 import io.github.razziell.freebuddynext.protocol.TripleTap
 
-private enum class Screen { HOME, HEADPHONES_SETTINGS, FIND_EARBUDS, ABOUT, INTERFACE_EDITOR }
+private enum class Screen(val depth: Int) {
+    HOME(0),
+    HEADPHONES_SETTINGS(1),
+    FIND_EARBUDS(2),
+    ABOUT(1),
+    INTERFACE_EDITOR(2),
+}
 
 
 private val AppCardShape = RoundedCornerShape(16.dp)
+private val MenuItemShape = RoundedCornerShape(12.dp)
 private val LocalShowEmojis = staticCompositionLocalOf { true }
 private val EmojiRegex = Regex(
     """[\x{1F000}-\x{1FAFF}\x{2100}-\x{214F}\x{2300}-\x{25FF}\x{2600}-\x{27BF}\uFE0E\uFE0F\u200D]+""",
@@ -204,9 +258,14 @@ fun FreeBuddyApp(repository: HeadphonesRepository, requestBluetoothPermission: (
     CompositionLocalProvider(LocalShowEmojis provides showEmojis) {
         FreeBuddyTheme {
             var screen by remember { mutableStateOf(Screen.HOME) }
+            var lastSettingsScreen by remember { mutableStateOf(Screen.ABOUT) }
+            var settingsButtonBounds by remember { mutableStateOf<Rect?>(null) }
+            var settingsOverlayBounds by remember { mutableStateOf<Rect?>(null) }
             val state by repository.state.collectAsStateWithLifecycle()
             val activeSnapshot = (state as? ConnectionState.Connected)?.snapshot
             val activeIdentity = activeSnapshot?.colorIdentity()
+            val settingsOpen = screen == Screen.ABOUT || screen == Screen.INTERFACE_EDITOR
+            val density = LocalDensity.current
 
             BackHandler(enabled = screen != Screen.HOME) {
                 screen = when (screen) {
@@ -214,33 +273,195 @@ fun FreeBuddyApp(repository: HeadphonesRepository, requestBluetoothPermission: (
                     Screen.HEADPHONES_SETTINGS -> Screen.HOME
                     Screen.FIND_EARBUDS -> Screen.HEADPHONES_SETTINGS
                     Screen.ABOUT -> Screen.HOME
-                    Screen.INTERFACE_EDITOR -> Screen.ABOUT
+                    Screen.INTERFACE_EDITOR -> {
+                        lastSettingsScreen = Screen.ABOUT
+                        Screen.ABOUT
+                    }
                 }
             }
 
             LaunchedEffect(activeIdentity) {
                 activeIdentity?.let { ThemeStore.registerHeadphones(context, it) }
             }
-            when (screen) {
-                Screen.HOME -> HomeScreen(state, repository, requestBluetoothPermission, { screen = Screen.HEADPHONES_SETTINGS }, { screen = Screen.ABOUT })
-                Screen.HEADPHONES_SETTINGS -> HeadphonesSettingsScreen(
-                    state,
-                    repository,
-                    openFindEarbuds = { screen = Screen.FIND_EARBUDS },
-                    back = { screen = Screen.HOME },
-                )
-                Screen.FIND_EARBUDS -> FindEarbudsScreen(state, repository) { screen = Screen.HEADPHONES_SETTINGS }
-                Screen.ABOUT -> AboutScreen(
-                    activeIdentity = activeIdentity,
-                    openInterfaceEditor = { screen = Screen.INTERFACE_EDITOR },
-                    back = { screen = Screen.HOME },
-                )
-                Screen.INTERFACE_EDITOR -> InterfaceEditorScreen(
-                    identity = activeIdentity,
-                    snapshot = activeSnapshot,
-                    repository = repository,
-                    back = { screen = Screen.ABOUT },
-                )
+
+            // About and Interface Editor live in a circular settings container above HOME.
+            // The regular navigation transition is retained for headphone-related screens.
+            val baseScreen = when (screen) {
+                Screen.ABOUT, Screen.INTERFACE_EDITOR -> Screen.HOME
+                else -> screen
+            }
+            val settingsTransition = updateTransition(settingsOpen, label = "settingsReveal")
+            val settingsRevealProgress by settingsTransition.animateFloat(
+                transitionSpec = {
+                    if (targetState) {
+                        tween(durationMillis = 400, easing = FastOutSlowInEasing)
+                    } else {
+                        tween(durationMillis = 280, easing = FastOutSlowInEasing)
+                    }
+                },
+                label = "settingsRevealProgress",
+            ) { open -> if (open) 1f else 0f }
+            val settingsOverlayVisible = settingsOpen || settingsRevealProgress > 0.001f
+
+            Box(Modifier.fillMaxSize()) {
+                AnimatedContent(
+                    targetState = baseScreen,
+                    modifier = Modifier.semantics {
+                        if (settingsOverlayVisible) invisibleToUser()
+                    },
+                    transitionSpec = {
+                        val forward = targetState.depth >= initialState.depth
+                        val slide = if (forward) 1 else -1
+                        val spatial = spring(
+                            dampingRatio = 0.8f,
+                            stiffness = Spring.StiffnessMediumLow,
+                            visibilityThreshold = IntOffset.VisibilityThreshold,
+                        )
+                        (slideInHorizontally(spatial) { it / 8 * slide } + fadeIn())
+                            .togetherWith(slideOutHorizontally(spatial) { -it / 8 * slide } + fadeOut())
+                    },
+                    label = "screen",
+                ) { current ->
+                    when (current) {
+                        Screen.HOME -> HomeScreen(
+                            state = state,
+                            repository = repository,
+                            requestPermission = requestBluetoothPermission,
+                            openHeadphonesSettings = { screen = Screen.HEADPHONES_SETTINGS },
+                            openAbout = {
+                                lastSettingsScreen = Screen.ABOUT
+                                screen = Screen.ABOUT
+                            },
+                            onSettingsButtonBounds = { settingsButtonBounds = it },
+                        )
+                        Screen.HEADPHONES_SETTINGS -> HeadphonesSettingsScreen(
+                            state,
+                            repository,
+                            openFindEarbuds = { screen = Screen.FIND_EARBUDS },
+                            back = { screen = Screen.HOME },
+                        )
+                        Screen.FIND_EARBUDS -> FindEarbudsScreen(state, repository) {
+                            screen = Screen.HEADPHONES_SETTINGS
+                        }
+                        // Settings screens are rendered in the circular overlay below.
+                        Screen.ABOUT, Screen.INTERFACE_EDITOR -> Unit
+                    }
+                }
+
+                if (settingsOverlayVisible) {
+                    val revealShape = GenericShape { size, _ ->
+                        val overlay = settingsOverlayBounds
+                        val button = settingsButtonBounds
+                        val centerX: Float
+                        val centerY: Float
+                        val startRadius: Float
+                        if (overlay != null && button != null) {
+                            centerX = button.center.x - overlay.left
+                            centerY = button.center.y - overlay.top
+                            startRadius = minOf(button.width, button.height) / 2f
+                        } else {
+                            centerX = size.width
+                            centerY = 0f
+                            startRadius = 0f
+                        }
+                        val endRadius = hypot(
+                            max(centerX, size.width - centerX),
+                            max(centerY, size.height - centerY),
+                        )
+                        val radius = startRadius +
+                            (endRadius - startRadius) * settingsRevealProgress
+                        addOval(
+                            Rect(
+                                centerX - radius,
+                                centerY - radius,
+                                centerX + radius,
+                                centerY + radius,
+                            ),
+                        )
+                    }
+
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .onGloballyPositioned { settingsOverlayBounds = it.boundsInRoot() }
+                            .clip(revealShape)
+                            .background(MaterialTheme.colorScheme.background),
+                    ) {
+                        AnimatedContent(
+                            targetState = lastSettingsScreen,
+                            modifier = Modifier.graphicsLayer {
+                                alpha = ((settingsRevealProgress - 0.18f) / 0.52f)
+                                    .coerceIn(0f, 1f)
+                            },
+                            transitionSpec = {
+                                val forward = targetState.depth >= initialState.depth
+                                val slide = if (forward) 1 else -1
+                                val spatial = spring(
+                                    dampingRatio = 0.86f,
+                                    stiffness = Spring.StiffnessMediumLow,
+                                    visibilityThreshold = IntOffset.VisibilityThreshold,
+                                )
+                                (slideInHorizontally(spatial) { it / 10 * slide } + fadeIn())
+                                    .togetherWith(
+                                        slideOutHorizontally(spatial) { -it / 10 * slide } + fadeOut(),
+                                    )
+                            },
+                            label = "settingsScreen",
+                        ) { current ->
+                            when (current) {
+                                Screen.ABOUT -> AboutScreen(
+                                    activeIdentity = activeIdentity,
+                                    openInterfaceEditor = {
+                                        lastSettingsScreen = Screen.INTERFACE_EDITOR
+                                        screen = Screen.INTERFACE_EDITOR
+                                    },
+                                    back = { screen = Screen.HOME },
+                                )
+                                Screen.INTERFACE_EDITOR -> InterfaceEditorScreen(
+                                    identity = activeIdentity,
+                                    snapshot = activeSnapshot,
+                                    repository = repository,
+                                    back = {
+                                        lastSettingsScreen = Screen.ABOUT
+                                        screen = Screen.ABOUT
+                                    },
+                                )
+                                else -> Unit
+                            }
+                        }
+
+                        // Keep the source icon visible at the reveal origin, enlarge it,
+                        // then fade it into the full settings container. During closing
+                        // the same icon reappears and shrinks back into the toolbar.
+                        val overlay = settingsOverlayBounds
+                        val button = settingsButtonBounds
+                        if (overlay != null && button != null && settingsRevealProgress < 0.62f) {
+                            val iconSizePx = with(density) { 30.dp.roundToPx() }
+                            val centerX = button.center.x - overlay.left
+                            val centerY = button.center.y - overlay.top
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .offset {
+                                        IntOffset(
+                                            (centerX - iconSizePx / 2f).roundToInt(),
+                                            (centerY - iconSizePx / 2f).roundToInt(),
+                                        )
+                                    }
+                                    .size(30.dp)
+                                    .graphicsLayer {
+                                        val phase = (settingsRevealProgress / 0.62f)
+                                            .coerceIn(0f, 1f)
+                                        scaleX = 1f + phase * 1.8f
+                                        scaleY = scaleX
+                                        alpha = 1f - phase
+                                    },
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -254,11 +475,23 @@ private fun HomeScreen(
     requestPermission: () -> Unit,
     openHeadphonesSettings: () -> Unit,
     openAbout: () -> Unit,
+    onSettingsButtonBounds: (Rect) -> Unit,
 ) {
     val context = LocalContext.current
     Scaffold(topBar = {
         TopAppBar(title = { Text(stringResource(R.string.app_name)) }, actions = {
-            IconButton(onClick = openAbout) { Icon(Icons.Default.Settings, stringResource(R.string.about)) }
+            IconButton(
+                onClick = openAbout,
+                modifier = Modifier
+                    .size(52.dp)
+                    .onGloballyPositioned { onSettingsButtonBounds(it.boundsInRoot()) },
+            ) {
+                Icon(
+                    Icons.Default.Settings,
+                    contentDescription = stringResource(R.string.about),
+                    modifier = Modifier.size(30.dp),
+                )
+            }
         })
     }) { padding ->
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
@@ -288,7 +521,7 @@ private fun StatusContent(@StringRes title: Int, @StringRes description: Int, @S
             textAlign = TextAlign.Center,
         )
         Text(stringResource(description), textAlign = TextAlign.Center)
-        action?.let { Button(onClick = onClick) { Text(stringResource(it)) } }
+        action?.let { ExpressiveButton(onClick = onClick) { Text(stringResource(it)) } }
     }
 }
 
@@ -314,99 +547,179 @@ private fun ConnectedContent(
     val ancModule = protocol?.module<AncModule>()
     val dualModule = protocol?.module<DualConnectModule>()
     val activeCodec by repository.activeCodec.collectAsStateWithLifecycle()
+    val homeListState = rememberLazyListState()
+    var showDeviceInfo by rememberSaveable(snapshot.address) { mutableStateOf(false) }
+    var imageBounds by remember { mutableStateOf<Rect?>(null) }
+    var overlayOrigin by remember { mutableStateOf<Rect?>(null) }
 
-    LazyColumn(
-        Modifier.fillMaxSize().padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item {
-            Column(
-                Modifier.fillMaxWidth().padding(top = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    stringResource(R.string.connected),
-                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+    BackHandler(enabled = showDeviceInfo) { showDeviceInfo = false }
+
+    // Circular container transform: a circle grows out of the headphones image
+    // and reveals the diagnostics card; closing plays the same reveal backwards.
+    val infoTransition = updateTransition(showDeviceInfo, label = "deviceInfoReveal")
+    val revealProgress by infoTransition.animateFloat(
+        transitionSpec = {
+            if (targetState) {
+                tween(durationMillis = 380, easing = FastOutSlowInEasing)
+            } else {
+                tween(durationMillis = 260, easing = FastOutSlowInEasing)
+            }
+        },
+        label = "deviceInfoRevealProgress",
+    ) { open -> if (open) 1f else 0f }
+    val overlayVisible = showDeviceInfo || revealProgress > 0.001f
+
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(
+            Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            state = homeListState,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item {
+                Column(
+                    Modifier.fillMaxWidth().padding(top = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        snapshot.name,
-                        modifier = Modifier.semantics { heading() },
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.titleLarge,
+                        stringResource(R.string.connected),
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        style = MaterialTheme.typography.bodyLarge,
                         textAlign = TextAlign.Center,
                     )
-                    activeCodec?.let { name ->
-                        val codecDescription = stringResource(R.string.active_codec, name)
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            snapshot.name,
+                            modifier = Modifier.semantics { heading() },
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.titleLarge,
+                            textAlign = TextAlign.Center,
+                        )
+                        AnimatedVisibility(
+                            visible = activeCodec != null,
+                            enter = fadeIn() + scaleIn(initialScale = 0.8f),
+                            exit = fadeOut() + scaleOut(targetScale = 0.8f),
                         ) {
-                            Text(
-                                name,
-                                modifier = Modifier
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    .semantics { contentDescription = codecDescription },
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                style = MaterialTheme.typography.labelMedium,
-                            )
+                            val name = activeCodec ?: return@AnimatedVisibility
+                            val codecDescription = stringResource(R.string.active_codec, name)
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                            ) {
+                                Text(
+                                    name,
+                                    modifier = Modifier
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        .semantics { contentDescription = codecDescription },
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            }
                         }
                     }
                 }
             }
-        }
-        layout.homeOrder.filterNot { it in layout.hiddenHomeBlocks }.forEach { block ->
-            when (block) {
-                HomeBlock.HEADPHONES_IMAGE -> item(key = block.name) {
-                    var showInfo by remember { mutableStateOf(false) }
-                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        val description = stringResource(R.string.device_info_button, snapshot.name)
-                        val scale = layout.imageScalePercent / 100f
-                        Image(
-                            painter = painterResource(headphonesImage(snapshot, forceColor, selectedColor)),
-                            contentDescription = null,
-                            modifier = Modifier
+            layout.homeOrder.filterNot { it in layout.hiddenHomeBlocks }.forEach { block ->
+                when (block) {
+                    HomeBlock.HEADPHONES_IMAGE -> item(key = block.name) {
+                        Box(
+                            Modifier
                                 .fillMaxWidth()
-                                .height((180 * scale).dp)
-                                .semantics {
-                                    contentDescription = description
-                                    role = Role.Button
-                                }
-                                .clickable { showInfo = true },
-                            contentScale = ContentScale.Fit,
-                        )
+                                .onGloballyPositioned { imageBounds = it.boundsInRoot() },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            val description = stringResource(R.string.device_info_button, snapshot.name)
+                            val scale = layout.imageScalePercent / 100f
+                            Image(
+                                painter = painterResource(headphonesImage(snapshot, forceColor, selectedColor)),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height((180 * scale).dp)
+                                    .semantics {
+                                        contentDescription = description
+                                        role = Role.Button
+                                    }
+                                    .clickable { showDeviceInfo = true },
+                                contentScale = ContentScale.Fit,
+                            )
+                        }
                     }
-                    if (showInfo) {
-                        DeviceInfoDialog(
-                            snapshot = snapshot,
-                            activeCodec = activeCodec,
-                            repository = repository,
-                            onDismiss = { showInfo = false },
-                        )
+                    HomeBlock.BATTERY -> item(key = block.name) {
+                        BatteryCard(snapshot.battery, scaleDp(InterfaceLayoutDefaults.BATTERY_ROW_HEIGHT_DP, layout.batteryScalePercent).dp)
                     }
-                }
-                HomeBlock.BATTERY -> item(key = block.name) {
-                    BatteryCard(snapshot.battery, scaleDp(InterfaceLayoutDefaults.BATTERY_ROW_HEIGHT_DP, layout.batteryScalePercent).dp)
-                }
-                HomeBlock.ANC -> if (ancModule != null) item(key = block.name) {
-                    AncCard(snapshot, repository, ancModule, scaleDp(InterfaceLayoutDefaults.ANC_BUTTON_SIZE_DP, layout.ancScalePercent).dp)
-                }
-                HomeBlock.DUAL_CONNECT -> if (dualModule != null) item(key = block.name) {
-                    DualConnectCard(snapshot, repository, dualModule)
-                }
-                HomeBlock.SETTINGS_BUTTON -> item(key = block.name) {
-                    Button(onClick = openSettings, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.headphones_settings))
+                    HomeBlock.ANC -> if (ancModule != null) item(key = block.name) {
+                        AncCard(snapshot, repository, ancModule, scaleDp(InterfaceLayoutDefaults.ANC_BUTTON_SIZE_DP, layout.ancScalePercent).dp)
+                    }
+                    HomeBlock.DUAL_CONNECT -> if (dualModule != null) item(key = block.name) {
+                        DualConnectCard(snapshot, repository, dualModule)
+                    }
+                    HomeBlock.SETTINGS_BUTTON -> item(key = block.name) {
+                        ExpressiveButton(
+                            onClick = openSettings,
+                            modifier = Modifier.fillMaxWidth(),
+                            actionDelayMillis = 170,
+                        ) {
+                            Text(stringResource(R.string.headphones_settings))
+                        }
                     }
                 }
             }
+            item { Spacer(Modifier.height(24.dp)) }
         }
-        item { Spacer(Modifier.height(24.dp)) }
+
+        if (overlayVisible) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .onGloballyPositioned { overlayOrigin = it.boundsInRoot() }
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.58f * revealProgress))
+                    .pointerInput(Unit) { detectTapGestures { showDeviceInfo = false } },
+            ) {
+                val revealShape = GenericShape { size, _ ->
+                    val origin = overlayOrigin
+                    val image = imageBounds
+                    val centerX: Float
+                    val centerY: Float
+                    val startRadius: Float
+                    if (origin != null && image != null) {
+                        centerX = image.center.x - origin.left
+                        centerY = image.center.y - origin.top
+                        startRadius = minOf(image.width, image.height) / 2f * 0.55f
+                    } else {
+                        centerX = size.width / 2f
+                        centerY = size.height / 2f
+                        startRadius = 0f
+                    }
+                    val endRadius = hypot(
+                        max(centerX, size.width - centerX),
+                        max(centerY, size.height - centerY),
+                    )
+                    val radius = startRadius + (endRadius - startRadius) * revealProgress
+                    addOval(
+                        Rect(
+                            centerX - radius,
+                            centerY - radius,
+                            centerX + radius,
+                            centerY + radius,
+                        ),
+                    )
+                }
+                Box(Modifier.fillMaxSize().clip(revealShape)) {
+                    DeviceInfoOverlay(
+                        snapshot = snapshot,
+                        activeCodec = activeCodec,
+                        repository = repository,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                        onDismiss = { showDeviceInfo = false },
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -444,10 +757,11 @@ private fun headphonesImage(
 }
 
 @Composable
-private fun DeviceInfoDialog(
+private fun DeviceInfoOverlay(
     snapshot: HeadphonesSnapshot,
     activeCodec: String?,
     repository: HeadphonesRepository,
+    modifier: Modifier,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -472,13 +786,34 @@ private fun DeviceInfoDialog(
             },
         )
     }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.device_info_title)) },
-        text = {
+    val title = stringResource(R.string.device_info_title)
+    val titleFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { titleFocusRequester.requestFocus() }
+
+    Surface(
+        modifier = modifier
+            .semantics { paneTitle = title }
+            .pointerInput(Unit) { detectTapGestures { /* Consume taps inside the card. */ } },
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = 6.dp,
+        shadowElevation = 8.dp,
+    ) {
+        Column(
+            Modifier.fillMaxSize().padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text(
+                title,
+                modifier = Modifier
+                    .focusRequester(titleFocusRequester)
+                    .focusable()
+                    .semantics { heading() },
+                style = MaterialTheme.typography.headlineMedium,
+            )
             Column(
                 Modifier
-                    .heightIn(max = 520.dp)
+                    .weight(1f)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -552,26 +887,33 @@ private fun DeviceInfoDialog(
                     }
                 }
             }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    clipboard.setPrimaryClip(
-                        ClipData.newPlainText(
-                            clipboardLabel,
-                            snapshot.toDiagnosticDump(
-                                activeCodec = activeCodec,
-                                rawResponses = repository.diagnosticLog(),
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ExpressiveTextButton(
+                    onClick = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText(
+                                clipboardLabel,
+                                snapshot.toDiagnosticDump(
+                                    activeCodec = activeCodec,
+                                    rawResponses = repository.diagnosticLog(),
+                                ),
                             ),
-                        ),
-                    )
-                },
-            ) { Text(stringResource(R.string.device_info_copy_raw)) }
-        },
-        shape = AppCardShape,
-    )
+                        )
+                    },
+                ) {
+                    Text(stringResource(R.string.device_info_copy_raw))
+                }
+                ExpressiveTextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.close))
+                }
+            }
+        }
+    }
 }
 
 private fun ProductionDate.diagnosticValue(): String = "%04d-%02d".format(Locale.ROOT, year, month)
@@ -728,6 +1070,23 @@ private fun DualConnectCard(snapshot: HeadphonesSnapshot, repository: Headphones
     var expanded by remember { mutableStateOf(false) }
     var selectedAddress by remember { mutableStateOf<String?>(null) }
     val selectedDevice = snapshot.dualConnectDevices.firstOrNull { it.address == selectedAddress }
+    val headerInteraction = remember { MutableInteractionSource() }
+    val headerScale = remember { Animatable(1f) }
+
+    LaunchedEffect(headerInteraction) {
+        headerInteraction.interactions.collect { event ->
+            if (event is PressInteraction.Press) {
+                headerScale.animateTo(0.985f, tween(65))
+                headerScale.animateTo(
+                    1f,
+                    spring(
+                        dampingRatio = 0.9f,
+                        stiffness = Spring.StiffnessMedium,
+                    ),
+                )
+            }
+        }
+    }
 
     LaunchedEffect(expanded) {
         if (expanded) repository.refreshDualConnectDevices()
@@ -738,7 +1097,12 @@ private fun DualConnectCard(snapshot: HeadphonesSnapshot, repository: Headphones
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .clickable(enabled = snapshot.dualConnectEnabled != null) { expanded = !expanded }
+                    .clickable(
+                        enabled = snapshot.dualConnectEnabled != null,
+                        interactionSource = headerInteraction,
+                        indication = androidx.compose.foundation.LocalIndication.current,
+                    ) { expanded = !expanded }
+                    .graphicsLayer { scaleX = headerScale.value; scaleY = headerScale.value }
                     .padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -760,7 +1124,11 @@ private fun DualConnectCard(snapshot: HeadphonesSnapshot, repository: Headphones
                     )
                 }
             }
-            if (expanded) {
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut(),
+            ) {
                 HorizontalDivider()
                 if (snapshot.dualConnectDevices.isEmpty()) {
                     Text(
@@ -805,12 +1173,11 @@ private fun DualDeviceCard(device: DualConnectDevice, onClick: () -> Unit) {
         DualConnectionState.CONNECTED -> Icons.Default.Bluetooth
         DualConnectionState.DISCONNECTED -> Icons.Default.BluetoothDisabled
     }
-    Card(
-        Modifier
+    ExpressiveClickableCard(
+        onClick = onClick,
+        modifier = Modifier
             .width(112.dp)
-            .semantics(mergeDescendants = true) { role = Role.Button }
-            .clickable(onClick = onClick),
-        shape = AppCardShape,
+            .semantics(mergeDescendants = true) { role = Role.Button },
     ) {
         Column(
             Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 7.dp),
@@ -857,7 +1224,7 @@ private fun DualDeviceSheet(
                 device.preferred,
                 true,
             ) { repository.setDualDevicePreferred(device, it) }
-            Button(
+            ExpressiveButton(
                 onClick = {
                     repository.setDualDeviceConnected(
                         device,
@@ -876,7 +1243,7 @@ private fun DualDeviceSheet(
                     ),
                 )
             }
-            TextButton(onClick = { confirmUnpair = true }, modifier = Modifier.fillMaxWidth()) {
+            ExpressiveTextButton(onClick = { confirmUnpair = true }, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.Delete, null)
                 Text(stringResource(R.string.dual_connect_unpair), Modifier.padding(start = 8.dp))
             }
@@ -888,10 +1255,10 @@ private fun DualDeviceSheet(
             title = { Text(stringResource(R.string.dual_connect_unpair)) },
             text = { Text(stringResource(R.string.dual_connect_unpair_confirmation, device.name)) },
             dismissButton = {
-                TextButton(onClick = { confirmUnpair = false }) { Text(stringResource(R.string.cancel)) }
+                ExpressiveTextButton(onClick = { confirmUnpair = false }) { Text(stringResource(R.string.cancel)) }
             },
             confirmButton = {
-                Button(onClick = {
+                ExpressiveButton(onClick = {
                     repository.unpairDualDevice(device)
                     confirmUnpair = false
                     onDismiss()
@@ -957,8 +1324,20 @@ private fun BatteryRow(
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 1,
             )
+            // Keep the percentage in a stable right-aligned slot. The charging
+            // indicator has its own fixed-width slot on the left, so appearing
+            // or disappearing never shifts the digits.
             Text(
-                if (validLevel == null) "—" else "$validLevel%${if (charging) " ⚡" else ""}",
+                text = if (charging && validLevel != null) "⚡" else "",
+                modifier = Modifier.width(24.dp),
+                color = contentColor,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = validLevel?.let { "$it%" } ?: "—",
+                modifier = Modifier.width(52.dp),
                 color = contentColor,
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 1,
@@ -978,9 +1357,11 @@ private fun AncCard(
 ) {
     Card(Modifier.fillMaxWidth(), shape = AppCardShape) {
         Column(
-            Modifier.fillMaxWidth().padding(16.dp),
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             AncCardHeader(
                 snapshot = snapshot,
@@ -988,19 +1369,95 @@ private fun AncCard(
                 interactive = interactive,
                 chooseLevel = repository::setAncLevel,
             )
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                AncModeButton(AncMode.NOISE_CANCELLING, snapshot.ancMode, R.drawable.ic_anc_noise_control, buttonSize, interactive) {
-                    repository.setAncMode(AncMode.NOISE_CANCELLING)
+            AncModeSelector(
+                selectedMode = snapshot.ancMode,
+                buttonSize = buttonSize,
+                enabled = interactive,
+                onSelect = repository::setAncMode,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AncModeSelector(
+    selectedMode: AncMode?,
+    buttonSize: androidx.compose.ui.unit.Dp,
+    enabled: Boolean,
+    onSelect: (AncMode) -> Unit,
+) {
+    val modes = remember {
+        listOf(
+            Triple(AncMode.NOISE_CANCELLING, R.drawable.ic_anc_noise_control, "ancNoise"),
+            Triple(AncMode.OFF, R.drawable.ic_anc_off, "ancOff"),
+            Triple(AncMode.TRANSPARENCY, R.drawable.ic_anc_transparency, "ancTransparency"),
+        )
+    }
+    val selectedIndex = modes.indexOfFirst { it.first == selectedMode }
+
+    BoxWithConstraints(
+        Modifier
+            .fillMaxWidth()
+            .height(buttonSize),
+    ) {
+        val slotWidth = maxWidth / modes.size
+        val targetOffset = if (selectedIndex >= 0) {
+            slotWidth * selectedIndex + (slotWidth - buttonSize) / 2
+        } else {
+            0.dp
+        }
+        val indicatorOffset by animateDpAsState(
+            targetValue = targetOffset,
+            animationSpec = spring(
+                // About 30% faster than the previous spring, with a small
+                // controlled overshoot at the destination.
+                dampingRatio = 0.82f,
+                stiffness = Spring.StiffnessLow * 1.69f,
+            ),
+            label = "ancIndicatorOffset",
+        )
+
+        // Every mode keeps a quiet tonal base. One shared accent circle moves
+        // between the slots, making the selected state spatial rather than
+        // replacing three independent button backgrounds.
+        Row(Modifier.fillMaxSize()) {
+            modes.forEach {
+                Box(
+                    Modifier.weight(1f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        Modifier
+                            .size(buttonSize)
+                            .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
+                    )
                 }
-                AncModeButton(AncMode.OFF, snapshot.ancMode, R.drawable.ic_anc_off, buttonSize, interactive) {
-                    repository.setAncMode(AncMode.OFF)
-                }
-                AncModeButton(AncMode.TRANSPARENCY, snapshot.ancMode, R.drawable.ic_anc_transparency, buttonSize, interactive) {
-                    repository.setAncMode(AncMode.TRANSPARENCY)
+            }
+        }
+
+        if (selectedIndex >= 0) {
+            Box(
+                Modifier
+                    .offset(x = indicatorOffset)
+                    .size(buttonSize)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+            )
+        }
+
+        Row(Modifier.fillMaxSize()) {
+            modes.forEach { (mode, icon, label) ->
+                Box(
+                    Modifier.weight(1f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AncModeButton(
+                        mode = mode,
+                        selectedMode = selectedMode,
+                        icon = icon,
+                        buttonSize = buttonSize,
+                        enabled = enabled,
+                        label = label,
+                    ) { onSelect(mode) }
                 }
             }
         }
@@ -1013,29 +1470,32 @@ private fun AncModeButton(
     selectedMode: AncMode?,
     @DrawableRes icon: Int,
     buttonSize: androidx.compose.ui.unit.Dp,
-    enabled: Boolean = true,
+    enabled: Boolean,
+    label: String,
     onClick: () -> Unit,
 ) {
-    val content: @Composable () -> Unit = {
+    val isSelected = mode == selectedMode
+    val contentColor by animateColorAsState(
+        targetValue = if (isSelected) {
+            MaterialTheme.colorScheme.onPrimary
+        } else {
+            MaterialTheme.colorScheme.onSecondaryContainer
+        },
+        label = "${label}Content",
+    )
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
+        colors = IconButtonDefaults.iconButtonColors(
+            contentColor = contentColor,
+            disabledContentColor = contentColor.copy(alpha = 0.38f),
+        ),
+        modifier = Modifier.size(buttonSize).semantics { selected = isSelected },
+    ) {
         Icon(
             painter = painterResource(icon),
             contentDescription = stringResource(mode.label()),
             modifier = Modifier.size(buttonSize * 0.6f),
-        )
-    }
-    if (mode == selectedMode) {
-        FilledIconButton(
-            onClick = onClick,
-            enabled = enabled,
-            modifier = Modifier.size(buttonSize).semantics { selected = true },
-            content = content,
-        )
-    } else {
-        FilledTonalIconButton(
-            onClick = onClick,
-            enabled = enabled,
-            modifier = Modifier.size(buttonSize).semantics { selected = false },
-            content = content,
         )
     }
 }
@@ -1072,9 +1532,18 @@ private fun AncCardHeader(
             maxLines = 1,
         )
         Box {
+            val anchorColor by animateColorAsState(
+                targetValue = if (expanded) {
+                    MaterialTheme.colorScheme.secondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHighest
+                },
+                label = "ancLevelAnchorColor",
+            )
             Row(
                 modifier = Modifier
                     .clip(AppCardShape)
+                    .background(anchorColor)
                     .then(
                         if (canChooseLevel && interactive) {
                             Modifier.clickable(
@@ -1083,11 +1552,8 @@ private fun AncCardHeader(
                             )
                         } else Modifier
                     )
-                    .padding(horizontal = 8.dp, vertical = 6.dp)
-                    // Keep the header height identical in every ANC mode: the
-                    // chevron is only shown for noise cancelling, so without a
-                    // fixed minimum the card would shrink for Off/Transparency.
-                    .heightIn(min = 24.dp),
+                    .heightIn(min = 48.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
             ) {
@@ -1098,10 +1564,18 @@ private fun AncCardHeader(
                     maxLines = 1,
                 )
                 if (canChooseLevel) {
+                    val chevron by animateFloatAsState(
+                        targetValue = if (expanded) 180f else 0f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMediumLow,
+                        ),
+                        label = "levelChevron",
+                    )
                     Icon(
                         imageVector = Icons.Default.ExpandMore,
                         contentDescription = null,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(20.dp).graphicsLayer { rotationZ = chevron },
                         tint = if (interactive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -1113,7 +1587,8 @@ private fun AncCardHeader(
             ) {
                 levels.forEach { level ->
                     val isSelected = level == snapshot.ancLevel
-                    DropdownMenuItem(
+                    ExpressiveDropdownMenuItem(
+                        selected = isSelected,
                         text = { Text(stringResource(level.label())) },
                         trailingIcon = {
                             if (isSelected) Icon(Icons.Default.Check, null)
@@ -1230,9 +1705,10 @@ private fun HeadphonesSettingsScreen(
                         )
                     }
                     SettingsBlock.FIND_EARBUDS -> if (findEarbuds != null) item(key = block.name) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth().clickable(onClick = openFindEarbuds),
-                            shape = AppCardShape,
+                        ExpressiveClickableCard(
+                            onClick = openFindEarbuds,
+                            modifier = Modifier.fillMaxWidth(),
+                            actionDelayMillis = 170,
                         ) {
                             Column(
                                 Modifier.padding(20.dp),
@@ -1377,13 +1853,13 @@ private fun FindEarbudsScreen(
             title = { Text(stringResource(R.string.find_earbuds_warning_title)) },
             text = { Text(stringResource(R.string.find_earbuds_warning)) },
             confirmButton = {
-                TextButton(onClick = {
+                ExpressiveTextButton(onClick = {
                     repository.setFindEarbudSound(side, true)
                     pendingSide = null
                 }) { Text(stringResource(R.string.find_earbuds_confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingSide = null }) { Text(stringResource(R.string.cancel)) }
+                ExpressiveTextButton(onClick = { pendingSide = null }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
@@ -1409,10 +1885,10 @@ private fun FindEarbudCard(
         ) {
             Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
             when {
-                sounding -> Button(onClick = { repository.setFindEarbudSound(side, false) }) {
+                sounding -> ExpressiveButton(onClick = { repository.setFindEarbudSound(side, false) }) {
                     Text(stringResource(R.string.find_earbuds_stop))
                 }
-                else -> Button(onClick = { requestStart(side) }) {
+                else -> ExpressiveButton(onClick = { requestStart(side) }) {
                     Text(stringResource(R.string.find_earbuds_play))
                 }
             }
@@ -1527,7 +2003,8 @@ private fun CustomEqualizerSection(
                         is EqualizerChoice.BuiltIn -> choice.preset.eqLabel()
                         is EqualizerChoice.Custom -> choice.preset.name
                     }
-                    DropdownMenuItem(
+                    ExpressiveDropdownMenuItem(
+                        selected = choice == selected,
                         text = { Text(label) },
                         trailingIcon = {
                             if (choice == selected) Icon(Icons.Default.Check, null)
@@ -1544,14 +2021,14 @@ private fun CustomEqualizerSection(
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(
+            ExpressiveTextButton(
                 onClick = { importLauncher.launch(arrayOf("application/json", "text/json", "text/plain", "application/octet-stream")) },
             ) {
                 Icon(Icons.Default.ArrowDownward, contentDescription = null)
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.eq_import))
             }
-            TextButton(
+            ExpressiveTextButton(
                 onClick = { exportLauncher.launch(EqualizerPresetFileCodec.suggestedFileName(protocolId)) },
                 enabled = customPresets.isNotEmpty(),
             ) {
@@ -1563,14 +2040,14 @@ private fun CustomEqualizerSection(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
             val activeCustom = (selected as? EqualizerChoice.Custom)?.preset
             if (activeCustom != null) {
-                TextButton(onClick = { editing = activeCustom }) {
+                ExpressiveTextButton(onClick = { editing = activeCustom }) {
                     Icon(Icons.Default.Edit, null)
                     Spacer(Modifier.width(6.dp))
                     Text(stringResource(R.string.eq_custom_edit))
                 }
             }
             if (canCreate) {
-                TextButton(
+                ExpressiveTextButton(
                     onClick = {
                         val used = customPresets.mapTo(mutableSetOf()) { it.id }
                         val id = (module.firstPresetId..module.lastPresetId)
@@ -1603,13 +2080,13 @@ private fun CustomEqualizerSection(
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
+                ExpressiveTextButton(onClick = {
                     repository.replaceCustomEq(file.presets)
                     pendingImport = null
                 }) { Text(stringResource(R.string.eq_import_replace)) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingImport = null }) { Text(stringResource(R.string.cancel)) }
+                ExpressiveTextButton(onClick = { pendingImport = null }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
@@ -1670,7 +2147,7 @@ private fun CustomEqualizerEditor(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = { bands = List(10) { 0 } }) {
+                    ExpressiveTextButton(onClick = { bands = List(10) { 0 } }) {
                         Text(stringResource(R.string.eq_custom_reset))
                     }
                 }
@@ -1702,7 +2179,7 @@ private fun CustomEqualizerEditor(
             }
         },
         confirmButton = {
-            TextButton(
+            ExpressiveTextButton(
                 onClick = { onSave(original.copy(name = name.trim(), bands = bands)) },
                 enabled = validName,
             ) { Text(stringResource(R.string.save)) }
@@ -1710,13 +2187,13 @@ private fun CustomEqualizerEditor(
         dismissButton = {
             Row {
                 if (allowDelete) {
-                    TextButton(onClick = { confirmDelete = true }) {
+                    ExpressiveTextButton(onClick = { confirmDelete = true }) {
                         Icon(Icons.Default.Delete, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.eq_custom_delete))
                     }
                 }
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+                ExpressiveTextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
             }
         },
     )
@@ -1726,8 +2203,8 @@ private fun CustomEqualizerEditor(
             onDismissRequest = { confirmDelete = false },
             title = { Text(stringResource(R.string.eq_custom_delete_title)) },
             text = { Text(stringResource(R.string.eq_custom_delete_confirmation, original.name)) },
-            confirmButton = { TextButton(onDelete) { Text(stringResource(R.string.eq_custom_delete)) } },
-            dismissButton = { TextButton({ confirmDelete = false }) { Text(stringResource(R.string.cancel)) } },
+            confirmButton = { ExpressiveTextButton(onDelete) { Text(stringResource(R.string.eq_custom_delete)) } },
+            dismissButton = { ExpressiveTextButton({ confirmDelete = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }
@@ -1801,7 +2278,8 @@ private fun <T> EnumDropdown(@StringRes title: Int, values: List<T>, selected: T
         ) {
             values.forEach { value ->
                 val isSelected = value == selected
-                DropdownMenuItem(
+                ExpressiveDropdownMenuItem(
+                    selected = isSelected,
                     text = { Text(label(value)) },
                     trailingIcon = {
                         if (isSelected) Icon(Icons.Default.Check, null)
@@ -1878,15 +2356,17 @@ private fun SplitHoldSideModesCard(
     val current = modes ?: emptySet()
     val enabled = action == SplitHoldAction.CYCLE_ANC && modes != null
     Card(Modifier.fillMaxWidth(), shape = AppCardShape) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.padding(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
                 "${stringResource(R.string.hold_modes)} · ${stringResource(sideLabel)}",
+                modifier = Modifier.padding(horizontal = 16.dp),
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(
                 stringResource(
                     if (enabled) R.string.hold_modes_minimum_hint else R.string.hold_modes_disabled_hint,
                 ),
+                modifier = Modifier.padding(horizontal = 16.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -1896,6 +2376,7 @@ private fun SplitHoldSideModesCard(
                     mode in current,
                     enabled,
                     stringResource(mode.description()),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                 ) { checked ->
                     repository.setSplitHoldModes(side, toggleHoldMode(current, mode, checked))
                 }
@@ -1909,10 +2390,10 @@ private fun HoldModesCard(settings: FreeBudsSettings, repository: HeadphonesRepo
     val current = settings.holdModes ?: emptySet()
     val enabled = settings.hold == Hold.CYCLE_ANC && settings.holdModes != null
     Card(Modifier.fillMaxWidth(), shape = AppCardShape) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.padding(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
                 stringResource(R.string.hold_modes),
-                modifier = Modifier.semantics { heading() },
+                modifier = Modifier.padding(horizontal = 16.dp).semantics { heading() },
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(
@@ -1920,6 +2401,7 @@ private fun HoldModesCard(settings: FreeBudsSettings, repository: HeadphonesRepo
                     if (enabled) R.string.hold_modes_minimum_hint
                     else R.string.hold_modes_disabled_hint,
                 ),
+                modifier = Modifier.padding(horizontal = 16.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -1930,6 +2412,7 @@ private fun HoldModesCard(settings: FreeBudsSettings, repository: HeadphonesRepo
                         mode in current,
                         enabled,
                         stringResource(mode.description()),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                     ) { checked ->
                         repository.setHoldModes(toggleHoldMode(current, mode, checked))
                     }
@@ -1948,9 +2431,15 @@ private fun CardSwitch(
     onChange: (Boolean) -> Unit,
 ) {
     Card(Modifier.fillMaxWidth(), shape = AppCardShape) {
-        Box(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-            SettingSwitch(label, checked, enabled, description, onChange)
-        }
+        // Padding lives inside the toggleable row so the ripple fills the card.
+        SettingSwitch(
+            label,
+            checked,
+            enabled,
+            description,
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            onChange = onChange,
+        )
     }
 }
 
@@ -1960,6 +2449,7 @@ private fun SettingSwitch(
     checked: Boolean,
     enabled: Boolean = true,
     description: String? = null,
+    contentPadding: PaddingValues = PaddingValues(vertical = 6.dp),
     onChange: (Boolean) -> Unit,
 ) {
     Row(
@@ -1971,7 +2461,7 @@ private fun SettingSwitch(
                 role = Role.Switch,
                 onValueChange = onChange,
             )
-            .padding(vertical = 6.dp),
+            .padding(contentPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -2122,6 +2612,7 @@ private fun InterfaceEditorScreen(
                 val supported = block in supportedHome
                 val visible = block !in layout.hiddenHomeBlocks
                 OrderEditorRow(
+                    modifier = Modifier.animateItem(),
                     label = stringResource(block.label()),
                     visible = visible,
                     canChangeVisibility = block !in REQUIRED_HOME_BLOCKS,
@@ -2184,7 +2675,9 @@ private fun InterfaceEditorScreen(
                                     ),
                                 ),
                                 contentDescription = null,
-                                modifier = Modifier.fillMaxWidth().height((180 * scale).dp),
+                                modifier = Modifier.fillMaxWidth().height(
+                                    animateDpAsState((180 * scale).dp, label = "imgPreview").value,
+                                ),
                                 contentScale = ContentScale.Fit,
                             )
                         }
@@ -2211,10 +2704,13 @@ private fun InterfaceEditorScreen(
                             Spacer(Modifier.height(12.dp))
                             BatteryCard(
                                 previewSnapshot.battery,
-                                scaleDp(
-                                    InterfaceLayoutDefaults.BATTERY_ROW_HEIGHT_DP,
-                                    layout.batteryScalePercent,
-                                ).dp,
+                                animateDpAsState(
+                                    scaleDp(
+                                        InterfaceLayoutDefaults.BATTERY_ROW_HEIGHT_DP,
+                                        layout.batteryScalePercent,
+                                    ).dp,
+                                    label = "batPreview",
+                                ).value,
                             )
                         }
 
@@ -2244,10 +2740,13 @@ private fun InterfaceEditorScreen(
                                     previewSnapshot,
                                     repository,
                                     ancModule,
-                                    scaleDp(
-                                        InterfaceLayoutDefaults.ANC_BUTTON_SIZE_DP,
-                                        layout.ancScalePercent,
-                                    ).dp,
+                                    animateDpAsState(
+                                        scaleDp(
+                                            InterfaceLayoutDefaults.ANC_BUTTON_SIZE_DP,
+                                            layout.ancScalePercent,
+                                        ).dp,
+                                        label = "ancPreview",
+                                    ).value,
                                     interactive = false,
                                 )
                             }
@@ -2264,6 +2763,7 @@ private fun InterfaceEditorScreen(
                 val supported = block in supportedSettings
                 val visible = block !in layout.hiddenSettingsBlocks
                 OrderEditorRow(
+                    modifier = Modifier.animateItem(),
                     label = stringResource(block.label()),
                     visible = visible,
                     canChangeVisibility = true,
@@ -2296,7 +2796,7 @@ private fun InterfaceEditorScreen(
                 )
             }
             item {
-                Button(
+                ExpressiveButton(
                     onClick = {
                         scope.launch { ThemeStore.resetInterfaceLayout(context) }
                     },
@@ -2316,7 +2816,7 @@ private fun InterfaceEditorScreen(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Button(
+                        ExpressiveButton(
                             onClick = {
                                 layoutImportLauncher.launch(
                                     arrayOf(
@@ -2333,7 +2833,7 @@ private fun InterfaceEditorScreen(
                             Spacer(Modifier.width(6.dp))
                             Text(stringResource(R.string.interface_layout_import))
                         }
-                        Button(
+                        ExpressiveButton(
                             onClick = {
                                 layoutExportLauncher.launch(InterfaceLayoutFileCodec.FILE_NAME)
                             },
@@ -2372,7 +2872,7 @@ private fun InterfaceEditorScreen(
                 Text(message)
             },
             confirmButton = {
-                TextButton(
+                ExpressiveTextButton(
                     onClick = {
                         scope.launch {
                             ThemeStore.setInterfaceLayout(context, imported.layout)
@@ -2385,7 +2885,7 @@ private fun InterfaceEditorScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingLayoutImportJson = null }) {
+                ExpressiveTextButton(onClick = { pendingLayoutImportJson = null }) {
                     Text(stringResource(R.string.cancel))
                 }
             },
@@ -2438,6 +2938,219 @@ private fun <T> List<T>.move(value: T, offset: Int): List<T> {
     }
 }
 
+/** Clickable card with a guaranteed visible press pulse before navigation or opening a layer. */
+@Composable
+private fun ExpressiveClickableCard(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    actionDelayMillis: Long = 120,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val scale = remember { Animatable(1f) }
+    val scope = rememberCoroutineScope()
+    var pending by remember { mutableStateOf(false) }
+
+    LaunchedEffect(interaction) {
+        interaction.interactions.collect { event ->
+            if (event is PressInteraction.Press) {
+                scale.animateTo(0.97f, tween(75))
+                scale.animateTo(
+                    1f,
+                    spring(
+                        dampingRatio = 0.86f,
+                        stiffness = Spring.StiffnessMedium,
+                    ),
+                )
+            }
+        }
+    }
+
+    Card(
+        onClick = {
+            if (!pending) {
+                pending = true
+                scope.launch {
+                    try {
+                        if (actionDelayMillis > 0) delay(actionDelayMillis)
+                        onClick()
+                    } finally {
+                        pending = false
+                    }
+                }
+            }
+        },
+        modifier = modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value },
+        enabled = enabled,
+        shape = AppCardShape,
+        interactionSource = interaction,
+        content = content,
+    )
+}
+
+/** Filled button with a clear Expressive press response (scale + ripple). */
+@Composable
+private fun ExpressiveButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    actionDelayMillis: Long = 120,
+    content: @Composable RowScope.() -> Unit,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val scale = remember { Animatable(1f) }
+    val scope = rememberCoroutineScope()
+    var actionPending by remember { mutableStateOf(false) }
+    val delayedOnClick: () -> Unit = {
+        if (!actionPending) {
+            if (actionDelayMillis <= 0) {
+                onClick()
+            } else {
+                actionPending = true
+                scope.launch {
+                    try {
+                        delay(actionDelayMillis)
+                        onClick()
+                    } finally {
+                        actionPending = false
+                    }
+                }
+            }
+        }
+    }
+    LaunchedEffect(interaction) {
+        interaction.interactions.collect { i ->
+            if (i is PressInteraction.Press) {
+                // Always play the full squash even for a quick tap.
+                scale.animateTo(0.9f, tween(durationMillis = 90))
+                scale.animateTo(
+                    1f,
+                    spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+                )
+            }
+        }
+    }
+    androidx.compose.material3.Button(
+        onClick = delayedOnClick,
+        modifier = modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value },
+        enabled = enabled,
+        interactionSource = interaction,
+        content = content,
+    )
+}
+
+/** Text button with the same Expressive press response as [ExpressiveButton]. */
+@Composable
+private fun ExpressiveTextButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    actionDelayMillis: Long = 120,
+    content: @Composable RowScope.() -> Unit,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val scale = remember { Animatable(1f) }
+    val scope = rememberCoroutineScope()
+    var actionPending by remember { mutableStateOf(false) }
+    val delayedOnClick: () -> Unit = {
+        if (!actionPending) {
+            if (actionDelayMillis <= 0) {
+                onClick()
+            } else {
+                actionPending = true
+                scope.launch {
+                    try {
+                        delay(actionDelayMillis)
+                        onClick()
+                    } finally {
+                        actionPending = false
+                    }
+                }
+            }
+        }
+    }
+    LaunchedEffect(interaction) {
+        interaction.interactions.collect { i ->
+            if (i is PressInteraction.Press) {
+                scale.animateTo(0.9f, tween(durationMillis = 90))
+                scale.animateTo(
+                    1f,
+                    spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+                )
+            }
+        }
+    }
+    androidx.compose.material3.TextButton(
+        onClick = delayedOnClick,
+        modifier = modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value },
+        enabled = enabled,
+        interactionSource = interaction,
+        content = content,
+    )
+}
+
+/** M3 Expressive menu row with a guaranteed visible press pulse before dismissal. */
+@Composable
+private fun ExpressiveDropdownMenuItem(
+    selected: Boolean,
+    text: @Composable () -> Unit,
+    trailingIcon: @Composable (() -> Unit)? = null,
+    onClick: () -> Unit,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val scale = remember { Animatable(1f) }
+    val scope = rememberCoroutineScope()
+    var pending by remember { mutableStateOf(false) }
+
+    LaunchedEffect(interaction) {
+        interaction.interactions.collect { event ->
+            if (event is PressInteraction.Press) {
+                scale.animateTo(0.97f, tween(75))
+                scale.animateTo(
+                    1f,
+                    spring(
+                        dampingRatio = 0.86f,
+                        stiffness = Spring.StiffnessMedium,
+                    ),
+                )
+            }
+        }
+    }
+
+    DropdownMenuItem(
+        text = text,
+        trailingIcon = trailingIcon,
+        interactionSource = interaction,
+        modifier = Modifier
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .heightIn(min = 52.dp)
+            .clip(MenuItemShape)
+            .then(
+                if (selected) {
+                    Modifier.background(MaterialTheme.colorScheme.secondaryContainer)
+                } else {
+                    Modifier
+                },
+            )
+            .graphicsLayer { scaleX = scale.value; scaleY = scale.value },
+        contentPadding = PaddingValues(horizontal = 14.dp),
+        onClick = {
+            if (!pending) {
+                pending = true
+                scope.launch {
+                    try {
+                        kotlinx.coroutines.delay(120)
+                        onClick()
+                    } finally {
+                        pending = false
+                    }
+                }
+            }
+        },
+    )
+}
+
 @Composable
 private fun EditorSectionTitle(@StringRes title: Int) {
     Text(
@@ -2460,9 +3173,15 @@ private fun OrderEditorRow(
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
     hasDetails: Boolean = false,
+    modifier: Modifier = Modifier,
     details: @Composable ColumnScope.() -> Unit = {},
 ) {
-    Card(Modifier.fillMaxWidth(), shape = AppCardShape) {
+    // Expressive: dim smoothly when the block is hidden or unsupported.
+    val cardAlpha by animateFloatAsState(
+        targetValue = if (visible && supported) 1f else 0.55f,
+        label = "editorRowAlpha",
+    )
+    Card(modifier.fillMaxWidth().alpha(cardAlpha), shape = AppCardShape) {
         Column {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -2583,19 +3302,36 @@ private fun AboutScreen(
     val selectedHeadphonesColor = storedHeadphonesColor.toDeviceColor()
     var showThemeDialog by remember { mutableStateOf(false) }
 
-    Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.about), Modifier.semantics { heading() }) }, navigationIcon = { IconButton(back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) } }) }) { padding ->
-        Column(Modifier.padding(padding).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.about), Modifier.semantics { heading() }) },
+                navigationIcon = {
+                    IconButton(back) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Column(
+            Modifier
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             Text(
                 stringResource(R.string.appearance),
                 modifier = Modifier.semantics { heading() },
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
-            Row(
-                Modifier.fillMaxWidth().clickable(role = Role.Button) { showThemeDialog = true }.padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            ExpressiveClickableCard(
+                onClick = { showThemeDialog = true },
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                Column(Modifier.weight(1f)) {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                     Text(stringResource(R.string.theme), style = MaterialTheme.typography.bodyLarge)
                     Text(
                         stringResource(themeMode.label()),
@@ -2604,35 +3340,19 @@ private fun AboutScreen(
                     )
                 }
             }
-            Row(
-                Modifier.fillMaxWidth()
-                    .toggleable(
-                        value = showEmojis,
-                        role = Role.Switch,
-                        onValueChange = { show ->
-                            scope.launch { ThemeStore.setShowEmojis(context, show) }
-                        },
-                    )
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.show_emojis), style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        stringResource(R.string.show_emojis_description),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Switch(checked = showEmojis, onCheckedChange = null)
+            CardSwitch(
+                label = stringResource(R.string.show_emojis),
+                checked = showEmojis,
+                description = stringResource(R.string.show_emojis_description),
+            ) { show ->
+                scope.launch { ThemeStore.setShowEmojis(context, show) }
             }
-            Row(
-                Modifier.fillMaxWidth()
-                    .clickable(role = Role.Button, onClick = openInterfaceEditor)
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            ExpressiveClickableCard(
+                onClick = openInterfaceEditor,
+                modifier = Modifier.fillMaxWidth(),
+                actionDelayMillis = 170,
             ) {
-                Column(Modifier.weight(1f)) {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                     Text(
                         stringResource(R.string.interface_editor),
                         style = MaterialTheme.typography.bodyLarge,
@@ -2649,48 +3369,50 @@ private fun AboutScreen(
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary,
             )
-            Row(
-                Modifier.fillMaxWidth()
-                    .toggleable(
-                        value = forceHeadphonesColor,
-                        role = Role.Switch,
-                        onValueChange = { force ->
-                            scope.launch {
-                                ThemeStore.setForceHeadphonesColor(context, colorIdentity, force)
-                            }
-                        },
-                    )
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
+            Card(Modifier.fillMaxWidth(), shape = AppCardShape) {
+                Column {
+                    SettingSwitch(
+                        label = stringResource(R.string.force_headphones_color),
+                        checked = forceHeadphonesColor,
+                        description = stringResource(R.string.force_headphones_color_description),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    ) { force ->
+                        scope.launch {
+                            ThemeStore.setForceHeadphonesColor(context, colorIdentity, force)
+                        }
+                    }
+                    if (forceHeadphonesColor) {
+                        Box(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
+                            EnumDropdown(
+                                title = R.string.headphones_color,
+                                values = colorProtocol.availableColors,
+                                selected = selectedHeadphonesColor,
+                                label = { stringResource(it.label()) },
+                                choose = { color ->
+                                    scope.launch {
+                                        ThemeStore.setHeadphonesColor(context, colorIdentity, color.name)
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+            Card(Modifier.fillMaxWidth(), shape = AppCardShape) {
+                Column(
+                    Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
+                    Text(stringResource(R.string.about_text))
                     Text(
-                        stringResource(R.string.force_headphones_color),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                    Text(
-                        stringResource(R.string.force_headphones_color_description),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        stringResource(
+                            R.string.version_text,
+                            "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                        ),
                     )
                 }
-                Switch(checked = forceHeadphonesColor, onCheckedChange = null)
             }
-            if (forceHeadphonesColor) {
-                EnumDropdown(
-                    title = R.string.headphones_color,
-                    values = colorProtocol.availableColors,
-                    selected = selectedHeadphonesColor,
-                    label = { stringResource(it.label()) },
-                    choose = { color ->
-                        scope.launch { ThemeStore.setHeadphonesColor(context, colorIdentity, color.name) }
-                    },
-                )
-            }
-            HorizontalDivider()
-            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
-            Text(stringResource(R.string.about_text))
-            Text(stringResource(R.string.version_text, "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"))
         }
     }
 
@@ -2699,30 +3421,78 @@ private fun AboutScreen(
             onDismissRequest = { showThemeDialog = false },
             title = { Text(stringResource(R.string.theme)) },
             text = {
-                Column {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     ThemeStore.ThemeMode.entries.forEach { mode ->
+                        val selected = themeMode == mode
+                        val interaction = remember(mode) { MutableInteractionSource() }
+                        val scale = remember(mode) { Animatable(1f) }
+                        var pending by remember(mode) { mutableStateOf(false) }
+                        LaunchedEffect(interaction) {
+                            interaction.interactions.collect { event ->
+                                if (event is PressInteraction.Press) {
+                                    scale.animateTo(0.97f, tween(75))
+                                    scale.animateTo(
+                                        1f,
+                                        spring(
+                                            dampingRatio = 0.86f,
+                                            stiffness = Spring.StiffnessMedium,
+                                        ),
+                                    )
+                                }
+                            }
+                        }
                         Row(
-                            Modifier.fillMaxWidth()
-                                .selectable(
-                                    selected = themeMode == mode,
-                                    role = Role.RadioButton,
-                                    onClick = {
-                                        scope.launch { ThemeStore.setThemeMode(context, mode) }
-                                        showThemeDialog = false
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 56.dp)
+                                .clip(AppCardShape)
+                                .background(
+                                    if (selected) {
+                                        MaterialTheme.colorScheme.secondaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceContainerHighest
                                     },
                                 )
-                                .padding(vertical = 10.dp),
+                                .selectable(
+                                    selected = selected,
+                                    role = Role.RadioButton,
+                                    interactionSource = interaction,
+                                    indication = androidx.compose.foundation.LocalIndication.current,
+                                    onClick = {
+                                        if (!pending) {
+                                            pending = true
+                                            scope.launch {
+                                                try {
+                                                    delay(120)
+                                                    ThemeStore.setThemeMode(context, mode)
+                                                    showThemeDialog = false
+                                                } finally {
+                                                    pending = false
+                                                }
+                                            }
+                                        }
+                                    },
+                                )
+                                .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            RadioButton(selected = themeMode == mode, onClick = null)
+                            RadioButton(selected = selected, onClick = null)
                             Spacer(Modifier.width(12.dp))
-                            Text(stringResource(mode.label()))
+                            Text(
+                                text = stringResource(mode.label()),
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
                         }
                     }
                 }
             },
             confirmButton = {
-                TextButton({ showThemeDialog = false }) { Text(stringResource(R.string.cancel)) }
+                ExpressiveTextButton({ showThemeDialog = false }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
