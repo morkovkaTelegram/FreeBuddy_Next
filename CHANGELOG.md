@@ -5,6 +5,11 @@ This file is maintained in English first, followed by a complete Russian transla
 ## [Unreleased]
 
 - Documentation synchronized with the current implementation.
+- Added bounded WorkManager widget refreshes for Bluetooth connection/disconnection events, A2DP readiness waiting and fresh battery/ANC report tracking.
+- Added persistent publication revisions and a retry worker so unchanged battery readings can repair interrupted widget updates; Glance failures no longer abort the Bluetooth packet collector.
+- Added a persistent background-event trace to copied device diagnostics and documented HyperOS background restrictions.
+- Coalesced paired ACL/A2DP events without cancelling active reads, bypassed obsolete retry backoff on new events, and removed headset-readiness waiting from disconnect reconciliation.
+- Reused recent current-session battery/ANC reports, batched adjacent publications over 75 ms, and updated only affected widget providers while retaining persistent retry revisions.
 
 ## [0.4.4+49] — 2026-08
 
@@ -281,6 +286,11 @@ This file is maintained in English first, followed by a complete Russian transla
 ## [Не выпущено]
 
 - Документация синхронизирована с текущей реализацией.
+- Добавлены ограниченные по времени задачи WorkManager для обновления виджетов при подключении/отключении Bluetooth, ожидание готовности A2DP и отслеживание свежих ответов батареи и ANC.
+- Добавлены сохраняемые ревизии публикации и задача повторной отправки: неизменившиеся проценты теперь позволяют восстановить прерванное обновление виджета; ошибки Glance больше не обрывают обработку Bluetooth-пакетов.
+- В копируемую диагностику добавлен сохраняемый журнал фоновых событий; описаны ограничения фоновой работы HyperOS.
+- Парные события ACL/A2DP объединены без отмены активного опроса; новые события обходят устаревшие отложенные повторы; при отключении больше не ожидается появление наушников.
+- Добавлены повторное использование свежих ответов текущей сессии, объединение близких публикаций в окно 75 мс и обновление только затронутых видов виджетов с сохранением ревизий для повторной отправки.
 
 ## [0.4.4+49] — 2026-08
 

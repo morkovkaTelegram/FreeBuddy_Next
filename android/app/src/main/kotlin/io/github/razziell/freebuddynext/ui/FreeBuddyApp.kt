@@ -901,6 +901,7 @@ private fun DeviceInfoOverlay(
                                 snapshot.toDiagnosticDump(
                                     activeCodec = activeCodec,
                                     rawResponses = repository.diagnosticLog(),
+                                    backgroundEvents = repository.backgroundDiagnostics(),
                                 ),
                             ),
                         )
@@ -938,6 +939,7 @@ private fun DiagnosticSectionTitle(@StringRes title: Int) {
 private fun HeadphonesSnapshot.toDiagnosticDump(
     activeCodec: String?,
     rawResponses: List<String>,
+    backgroundEvents: List<String>,
 ): String = buildString {
     appendLine("FreeBuddy Next device diagnostics")
     appendLine("protocol=$protocolId")
@@ -973,6 +975,8 @@ private fun HeadphonesSnapshot.toDiagnosticDump(
         }
         eq.rawFields.forEach { (id, value) -> appendLine("eq.tlv$id=$value") }
     }
+    appendLine("backgroundEvents:")
+    backgroundEvents.forEach(::appendLine)
     appendLine("rawResponses:")
     rawResponses.forEach(::appendLine)
 }.trimEnd()

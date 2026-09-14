@@ -112,6 +112,10 @@ Widget features:
 - direct ANC mode switching from the home screen;
 - accessible descriptions for TalkBack.
 
+Bluetooth connection events schedule a bounded WorkManager refresh for installed widgets, with A2DP readiness checks and fresh battery/ANC reads. Interrupted widget publication is retried independently of changes in the battery percentages. Nearby ACL/A2DP events share a refresh cycle without cancelling an active read; new connection cycles bypass obsolete retries. Disconnect events reconcile the current profile state without waiting for a headset to appear. Recent reports from the current RFCOMM session are reused, and only missing widget data is requested. Adjacent data publications are batched over 75 ms and target battery or ANC providers separately; appearance changes still refresh all providers. The copied device diagnostics include a small persistent trace with event generations, cancellation and report source.
+
+On HyperOS, allow **Background autostart** and set the application's battery mode to **No restrictions** if updates are delayed. WorkManager scheduling and broadcast delivery remain subject to system/OEM restrictions; force-stopping the app prevents normal background operation. This is an event-driven refresh, not a permanent Bluetooth foreground service or a guarantee of continuous live updates while the process is suspended.
+
 #### Appearance and accessibility
 
 - System, light and dark application themes.
@@ -360,6 +364,10 @@ FreeBuddy Next предоставляет четыре Glance-виджета:
 - точное пиксельное отображение уровня заряда;
 - прямое переключение ANC с рабочего стола;
 - описания для TalkBack.
+
+События подключения Bluetooth запускают ограниченную по времени задачу WorkManager для установленных виджетов: она проверяет готовность A2DP и запрашивает свежие данные батареи и ANC. Незавершённая публикация в виджеты повторяется независимо от изменения процентов. Близкие события ACL/A2DP объединяются без отмены активного опроса; новый цикл подключения обходит устаревшие отложенные повторы. Отключение проверяет текущее состояние профиля без ожидания появления наушников. Свежие ответы текущей RFCOMM-сессии используются повторно, запрашиваются только недостающие данные. Близкие публикации объединяются в окно 75 мс и отдельно обновляют батарейные или ANC-виджеты; изменение оформления по-прежнему обновляет все виды. В копируемую диагностику включён небольшой сохраняемый журнал с поколениями событий, отменами и источником свежих данных.
+
+При задержках обновления на HyperOS разрешите **фоновый автозапуск** и установите режим батареи приложения **«Без ограничений»**. Планирование WorkManager и доставка событий зависят от ограничений системы и производителя; принудительная остановка приложения препятствует обычной фоновой работе. Это обновление по событиям, а не постоянный Bluetooth foreground service и не гарантия непрерывных обновлений при приостановленном процессе.
 
 #### Оформление и доступность
 

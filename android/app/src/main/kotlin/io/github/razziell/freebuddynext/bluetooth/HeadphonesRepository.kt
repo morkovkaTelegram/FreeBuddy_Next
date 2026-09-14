@@ -14,6 +14,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import io.github.razziell.freebuddynext.protocol.AncLevel
 import io.github.razziell.freebuddynext.protocol.AncMode
@@ -24,6 +25,7 @@ import io.github.razziell.freebuddynext.protocol.CustomEqualizerPreset
 import io.github.razziell.freebuddynext.protocol.EqualizerDiagnostics
 import io.github.razziell.freebuddynext.protocol.HeadphonesProtocol
 import io.github.razziell.freebuddynext.protocol.AncModule
+import io.github.razziell.freebuddynext.protocol.BatteryModule
 import io.github.razziell.freebuddynext.protocol.AutoPauseModule
 import io.github.razziell.freebuddynext.protocol.CustomEqualizerModule
 import io.github.razziell.freebuddynext.protocol.DoubleTapModule
@@ -61,10 +63,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 sealed interface ConnectionState {
     data object PermissionRequired : ConnectionState
@@ -81,6 +85,8 @@ class HeadphonesRepository(private val context: Context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val client = RfcommClient()
     private val connectionMutex = Mutex()
+    private val widgetRefreshMutex = Mutex()
+    private val widgetReports = MutableStateFlow(WidgetReportReceipt())
     private val _state = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected(emptyList()))
     val state: StateFlow<ConnectionState> = _state.asStateFlow()
 
@@ -91,11 +97,11 @@ class HeadphonesRepository(private val context: Context) {
     private val _activeCodec = MutableStateFlow<String?>(null)
     val activeCodec: StateFlow<String?> = _activeCodec.asStateFlow()
 
-    private var a2dp: BluetoothA2dp? = null
-    private var profileProxyRequested = false
-    private var activeDevice: BluetoothDevice? = null
-    private var activeProtocol: HeadphonesProtocol? = null
-    private var connectJob: Job? = null
+    @Volatile private var a2dp: BluetoothA2dp? = null
+    @Volatile private var profileProxyRequested = false
+    @Volatile private var activeDevice: BluetoothDevice? = null
+    @Volatile private var activeProtocol: HeadphonesProtocol? = null
+    @Volatile private var connectJob: Job? = null
     private var livenessJob: Job? = null
     private var receiverRegistered = false
     private val codecPreferences = context.getSharedPreferences(
@@ -195,6 +201,8 @@ class HeadphonesRepository(private val context: Context) {
         while (diagnosticLog.size > RAW_RESPONSE_LIMIT) diagnosticLog.removeFirst()
     }
 
+    fun backgroundDiagnostics(): List<String> = BackgroundDiagnostics.read(context)
+
     /** Formatted lazily, only when the diagnostics dialog/clipboard needs it. */
     fun diagnosticLog(): List<String> = synchronized(diagnosticLog) {
         diagnosticLog.map { it.toDiagnosticString() }
@@ -204,6 +212,9 @@ class HeadphonesRepository(private val context: Context) {
         scope.launch {
             client.commands.collect { command ->
                 recordDiagnostic(command)
+                val reportAtMillis = System.currentTimeMillis()
+                val reportSession = widgetReports.value.session
+                val reportProtocol = activeProtocol
                 var batteryChanged = false
                 var ancChanged = false
                 _state.update { state ->
@@ -217,10 +228,24 @@ class HeadphonesRepository(private val context: Context) {
                 // Write both values first, then push widgets once: a packet that
                 // changes battery AND ANC used to trigger two full updateAll passes.
                 val snapshot = (_state.value as? ConnectionState.Connected)?.snapshot
+                val batteryReport = reportProtocol?.module<BatteryModule>()?.isStateReport(command) == true
+                val ancReport = reportProtocol?.module<AncModule>()?.isStateReport(command) == true
                 val widgetsDirty =
-                    (if (batteryChanged) snapshot?.battery?.let { WidgetStorage.saveBattery(context, it) } == true else false) or
-                        (if (ancChanged) WidgetStorage.saveAnc(context, snapshot?.ancMode, connected = true) else false)
-                if (widgetsDirty) WidgetStorage.updateAll(context)
+                    (if (batteryChanged || batteryReport) snapshot?.battery?.let { WidgetStorage.saveBattery(context, it) } == true else false) or
+                        (if (snapshot != null && (ancChanged || ancReport)) WidgetStorage.saveAnc(context, snapshot.ancMode, connected = true) else false)
+                if (snapshot != null && reportProtocol === activeProtocol && (batteryReport || ancReport)) {
+                    // Count identical replies too; a worker must not mistake cached values
+                    // for a fresh report or wait forever because percentages did not change.
+                    widgetReports.update { receipt ->
+                        if (receipt.session != reportSession) receipt else receipt.copy(
+                            battery = receipt.battery + (if (batteryReport) 1 else 0),
+                            anc = receipt.anc + (if (ancReport) 1 else 0),
+                            batteryAtMillis = if (batteryReport) reportAtMillis else receipt.batteryAtMillis,
+                            ancAtMillis = if (ancReport) reportAtMillis else receipt.ancAtMillis,
+                        )
+                    }
+                }
+                if (widgetsDirty) WidgetStorage.requestDataUpdate(context)
                 activeProtocol?.takeIf { it.isDualConnectChangeEvent(command) }?.let { protocol ->
                     protocol.module<DualConnectModule>()?.let { send(it.stateRequest()) }
                     refreshDualConnectDevices()
@@ -262,10 +287,137 @@ class HeadphonesRepository(private val context: Context) {
             receiverRegistered = true
         }
         ensureProfileProxy()
-        scope.launch { refresh() }
+        scope.launch {
+            BackgroundDiagnostics.record(context, "repository start")
+            if (WidgetStorage.hasPendingPublication(context)) WidgetStorage.requestDataUpdate(context)
+            refresh()
+        }
     }
 
     fun refreshAsync() { scope.launch { refresh() } }
+
+    /** Called only by a scheduled worker; completes after fresh widget reports, not after launch(). */
+    internal suspend fun refreshForWidgets(event: WidgetRefreshEvent): WidgetRefreshOutcome = withContext(Dispatchers.IO) {
+        widgetRefreshMutex.withLock {
+            try {
+                withTimeoutOrNull(35_000) {
+                    if (event.connecting) awaitWidgetReports(event) else reconcileWidgetDisconnect()
+                } ?: WidgetRefreshOutcome.RETRY
+            } catch (cancel: CancellationException) {
+                // A superseding event must not tear down the UI's shared RFCOMM session.
+                throw cancel
+            } catch (_: SecurityException) {
+                disconnectActive()
+                _state.value = ConnectionState.PermissionRequired
+                WidgetRefreshOutcome.IDLE
+            }
+        }
+    }
+
+    private suspend fun reconcileWidgetDisconnect(): WidgetRefreshOutcome {
+        if (!hasPermission()) {
+            disconnectActive()
+            _state.value = ConnectionState.PermissionRequired
+            return WidgetRefreshOutcome.IDLE
+        }
+        if (adapter?.isEnabled != true) {
+            refresh()
+            return WidgetRefreshOutcome.IDLE
+        }
+        // Wait only for the local profile proxy to bind, NOT for a headset to appear.
+        // A late disconnect event must not overwrite a newer connected profile state.
+        val proxy = withTimeoutOrNull(2_000) {
+            while (a2dp == null) {
+                ensureProfileProxy()
+                delay(100)
+            }
+            a2dp
+        } ?: return WidgetRefreshOutcome.RETRY
+        val stillConnected = proxy.connectedDevices.any { it.protocol() != null }
+        refresh()
+        BackgroundDiagnostics.record(context,
+            "disconnect reconciled connected=$stillConnected")
+        return WidgetRefreshOutcome.IDLE
+    }
+
+    private suspend fun awaitWidgetReports(event: WidgetRefreshEvent): WidgetRefreshOutcome {
+        val profileDeadline = SystemClock.elapsedRealtime() + 12_000
+        var readAttempts = 0
+        while (true) {
+            refresh()
+            when (_state.value) {
+                ConnectionState.PermissionRequired -> {
+                    disconnectActive()
+                    return WidgetRefreshOutcome.IDLE
+                }
+                ConnectionState.BluetoothDisabled, ConnectionState.NoSupportedDevices ->
+                    return WidgetRefreshOutcome.IDLE
+                else -> Unit
+            }
+            val proxy = a2dp
+            val device = activeDevice
+            val snapshot = (_state.value as? ConnectionState.Connected)?.snapshot
+            val profileReady = proxy?.connectedDevices.orEmpty().any { it.protocol() != null }
+            if (!profileReady) {
+                // ACL precedes A2DP. Wait rather than interpreting a single empty list
+                // as a definitive disconnection; a later A2DP event can replace this job.
+                if (SystemClock.elapsedRealtime() >= profileDeadline) {
+                    BackgroundDiagnostics.record(context, "a2dp unavailable")
+                    return if (proxy == null) WidgetRefreshOutcome.RETRY else WidgetRefreshOutcome.IDLE
+                }
+            } else if (snapshot != null && device != null &&
+                snapshot.address == device.address &&
+                proxy?.getConnectionState(device) == BluetoothProfile.STATE_CONNECTED
+            ) {
+                val protocol = activeProtocol ?: return WidgetRefreshOutcome.RETRY
+                val battery = protocol.module<BatteryModule>()
+                val anc = protocol.module<AncModule>()
+                val baseline = widgetReports.value
+                val now = System.currentTimeMillis()
+                val needsBattery = battery != null && !baseline.hasFreshBattery(event.sinceMillis, now)
+                val needsAnc = anc != null && !baseline.hasFreshAnc(event.sinceMillis, now)
+                if (!needsBattery && !needsAnc && widgetReports.value.session == baseline.session &&
+                    activeDevice.sameAs(device) && _state.value is ConnectionState.Connected &&
+                    a2dp?.getConnectionState(device) == BluetoothProfile.STATE_CONNECTED
+                ) {
+                    BackgroundDiagnostics.record(context,
+                        "fresh battery/anc source=session g=${event.generation}")
+                    return WidgetRefreshOutcome.UPDATED
+                }
+                // The initial request sequence is still sending: let it finish instead
+                // of inserting another battery/ANC read into that same connection.
+                if (connectJob?.isActive == true) {
+                    delay(100)
+                    continue
+                }
+                BackgroundDiagnostics.record(context,
+                    "widget read g=${event.generation} battery=$needsBattery anc=$needsAnc")
+                val received = withTimeoutOrNull(6_000) {
+                    if (needsBattery) battery?.initialRequests?.forEach {
+                        client.send(it)
+                        delay(35)
+                    }
+                    if (needsAnc) anc?.let { client.send(it.stateRequest()) }
+                    widgetReports.first { receipt ->
+                        receipt.session != baseline.session ||
+                            receipt.completes(baseline, needsBattery, needsAnc)
+                    }
+                }
+                if (received != null && received.completes(baseline, needsBattery, needsAnc) &&
+                    activeDevice.sameAs(device) && _state.value is ConnectionState.Connected &&
+                    a2dp?.getConnectionState(device) == BluetoothProfile.STATE_CONNECTED
+                ) {
+                    BackgroundDiagnostics.record(context, "fresh battery/anc source=request g=${event.generation}")
+                    return WidgetRefreshOutcome.UPDATED
+                }
+                if (++readAttempts >= 2) return WidgetRefreshOutcome.RETRY
+                // Retry the reads, but never force-close the UI's shared session:
+                // it may be applying settings or playing the earbud-finder sound.
+                // Failed/disconnected sessions are retried by refresh() above.
+            }
+            delay(500)
+        }
+    }
 
     fun refreshCodecFromCache(address: String) {
         if (activeDevice?.address == address) {
@@ -317,7 +469,7 @@ class HeadphonesRepository(private val context: Context) {
                 val name = device.displayName()
                 ensureProfileProxy()
                 val proxy = a2dp
-                if (proxy != null && proxy.getConnectionState(device) != BluetoothProfile.STATE_CONNECTED) {
+                if (proxy == null || proxy.getConnectionState(device) != BluetoothProfile.STATE_CONNECTED) {
                     // Buds in the case keep accepting RFCOMM; A2DP is the only
                     // signal that they are actually out and in use.
                     if (_state.value !is ConnectionState.Connected) {
@@ -330,6 +482,7 @@ class HeadphonesRepository(private val context: Context) {
                     client.connect(device, protocol.sppUuid)
                     activeDevice = device
                     activeProtocol = protocol
+                    widgetReports.update { it.nextSession() }
                     _state.value = ConnectionState.Connected(
                         HeadphonesSnapshot(
                             protocolId = protocol.id,
@@ -337,6 +490,7 @@ class HeadphonesRepository(private val context: Context) {
                             address = device.address,
                         )
                     )
+                    BackgroundDiagnostics.record(context, "rfcomm connected")
                     WidgetStorage.saveAncAndUpdate(context, mode = null, connected = true)
                     // MBB pushes updates on its own (battery 1/39, ANC 43/42,
                     // dual-connect 43/54), so no periodic polling is needed.
@@ -351,6 +505,7 @@ class HeadphonesRepository(private val context: Context) {
                     startLivenessWatch(device)
                 }.onFailure { error ->
                     if (error is CancellationException) throw error
+                    BackgroundDiagnostics.record(context, "rfcomm error=${error.javaClass.simpleName}")
                     client.close()
                     activeDevice = null
                     activeProtocol = null
@@ -447,6 +602,7 @@ class HeadphonesRepository(private val context: Context) {
         val findState = (_state.value as? ConnectionState.Connected)?.snapshot?.findEarbuds
         activeDevice = null
         activeProtocol = null
+        widgetReports.update { it.nextSession() }
         _activeCodec.value = null
         synchronized(diagnosticLog) { diagnosticLog.clear() }
         withContext(NonCancellable) {
@@ -743,6 +899,7 @@ class HeadphonesRepository(private val context: Context) {
     }
 
 
+    @Synchronized
     private fun ensureProfileProxy() {
         if (!hasPermission() || a2dp != null || profileProxyRequested) return
         profileProxyRequested = adapter?.getProfileProxy(

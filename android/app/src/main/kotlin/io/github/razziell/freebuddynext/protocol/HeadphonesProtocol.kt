@@ -9,9 +9,13 @@ interface ProtocolModule {
 }
 
 interface DeviceInfoModule : ProtocolModule
-interface BatteryModule : ProtocolModule
+interface BatteryModule : ProtocolModule {
+    /** True for a usable reply/push, including an unchanged battery reading. */
+    fun isStateReport(command: MbbCommand): Boolean
+}
 
 interface AncModule : ProtocolModule {
+    fun isStateReport(command: MbbCommand): Boolean
     val supportsLevels: Boolean
     val supportsDynamicLevel: Boolean
     fun setMode(mode: AncMode): MbbCommand

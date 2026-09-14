@@ -55,6 +55,10 @@ object HuaweiDeviceInfoModule : DeviceInfoModule {
 }
 
 object HuaweiBatteryModule : BatteryModule {
+    override fun isStateReport(command: MbbCommand): Boolean =
+        command.serviceId == 1 && command.commandId in setOf(8, 39) &&
+            (command.args[2]?.size ?: 0) >= 3 && (command.args[3]?.size ?: 0) >= 3
+
     override val initialRequests = listOf(
         MbbCommand(1, 8, mapOf(1 to byteArrayOf(), 2 to byteArrayOf(), 3 to byteArrayOf())),
     )
@@ -77,8 +81,15 @@ object HuaweiBatteryModule : BatteryModule {
     }
 }
 
+private fun isHuaweiAncStateReport(command: MbbCommand): Boolean {
+    if (command.serviceId != 43 || command.commandId != 42) return false
+    val values = command.args[1] ?: return false
+    return values.size >= 2 && AncMode.entries.any { it.code == values[1].toInt().and(0xFF) }
+}
+
 /** Basic three-mode ANC used by models without configurable ANC levels. */
 object HuaweiBasicAncModule : AncModule {
+    override fun isStateReport(command: MbbCommand) = isHuaweiAncStateReport(command)
     override val supportsLevels = false
     override val supportsDynamicLevel = false
     override val initialRequests get() = listOf(stateRequest())
@@ -101,6 +112,7 @@ object HuaweiBasicAncModule : AncModule {
 }
 
 object HuaweiAdvancedAncModule : AncModule {
+    override fun isStateReport(command: MbbCommand) = isHuaweiAncStateReport(command)
     override val supportsLevels = true
     override val supportsDynamicLevel = true
     override val initialRequests get() = listOf(stateRequest())

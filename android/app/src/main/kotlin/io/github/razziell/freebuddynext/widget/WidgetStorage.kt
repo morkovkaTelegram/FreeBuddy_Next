@@ -8,9 +8,51 @@ import androidx.glance.appwidget.state.updateAppWidgetState
 import io.github.razziell.freebuddynext.protocol.AncMode
 import io.github.razziell.freebuddynext.protocol.BatteryLevel
 import io.github.razziell.freebuddynext.protocol.BatteryLevels
+import io.github.razziell.freebuddynext.bluetooth.BackgroundDiagnostics
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 object WidgetStorage {
     private const val FILE = "freebuddy_widget"
+    private const val REVISION = "state_revision"
+    private const val PUBLISHED_REVISION = "published_revision"
+    private const val BATTERY_REVISION = "battery_revision"
+    private const val ANC_REVISION = "anc_revision"
+    private const val APPEARANCE_REVISION = "appearance_revision"
+    private val publicationMutex = Mutex()
+    private val dataUpdates = Channel<Context>(Channel.CONFLATED)
+
+    init {
+        // Fast path for a live process; the durable worker is always enqueued first.
+        // One conflated signal batches nearby battery/ANC reports, with no per-packet
+        // Glance work in the RFCOMM collector and no ever-growing coroutine queue.
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            for (context in dataUpdates) {
+                delay(75)
+                publishSafely(context)
+            }
+        }
+    }
+
+    @Synchronized
+    fun hasPendingPublication(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        return prefs.getLong(REVISION, 0) != prefs.getLong(PUBLISHED_REVISION, 0)
+    }
+
+    @Synchronized
+    private fun invalidatePublication(context: Context) {
+        val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        val revision = prefs.getLong(REVISION, 0) + 1
+        prefs.edit().putLong(REVISION, revision).putLong(APPEARANCE_REVISION, revision).apply()
+    }
     const val LEFT = "left"
     const val RIGHT = "right"
     const val CASE = "case"
@@ -96,14 +138,18 @@ object WidgetStorage {
         editor.apply()
     }
 
-    /** Persists the ANC state; returns true when something actually changed. */
+    /** Returns true for new data OR an earlier publication that still needs repair. */
+    @Synchronized
     fun saveAnc(context: Context, mode: AncMode?, connected: Boolean): Boolean {
         val modeCode = mode?.code ?: -1
         val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
         if (prefs.getInt(ANC_MODE, -1) == modeCode &&
             prefs.getBoolean(ANC_CONNECTED, false) == connected
-        ) return false
+        ) return hasPendingPublication(context)
+        val revision = prefs.getLong(REVISION, 0) + 1
         prefs.edit()
+            .putLong(REVISION, revision)
+            .putLong(ANC_REVISION, revision)
             .putInt(ANC_MODE, modeCode)
             .putBoolean(ANC_CONNECTED, connected)
             .apply()
@@ -111,7 +157,7 @@ object WidgetStorage {
     }
 
     suspend fun saveAncAndUpdate(context: Context, mode: AncMode?, connected: Boolean) {
-        if (saveAnc(context, mode, connected)) updateAll(context)
+        if (saveAnc(context, mode, connected)) requestDataUpdate(context)
     }
 
     fun readAnc(context: Context): Pair<Int, Boolean> {
@@ -119,15 +165,20 @@ object WidgetStorage {
         return prefs.getInt(ANC_MODE, -1) to prefs.getBoolean(ANC_CONNECTED, false)
     }
 
-    /** Persists battery levels; returns true when something actually changed. */
+    /** Persists battery and its dirty revision together; unchanged reports can repair publication. */
+    @Synchronized
     fun saveBattery(context: Context, battery: BatteryLevels): Boolean {
         val left = BatteryLevel.validOrNull(battery.left) ?: -1
         val right = BatteryLevel.validOrNull(battery.right) ?: -1
         val case = BatteryLevel.validOrNull(battery.case) ?: -1
         // Buds re-send battery packets with unchanged values; skip the whole
         // bitmap -> RemoteViews -> Binder round-trip when nothing changed.
-        if (read(context) == Triple(left, right, case)) return false
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
+        if (read(context) == Triple(left, right, case)) return hasPendingPublication(context)
+        val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        val revision = prefs.getLong(REVISION, 0) + 1
+        prefs.edit()
+            .putLong(REVISION, revision)
+            .putLong(BATTERY_REVISION, revision)
             .putInt(LEFT, left)
             .putInt(RIGHT, right)
             .putInt(CASE, case)
@@ -136,13 +187,56 @@ object WidgetStorage {
     }
 
     suspend fun saveAndUpdate(context: Context, battery: BatteryLevels) {
-        if (saveBattery(context, battery)) updateAll(context)
+        if (saveBattery(context, battery)) requestDataUpdate(context)
     }
 
-    /** Pushes current battery + per-instance appearance into each widget's
-     * Glance state and triggers an update; state changes recompose live
-     * sessions immediately. */
+    /** Appearance/configuration changes still invalidate every provider immediately. */
     suspend fun updateAll(context: Context) {
+        invalidatePublication(context)
+        enqueuePublication(context)
+        publishSafely(context)
+    }
+
+    /** Data is already saved with a dirty revision; do not increment it a second time. */
+    suspend fun requestDataUpdate(context: Context) {
+        if (!hasPendingPublication(context)) return
+        enqueuePublication(context)
+        dataUpdates.trySend(context.applicationContext)
+    }
+
+    private suspend fun enqueuePublication(context: Context) {
+        try {
+            WidgetPublishWorker.enqueue(context)
+        } catch (cancel: CancellationException) {
+            throw cancel
+        } catch (error: Exception) {
+            BackgroundDiagnostics.record(context, "publish enqueue error=${error.javaClass.simpleName}")
+        }
+    }
+
+    private suspend fun publishSafely(context: Context) {
+        try {
+            publishAll(context)
+        } catch (cancel: CancellationException) {
+            throw cancel
+        } catch (error: Exception) {
+            // A launcher/Glance failure must not kill the MBB collector or turn
+            // a successful Bluetooth connection into Failed. The revision stays dirty.
+            BackgroundDiagnostics.record(context, "publish immediate error=${error.javaClass.simpleName}")
+        }
+    }
+
+    /** Acknowledges submission to Glance, not actual rendering by the launcher. */
+    internal suspend fun publishAll(context: Context) = publicationMutex.withLock {
+        val plan = synchronized(this) {
+            if (!hasPendingPublication(context)) return@withLock
+            val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            val revision = prefs.getLong(REVISION, 0)
+            WidgetPublicationPlan.create(revision, prefs.getLong(PUBLISHED_REVISION, 0),
+                prefs.getLong(BATTERY_REVISION, 0), prefs.getLong(ANC_REVISION, 0),
+                // A pending revision from the previous implementation needs a full repair.
+                prefs.getLong(APPEARANCE_REVISION, revision))
+        }
         val manager = GlanceAppWidgetManager(context)
         val (left, right, case) = read(context)
         val (ancMode, ancConnected) = readAnc(context)
@@ -165,10 +259,22 @@ object WidgetStorage {
                 widget.update(context, id)
             }
         }
-        push(BatteryWidget(), BatteryWidget::class.java)
-        push(BatteryRowsWidget(), BatteryRowsWidget::class.java)
-        push(BatteryCompactWidget(), BatteryCompactWidget::class.java)
-        push(AncWidget(), AncWidget::class.java)
+        if (plan.battery) {
+            push(BatteryWidget(), BatteryWidget::class.java)
+            push(BatteryRowsWidget(), BatteryRowsWidget::class.java)
+            push(BatteryCompactWidget(), BatteryCompactWidget::class.java)
+        }
+        if (plan.anc) push(AncWidget(), AncWidget::class.java)
+        synchronized(this) {
+            // A change during the suspending Glance calls must remain dirty. Even
+            // when data was saved before an interrupted enqueue, a later identical
+            // report or process start will retry that newer revision.
+            val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            prefs.edit().putLong(PUBLISHED_REVISION, plan.revision)
+                .putLong(APPEARANCE_REVISION, prefs.getLong(APPEARANCE_REVISION, 0)).apply()
+        }
+        BackgroundDiagnostics.record(context,
+            "publish submitted revision=${plan.revision} battery=${plan.battery} anc=${plan.anc}")
     }
 
     suspend fun hasAnyWidget(context: Context): Boolean {
