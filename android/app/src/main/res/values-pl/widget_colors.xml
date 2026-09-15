@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_background_color">Kolor tła</string>
+    <string name="widget_elements_color">Kolor elementów</string>
+    <string name="widget_color_source">Źródło koloru</string>
+    <string name="widget_color_default">Domyślny</string>
+    <string name="widget_color_accent">Akcent systemowy</string>
+    <string name="widget_color_custom">Własny kolor</string>
+    <string name="widget_color_choose">Wybierz kolor · %1$s</string>
+    <string name="widget_color_hex">HEX · #RRGGBB</string>
+    <string name="widget_color_hex_error">Wpisz sześć cyfr szesnastkowych, np. #82B1FF</string>
+    <string name="widget_tab_background">Tło</string>
+    <string name="widget_tab_elements">Elementy</string>
+    <string name="widget_tab_labels">Etykiety</string>
+    <string name="widget_tab_text">Tekst</string>
+    <string name="widget_text_color">Kolor tekstu i ikon</string>
+    <string name="widget_color_auto">Automatycznie</string>
+    <string name="widget_color_white">Biały</string>
+    <string name="widget_color_black">Czarny</string>
+    <string name="widget_text_color_hint">Dotyczy wartości procentowych, etykiet i ikon. Tekst i ikony pozostają nieprzezroczyste. Sprawdź czytelność w podglądzie, zwłaszcza przy przezroczystym tle.</string>
+    <string name="widget_favorites_title">Ulubione kolory (do %1$d kolorów)</string>
+    <string name="widget_favorites_add">Dodaj do ulubionych</string>
+    <string name="widget_favorites_remove">Usuń z ulubionych</string>
+    <string name="widget_favorites_previous">Poprzednie kolory</string>
+    <string name="widget_favorites_next">Następne kolory</string>
+    <string name="widget_background_hint" formatted="false">Przezroczystość tła widżetu: 0% — nieprzezroczyste, 100% — całkowicie przezroczyste. Nie wpływa na elementy, tekst ani ikony.</string>
+    <string name="widget_elements_hint" formatted="false">Przezroczystość pasków baterii i przycisków ANC: 0% — nieprzezroczyste, 100% — całkowicie przezroczyste. Nie wpływa na tło, tekst ani ikony.</string>
+</resources>

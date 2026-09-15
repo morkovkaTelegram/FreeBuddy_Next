@@ -51,16 +51,19 @@ class BatteryCompactWidget : GlanceAppWidget() {
         }.getOrDefault(0)
         val initialBackgroundOpacity = WidgetStorage.readBackgroundOpacity(context, appWidgetId)
         val initialElementOpacity = WidgetStorage.readElementOpacity(context, appWidgetId)
+        val initialColors = WidgetStorage.readColors(context, appWidgetId)
         provideContent {
             val prefs = currentState<Preferences>()
-            Content(
-                context = context,
-                left = prefs[WidgetStorage.LEFT_KEY] ?: left,
-                right = prefs[WidgetStorage.RIGHT_KEY] ?: right,
-                case = prefs[WidgetStorage.CASE_KEY] ?: case,
-                backgroundOpacity = prefs[WidgetStorage.BACKGROUND_OPACITY_KEY] ?: initialBackgroundOpacity,
-                elementOpacity = prefs[WidgetStorage.ELEMENT_OPACITY_KEY] ?: initialElementOpacity,
-            )
+            WidgetPaletteProvider(context, prefs.widgetColors(initialColors)) {
+                Content(
+                    context = context,
+                    left = prefs[WidgetStorage.LEFT_KEY] ?: left,
+                    right = prefs[WidgetStorage.RIGHT_KEY] ?: right,
+                    case = prefs[WidgetStorage.CASE_KEY] ?: case,
+                    backgroundOpacity = prefs[WidgetStorage.BACKGROUND_OPACITY_KEY] ?: initialBackgroundOpacity,
+                    elementOpacity = prefs[WidgetStorage.ELEMENT_OPACITY_KEY] ?: initialElementOpacity,
+                )
+            }
         }
     }
 
@@ -77,12 +80,12 @@ class BatteryCompactWidget : GlanceAppWidget() {
         val outerBackground = ColorProvider(
             androidx.compose.ui.graphics.Color(
                 WidgetProgressBitmap.withOpacity(
-                    context.getColor(R.color.battery_widget_bar_background), backgroundOpacity,
+                    widgetColor(context, R.color.battery_widget_bar_background), backgroundOpacity,
                 ),
             ),
         )
         val style = TextStyle(
-            color = ColorProvider(R.color.battery_widget_text_color),
+            color = ColorProvider(widgetComposeColor(context, R.color.battery_widget_text_color)),
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.End,
@@ -121,14 +124,14 @@ class BatteryCompactWidget : GlanceAppWidget() {
         val innerBackground = ColorProvider(
             androidx.compose.ui.graphics.Color(
                 WidgetProgressBitmap.withOpacity(
-                    context.getColor(R.color.battery_widget_empty_color), elementOpacity,
+                    widgetColor(context, R.color.battery_widget_empty_color), elementOpacity,
                 ),
             ),
         )
         val progress = WidgetProgressBitmap.horizontal(
             level = normalized,
             filled = WidgetProgressBitmap.withOpacity(
-                context.getColor(R.color.battery_widget_bar_color), elementOpacity,
+                widgetColor(context, R.color.battery_widget_bar_color), elementOpacity,
             ),
             // The empty part is provided by the rounded cell background below.
             // Keeping it outside the bitmap makes the inner container visible
@@ -159,7 +162,7 @@ class BatteryCompactWidget : GlanceAppWidget() {
                         batteryText,
                     ),
                     modifier = GlanceModifier.size(22.dp),
-                    colorFilter = ColorFilter.tint(ColorProvider(R.color.battery_widget_text_color)),
+                    colorFilter = ColorFilter.tint(ColorProvider(widgetComposeColor(context, R.color.battery_widget_text_color))),
                 )
                 Spacer(GlanceModifier.defaultWeight())
                 Text(

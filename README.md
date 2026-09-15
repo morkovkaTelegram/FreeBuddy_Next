@@ -104,15 +104,23 @@ Widget features:
 - static compatible palette on Android 9–11;
 - per-widget background transparency;
 - per-widget element transparency;
+- independent background and element colors: default palette, system accent, or custom RGB;
+- independent text/icon color: automatic, white, black, system accent, or custom RGB; text and icons stay opaque;
+- hue-ring color picker with saturation/brightness field, HEX input and live configuration preview;
+- shared favorites palette for up to 24 colors: tap to select, add/remove the selected color; favorites persist immediately, independently of picker/widget confirmation;
 - 5% transparency steps;
 - optional full labels, L/R labels, or hidden labels for the two regular battery widgets;
-- live configuration preview;
+- fixed live configuration preview with equal-width, swipeable Background / Elements / Text tabs, label controls below text colors, and pinned Save/Cancel actions;
 - localized dynamic previews on supported Android versions;
 - exact pixel-based battery progress rendering;
 - direct ANC mode switching from the home screen;
 - accessible descriptions for TalkBack.
 
-Bluetooth connection events schedule a bounded WorkManager refresh for installed widgets, with A2DP readiness checks and fresh battery/ANC reads. Interrupted widget publication is retried independently of changes in the battery percentages. Nearby ACL/A2DP events share a refresh cycle without cancelling an active read; new connection cycles bypass obsolete retries. Disconnect events reconcile the current profile state without waiting for a headset to appear. Recent reports from the current RFCOMM session are reused, and only missing widget data is requested. Adjacent data publications are batched over 75 ms and target battery or ANC providers separately; appearance changes still refresh all providers. The copied device diagnostics include a small persistent trace with event generations, cancellation and report source.
+Bluetooth connection events schedule a bounded WorkManager refresh for installed widgets, with A2DP readiness checks and fresh battery/ANC reads. Interrupted widget publication is retried independently of changes in the battery percentages. Nearby ACL/A2DP events share a refresh cycle without cancelling an active read; new connection cycles bypass obsolete retries. Disconnect events reconcile the current profile state without waiting for a headset to appear. Recent reports from the current RFCOMM session are reused, and only missing widget data is requested. Adjacent data publications are batched over 75 ms and target battery or ANC providers separately; appearance changes still refresh all providers. Device information offers separate **Copy logs** (persistent lifecycle/background trace with event generations, cancellation and report source) and **Copy raw data** (device information and protocol responses, without that trace). Unknown protocol fields are collapsed by default.
+
+On Android 12+, **Settings → App operation → Background operation** can associate each paired headset with Android through a system confirmation. The system-bound `CompanionDeviceService` observes device presence without a permanent notification and reuses the existing A2DP-gated RFCOMM repository. While bound and a device is present, a 15-second connection-state reconciliation can repair a lost session; it does not periodically read battery/ANC on a healthy connection. Android 16 uses association-based presence events; Android 12–15 use legacy callbacks. Observation choices are restored on process startup, and removing an app association does not unpair Bluetooth. This feature requires the device's companion-device framework; Android 9–11 keep the existing refresh path.
+
+Diagnostics now include companion callbacks, service lifecycle, Activity start/stop, process/version markers and the latest historical exit reason when Android exposes it. Binding, reboot recovery and OEM power-management behavior still require on-device verification.
 
 On HyperOS, allow **Background autostart** and set the application's battery mode to **No restrictions** if updates are delayed. WorkManager scheduling and broadcast delivery remain subject to system/OEM restrictions; force-stopping the app prevents normal background operation. This is an event-driven refresh, not a permanent Bluetooth foreground service or a guarantee of continuous live updates while the process is suspended.
 
@@ -126,8 +134,9 @@ On HyperOS, allow **Background autostart** and set the application's battery mod
   - reorder main-screen blocks and headphone-settings sections;
   - show or hide optional blocks while keeping essential home-screen blocks visible;
   - scale the headphone image, battery rows and ANC buttons;
-  - real component previews and reset to defaults;
-  - import and export the complete layout as a validated JSON backup.
+  - real component previews and reset to defaults.
+- **Settings → Backup** imports/exports `Settings_FBN.json`: interface layout plus per-widget background/element/text color modes and custom RGB, both opacity values, label modes, and the shared favorite-color palette. Import validates the complete file before confirmation. Legacy `Layout_FBN.json` files restore only layout, leaving widgets and favorites unchanged.
+- Widget profiles are matched by provider type and ascending local widget ID (creation order), not screen position. Extra local instances remain unchanged. Profiles for widgets not yet recreated are retained as defaults for newly added instances of that type; backups never create or move launcher widgets and do not include Bluetooth associations or live battery data.
 - Material 3 Expressive-inspired motion and interactions:
   - animated screen transitions and circular container transforms;
   - sliding ANC selection indicator;
@@ -357,15 +366,23 @@ FreeBuddy Next предоставляет четыре Glance-виджета:
 - совместимая статическая палитра на Android 9–11;
 - отдельная прозрачность внешнего фона каждого экземпляра;
 - отдельная прозрачность внутренних элементов;
+- независимый цвет фона и элементов: стандартная палитра, системный акцент или свой RGB;
+- отдельный цвет текста и значков: автоматический, белый, чёрный, системный акцент или свой RGB; текст и значки остаются непрозрачными;
+- выбор цвета с кольцом оттенков, полем насыщенности/яркости, HEX-вводом и живым превью настройки;
+- общая палитра избранного до 24 цветов: выбор нажатием, добавление/удаление выбранного цвета; избранное сохраняется сразу, независимо от подтверждения пикера/настроек виджета;
 - шаг прозрачности 5%;
 - полные подписи, L/R или отсутствие подписей для двух основных батарейных виджетов;
-- живое превью настройки;
+- закреплённое живое превью с перелистыванием страниц «Фон» / «Элементы» / «Текст» / «Подписи» и постоянными кнопками сохранения/отмены;
 - локализованные динамические эскизы на поддерживаемых версиях Android;
 - точное пиксельное отображение уровня заряда;
 - прямое переключение ANC с рабочего стола;
 - описания для TalkBack.
 
 События подключения Bluetooth запускают ограниченную по времени задачу WorkManager для установленных виджетов: она проверяет готовность A2DP и запрашивает свежие данные батареи и ANC. Незавершённая публикация в виджеты повторяется независимо от изменения процентов. Близкие события ACL/A2DP объединяются без отмены активного опроса; новый цикл подключения обходит устаревшие отложенные повторы. Отключение проверяет текущее состояние профиля без ожидания появления наушников. Свежие ответы текущей RFCOMM-сессии используются повторно, запрашиваются только недостающие данные. Близкие публикации объединяются в окно 75 мс и отдельно обновляют батарейные или ANC-виджеты; изменение оформления по-прежнему обновляет все виды. В копируемую диагностику включён небольшой сохраняемый журнал с поколениями событий, отменами и источником свежих данных.
+
+На Android 12+ в **«О приложении» → «Фоновая работа»** можно привязать каждый сопряжённый комплект к Android через системное подтверждение. Системно привязанная `CompanionDeviceService` отслеживает присутствие без постоянного уведомления и использует существующий RFCOMM-repository с проверкой A2DP. Пока служба привязана и устройство присутствует, раз в 15 секунд проверяется состояние соединения для восстановления потерянной сессии; при исправном соединении периодические запросы батареи/ANC не отправляются. На Android 16 используются события присутствия по ассоциации, на Android 12–15 — прежние callbacks. Выбор наблюдения восстанавливается при запуске процесса; удаление привязки к приложению не удаляет Bluetooth-сопряжение. Нужна системная поддержка companion-устройств; на Android 9–11 сохраняется прежний механизм обновления.
+
+В диагностику добавлены callbacks и жизненный цикл companion-службы, запуск/остановка Activity, отметки процесса/версии и последняя причина завершения процесса, если Android её предоставляет. Привязку службы, восстановление после перезагрузки и поведение энергосбережения производителя ещё нужно проверить на устройстве.
 
 При задержках обновления на HyperOS разрешите **фоновый автозапуск** и установите режим батареи приложения **«Без ограничений»**. Планирование WorkManager и доставка событий зависят от ограничений системы и производителя; принудительная остановка приложения препятствует обычной фоновой работе. Это обновление по событиям, а не постоянный Bluetooth foreground service и не гарантия непрерывных обновлений при приостановленном процессе.
 

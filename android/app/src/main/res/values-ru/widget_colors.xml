@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_background_color">Цвет фона</string>
+    <string name="widget_elements_color">Цвет элементов</string>
+    <string name="widget_color_source">Источник цвета</string>
+    <string name="widget_color_default">По умолчанию</string>
+    <string name="widget_color_accent">Системный акцент</string>
+    <string name="widget_color_custom">Свой цвет</string>
+    <string name="widget_color_choose">Выбрать цвет · %1$s</string>
+    <string name="widget_color_hex">HEX · #RRGGBB</string>
+    <string name="widget_color_hex_error">Введите шесть HEX-цифр, например #82B1FF</string>
+    <string name="widget_tab_background">Фон</string>
+    <string name="widget_tab_elements">Элементы</string>
+    <string name="widget_tab_labels">Подписи</string>
+    <string name="widget_tab_text">Текст</string>
+    <string name="widget_text_color">Цвет текста и значков</string>
+    <string name="widget_color_auto">Автоматически</string>
+    <string name="widget_color_white">Белый</string>
+    <string name="widget_color_black">Чёрный</string>
+    <string name="widget_text_color_hint">Применяется к процентам, подписям и значкам. Текст и значки остаются непрозрачными. Проверьте читаемость в превью, особенно при прозрачном фоне.</string>
+    <string name="widget_favorites_title">Избранные цвета (до %1$d цветов)</string>
+    <string name="widget_favorites_add">В избранное</string>
+    <string name="widget_favorites_remove">Убрать из избранного</string>
+    <string name="widget_favorites_previous">Предыдущие цвета</string>
+    <string name="widget_favorites_next">Следующие цвета</string>
+    <string name="widget_background_hint" formatted="false">Прозрачность фона виджета: 0% — непрозрачный, 100% — полностью прозрачный. Не влияет на элементы, текст и значки.</string>
+    <string name="widget_elements_hint" formatted="false">Прозрачность индикаторов заряда и кнопок ANC: 0% — непрозрачные, 100% — полностью прозрачные. Не влияет на фон, текст и значки.</string>
+</resources>

@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FreeBuddy Next</string>
-    <string name="about">O FreeBuddy Next ℹ️</string>
+    <string name="about">Ustawienia</string>
+    <string name="about_section_title">O aplikacji</string>
+    <string name="companion_section_title">Działanie aplikacji</string>
     <string name="about_text">Niezależna aplikacja open source do sterowania obsługiwanymi słuchawkami Huawei FreeBuds.</string>
     <string name="version_text">Wersja %1$s</string>
     <string name="connected">Słuchawki połączone 🎧</string>
@@ -12,7 +14,7 @@
     <string name="connection_failed">Nie udało się połączyć 🤨</string>
     <string name="connection_failed_desc">Połączenie może być używane przez inną aplikację. Zamknij ją i spróbuj ponownie.</string>
     <string name="page_home_no_permission">Brak dostępu do Bluetooth 😢</string>
-    <string name="page_home_no_permission_desc">Uprawnienie Bluetooth jest wymagane do komunikacji ze słuchawkami.</string>
+    <string name="page_home_no_permission_desc">Uprawnienie Bluetooth jest wymagane do komunikacji ze sparowanymi słuchawkami.</string>
     <string name="grant_access">Zezwól 🔑</string>
     <string name="bluetooth_disabled">Bluetooth jest wyłączony 📶</string>
     <string name="bluetooth_disabled_desc">Włącz Bluetooth, aby połączyć słuchawki.</string>
@@ -136,6 +138,7 @@
     <string name="device_info_eq_none">Brak</string>
     <string name="device_info_eq_preset">Preset %1$d · %2$s</string>
     <string name="device_info_eq_tlv">EQ TLV %1$d</string>
+    <string name="device_info_copy_logs">Kopiuj logi</string>
     <string name="device_info_copy_raw">Kopiuj surowe dane</string>
     <string name="device_info_clipboard_label">Diagnostyka FreeBuddy Next</string>
     <string name="eq_export">Eksportuj</string>

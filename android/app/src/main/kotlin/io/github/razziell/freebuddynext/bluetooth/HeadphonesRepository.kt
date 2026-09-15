@@ -296,6 +296,12 @@ class HeadphonesRepository(private val context: Context) {
 
     fun refreshAsync() { scope.launch { refresh() } }
 
+    /** Called only while CDM keeps the companion service bound; not an MBB poll. */
+    suspend fun reconcileCompanionConnection() = withContext(Dispatchers.IO) {
+        // Existing liveness watch handles healthy sessions; do not duplicate its checks.
+        if (_state.value !is ConnectionState.Connected && _state.value !is ConnectionState.Connecting) refresh()
+    }
+
     /** Called only by a scheduled worker; completes after fresh widget reports, not after launch(). */
     internal suspend fun refreshForWidgets(event: WidgetRefreshEvent): WidgetRefreshOutcome = withContext(Dispatchers.IO) {
         widgetRefreshMutex.withLock {

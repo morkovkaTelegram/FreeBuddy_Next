@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_title">Kopia zapasowa</string>
+    <string name="backup_description">Układ bloków, kolory i przezroczystość widżetów, etykiety i ulubione kolory.</string>
+    <string name="backup_import">Importuj</string>
+    <string name="backup_export">Eksportuj</string>
+    <string name="backup_restore">Przywróć</string>
+    <string name="backup_restore_title">Przywrócić ustawienia?</string>
+    <string name="backup_restore_confirmation">Układ bloków i ulubione kolory zostaną zastąpione. Wygląd widżetów jest dopasowywany według typu i kolejności dodania, nie pozycji na ekranie. Dodatkowe widżety pozostaną bez zmian. Jeśli nie ma jeszcze widżetów, dodaj je po imporcie, aby automatycznie użyć zapisanego wyglądu. Kopia nie tworzy widżetów na ekranie głównym.</string>
+    <string name="backup_restore_legacy">To kopia samego układu: kolejność, rozmiary i widoczność bloków zostaną zastąpione. Ustawienia widżetów i ulubione kolory nie zmienią się.</string>
+    <string name="backup_export_done">Kopia zapisana</string>
+    <string name="backup_export_failed">Nie udało się zapisać kopii</string>
+    <string name="backup_import_failed">Nie udało się odczytać kopii: sprawdź plik i jego format</string>
+    <string name="backup_import_done">Ustawienia przywrócone</string>
+    <string name="backup_restore_failed">Nie udało się zakończyć przywracania. Część ustawień mogła się zmienić — ponów import.</string>
+    <string name="backup_refresh_failed">Ustawienia zapisane, ale nie wszystkie widżety zostały odświeżone. Otwórz aplikację ponownie.</string>
+</resources>

@@ -9,6 +9,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
 import io.github.razziell.freebuddynext.ui.FreeBuddyApp
+import io.github.razziell.freebuddynext.bluetooth.BackgroundDiagnostics
+import io.github.razziell.freebuddynext.companion.CompanionAccess
 import io.github.razziell.freebuddynext.widget.WidgetStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -16,7 +18,20 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { (application as FreeBuddyApplication).headphonesRepository.refreshAsync() }
+    ) {
+        (application as FreeBuddyApplication).headphonesRepository.refreshAsync()
+        lifecycleScope.launch { CompanionAccess.restore(applicationContext) }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        BackgroundDiagnostics.record(this, "main activity start")
+    }
+
+    override fun onStop() {
+        BackgroundDiagnostics.record(this, "main activity stop")
+        super.onStop()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

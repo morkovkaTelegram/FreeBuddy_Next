@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="companion_title">Background operation</string>
+    <string name="companion_summary">Update widgets without opening the app or showing a permanent notification.</string>
+    <string name="companion_description">Select your headphones and approve the Android request. This helps widgets update while the app is closed.</string>
+    <string name="companion_limits">On HyperOS, also allow autostart and set the battery mode to No restrictions. The system may still limit background operation. Open the app again after a force-stop.</string>
+    <string name="companion_unavailable">Available on Android 12 or later if supported by your phone.</string>
+    <string name="companion_permission">Allow nearby devices</string>
+    <string name="companion_bluetooth_off">Turn on Bluetooth to set this up.</string>
+    <string name="companion_empty">First connect supported headphones in Bluetooth settings, then refresh the list.</string>
+    <string name="companion_enabled">Background operation requested</string>
+    <string name="companion_disabled">Background operation is not set up</string>
+    <string name="companion_enable">Enable</string>
+    <string name="companion_retry">Set up again</string>
+    <string name="companion_remove">Remove link</string>
+    <string name="companion_remove_hint">Disable background operation for these headphones? They will stay paired in Bluetooth and widget settings will be kept.</string>
+    <string name="companion_waiting">Completing setup…</string>
+    <string name="companion_error">Setup failed. Check Bluetooth and the Nearby devices permission. Turn on Location if Android asks, then try again.</string>
+    <string name="companion_refresh">Refresh list</string>
+</resources>

@@ -82,6 +82,41 @@ object WidgetStorage {
     val BACKGROUND_OPACITY_KEY = intPreferencesKey("background_opacity")
     val ELEMENT_OPACITY_KEY = intPreferencesKey("element_opacity")
     val LABEL_MODE_KEY = intPreferencesKey("label_mode")
+    internal val BACKGROUND_COLOR_MODE_KEY = intPreferencesKey("background_color_mode")
+    internal val BACKGROUND_RGB_KEY = intPreferencesKey("background_rgb")
+    internal val ELEMENT_COLOR_MODE_KEY = intPreferencesKey("element_color_mode")
+    internal val ELEMENT_RGB_KEY = intPreferencesKey("element_rgb")
+    internal val TEXT_COLOR_MODE_KEY = intPreferencesKey("text_color_mode")
+    internal val TEXT_RGB_KEY = intPreferencesKey("text_rgb")
+
+    internal fun readColors(context: Context, appWidgetId: Int): WidgetColors {
+        val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        val defaults = if (prefs.contains("background_color_mode_$appWidgetId")) WidgetColors()
+            else WidgetBackupStore.fallback(context, appWidgetId)?.colors ?: WidgetColors()
+        return WidgetColors(
+            WidgetColorMode.normalize(prefs.getInt("background_color_mode_$appWidgetId", defaults.backgroundMode)),
+            WidgetColorHex.opaque(prefs.getInt("background_rgb_$appWidgetId", defaults.backgroundRgb)),
+            WidgetColorMode.normalize(prefs.getInt("element_color_mode_$appWidgetId", defaults.elementMode)),
+            WidgetColorHex.opaque(prefs.getInt("element_rgb_$appWidgetId", defaults.elementRgb)),
+            WidgetTextColorMode.normalize(prefs.getInt("text_color_mode_$appWidgetId", defaults.textMode)),
+            WidgetColorHex.opaque(prefs.getInt("text_rgb_$appWidgetId", defaults.textRgb)),
+        )
+    }
+
+    /** Color changes and their publication revision are persisted in the same edit. */
+    @Synchronized
+    internal fun writeColors(context: Context, appWidgetId: Int, colors: WidgetColors) {
+        val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        val revision = prefs.getLong(REVISION, 0) + 1
+        prefs.edit()
+            .putInt("background_color_mode_$appWidgetId", WidgetColorMode.normalize(colors.backgroundMode))
+            .putInt("background_rgb_$appWidgetId", WidgetColorHex.opaque(colors.backgroundRgb))
+            .putInt("element_color_mode_$appWidgetId", WidgetColorMode.normalize(colors.elementMode))
+            .putInt("element_rgb_$appWidgetId", WidgetColorHex.opaque(colors.elementRgb))
+            .putInt("text_color_mode_$appWidgetId", WidgetTextColorMode.normalize(colors.textMode))
+            .putInt("text_rgb_$appWidgetId", WidgetColorHex.opaque(colors.textRgb))
+            .putLong(REVISION, revision).putLong(APPEARANCE_REVISION, revision).apply()
+    }
 
     /** Outer widget container opacity for one instance, percent 0..100. */
     fun readBackgroundOpacity(context: Context, appWidgetId: Int): Int =
@@ -99,7 +134,13 @@ object WidgetStorage {
         return if (prefs.contains(key)) {
             prefs.getInt(key, DEFAULT_OPACITY)
         } else {
-            prefs.getInt(LEGACY_OPACITY_PREFIX + appWidgetId, DEFAULT_OPACITY)
+            if (prefs.contains(LEGACY_OPACITY_PREFIX + appWidgetId)) {
+                prefs.getInt(LEGACY_OPACITY_PREFIX + appWidgetId, DEFAULT_OPACITY)
+            } else {
+                val profile = WidgetBackupStore.fallback(context, appWidgetId)
+                (if (prefix == BACKGROUND_OPACITY_PREFIX) profile?.backgroundOpacity else profile?.elementOpacity)
+                    ?: DEFAULT_OPACITY
+            }
         }.coerceIn(0, 100)
     }
 
@@ -116,10 +157,13 @@ object WidgetStorage {
             .apply()
     }
 
-    fun readLabelMode(context: Context, appWidgetId: Int): Int =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-            .getInt(LABEL_MODE_PREFIX + appWidgetId, LABELS_FULL)
+    fun readLabelMode(context: Context, appWidgetId: Int): Int {
+        val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        val key = LABEL_MODE_PREFIX + appWidgetId
+        return (if (prefs.contains(key)) prefs.getInt(key, LABELS_FULL)
+            else WidgetBackupStore.fallback(context, appWidgetId)?.labelMode ?: LABELS_FULL)
             .coerceIn(LABELS_FULL, LABELS_HIDDEN)
+    }
 
     fun writeLabelMode(context: Context, appWidgetId: Int, mode: Int) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
@@ -130,6 +174,9 @@ object WidgetStorage {
     fun removeOpacity(context: Context, appWidgetIds: IntArray) {
         val editor = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
         appWidgetIds.forEach {
+            editor.remove("background_color_mode_$it").remove("background_rgb_$it")
+                .remove("element_color_mode_$it").remove("element_rgb_$it")
+                .remove("text_color_mode_$it").remove("text_rgb_$it")
             editor.remove(LEGACY_OPACITY_PREFIX + it)
             editor.remove(BACKGROUND_OPACITY_PREFIX + it)
             editor.remove(ELEMENT_OPACITY_PREFIX + it)
@@ -246,6 +293,7 @@ object WidgetStorage {
                 val backgroundOpacity = readBackgroundOpacity(context, appWidgetId)
                 val elementOpacity = readElementOpacity(context, appWidgetId)
                 val labelMode = readLabelMode(context, appWidgetId)
+                val colors = readColors(context, appWidgetId)
                 updateAppWidgetState(context, id) { prefs ->
                     prefs[LEFT_KEY] = left
                     prefs[RIGHT_KEY] = right
@@ -255,6 +303,12 @@ object WidgetStorage {
                     prefs[BACKGROUND_OPACITY_KEY] = backgroundOpacity
                     prefs[ELEMENT_OPACITY_KEY] = elementOpacity
                     prefs[LABEL_MODE_KEY] = labelMode
+                    prefs[BACKGROUND_COLOR_MODE_KEY] = colors.backgroundMode
+                    prefs[BACKGROUND_RGB_KEY] = colors.backgroundRgb
+                    prefs[ELEMENT_COLOR_MODE_KEY] = colors.elementMode
+                    prefs[ELEMENT_RGB_KEY] = colors.elementRgb
+                    prefs[TEXT_COLOR_MODE_KEY] = colors.textMode
+                    prefs[TEXT_RGB_KEY] = colors.textRgb
                 }
                 widget.update(context, id)
             }

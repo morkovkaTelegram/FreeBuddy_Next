@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_background_color">Hintergrundfarbe</string>
+    <string name="widget_elements_color">Elementfarbe</string>
+    <string name="widget_color_source">Farbquelle</string>
+    <string name="widget_color_default">Standard</string>
+    <string name="widget_color_accent">Systemakzent</string>
+    <string name="widget_color_custom">Eigene Farbe</string>
+    <string name="widget_color_choose">Farbe wählen · %1$s</string>
+    <string name="widget_color_hex">HEX · #RRGGBB</string>
+    <string name="widget_color_hex_error">Sechs Hexadezimalziffern eingeben, z. B. #82B1FF</string>
+    <string name="widget_tab_background">Hintergrund</string>
+    <string name="widget_tab_elements">Elemente</string>
+    <string name="widget_tab_labels">Beschriftungen</string>
+    <string name="widget_tab_text">Text</string>
+    <string name="widget_text_color">Text- und Symbolfarbe</string>
+    <string name="widget_color_auto">Automatisch</string>
+    <string name="widget_color_white">Weiß</string>
+    <string name="widget_color_black">Schwarz</string>
+    <string name="widget_text_color_hint">Gilt für Prozentwerte, Beschriftungen und Symbole. Text und Symbole bleiben deckend. Prüfe die Lesbarkeit in der Vorschau, besonders bei transparentem Hintergrund.</string>
+    <string name="widget_favorites_title">Lieblingsfarben (bis zu %1$d Farben)</string>
+    <string name="widget_favorites_add">Zu Favoriten hinzufügen</string>
+    <string name="widget_favorites_remove">Aus Favoriten entfernen</string>
+    <string name="widget_favorites_previous">Vorherige Farben</string>
+    <string name="widget_favorites_next">Weitere Farben</string>
+    <string name="widget_background_hint" formatted="false">Transparenz des Widget-Hintergrunds: 0% — undurchsichtig, 100% — vollständig transparent. Elemente, Text und Symbole bleiben unverändert.</string>
+    <string name="widget_elements_hint" formatted="false">Transparenz der Akkuanzeigen und ANC-Tasten: 0% — undurchsichtig, 100% — vollständig transparent. Hintergrund, Text und Symbole bleiben unverändert.</string>
+</resources>

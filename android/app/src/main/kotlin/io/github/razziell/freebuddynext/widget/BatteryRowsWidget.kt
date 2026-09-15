@@ -57,21 +57,24 @@ class BatteryRowsWidget : GlanceAppWidget() {
         val initialBackgroundOpacity = WidgetStorage.readBackgroundOpacity(context, appWidgetId)
         val initialElementOpacity = WidgetStorage.readElementOpacity(context, appWidgetId)
         val initialLabelMode = WidgetStorage.readLabelMode(context, appWidgetId)
+        val initialColors = WidgetStorage.readColors(context, appWidgetId)
         provideContent {
             // currentState makes the session recompose whenever
             // WidgetStorage.updateAll pushes new values - battery and
             // opacity changes apply immediately instead of on the next
             // full-update event.
             val prefs = currentState<Preferences>()
-            Content(
-                context,
-                prefs[WidgetStorage.LEFT_KEY] ?: left,
-                prefs[WidgetStorage.RIGHT_KEY] ?: right,
-                prefs[WidgetStorage.CASE_KEY] ?: case,
-                prefs[WidgetStorage.BACKGROUND_OPACITY_KEY] ?: initialBackgroundOpacity,
-                prefs[WidgetStorage.ELEMENT_OPACITY_KEY] ?: initialElementOpacity,
-                prefs[WidgetStorage.LABEL_MODE_KEY] ?: initialLabelMode,
-            )
+            WidgetPaletteProvider(context, prefs.widgetColors(initialColors)) {
+                Content(
+                    context,
+                    prefs[WidgetStorage.LEFT_KEY] ?: left,
+                    prefs[WidgetStorage.RIGHT_KEY] ?: right,
+                    prefs[WidgetStorage.CASE_KEY] ?: case,
+                    prefs[WidgetStorage.BACKGROUND_OPACITY_KEY] ?: initialBackgroundOpacity,
+                    prefs[WidgetStorage.ELEMENT_OPACITY_KEY] ?: initialElementOpacity,
+                    prefs[WidgetStorage.LABEL_MODE_KEY] ?: initialLabelMode,
+                )
+            }
         }
     }
 
@@ -86,7 +89,7 @@ class BatteryRowsWidget : GlanceAppWidget() {
         elementOpacity: Int,
         labelMode: Int,
     ) {
-        val textColor = ColorProvider(R.color.battery_widget_text_color)
+        val textColor = ColorProvider(widgetComposeColor(context, R.color.battery_widget_text_color))
         val labelStyle = TextStyle(
             color = textColor,
             fontSize = 15.sp,
@@ -101,14 +104,14 @@ class BatteryRowsWidget : GlanceAppWidget() {
         )
 
         val outerBackground = if (backgroundOpacity >= 100) {
-            ColorProvider(R.color.battery_widget_bar_background)
+            ColorProvider(widgetComposeColor(context, R.color.battery_widget_bar_background))
         } else {
             // Resolved color is required to multiply alpha; theme switches are
             // covered by launcher-driven updates and WidgetAppearanceReceiver.
             ColorProvider(
                 androidx.compose.ui.graphics.Color(
                     WidgetProgressBitmap.withOpacity(
-                        context.getColor(R.color.battery_widget_bar_background), backgroundOpacity,
+                        widgetColor(context, R.color.battery_widget_bar_background), backgroundOpacity,
                     ),
                 ),
             )
@@ -155,10 +158,10 @@ class BatteryRowsWidget : GlanceAppWidget() {
         val progressBitmap = WidgetProgressBitmap.horizontal(
             level = normalized,
             filled = WidgetProgressBitmap.withOpacity(
-                context.getColor(R.color.battery_widget_bar_color), elementOpacity,
+                widgetColor(context, R.color.battery_widget_bar_color), elementOpacity,
             ),
             empty = WidgetProgressBitmap.withOpacity(
-                context.getColor(R.color.battery_widget_empty_color), elementOpacity,
+                widgetColor(context, R.color.battery_widget_empty_color), elementOpacity,
             ),
         )
         Box(
@@ -183,7 +186,7 @@ class BatteryRowsWidget : GlanceAppWidget() {
                         batteryText,
                     ),
                     modifier = GlanceModifier.size(28.dp),
-                    colorFilter = ColorFilter.tint(ColorProvider(R.color.battery_widget_text_color)),
+                    colorFilter = ColorFilter.tint(ColorProvider(widgetComposeColor(context, R.color.battery_widget_text_color))),
                 )
                 if (visibleLabel.isNotEmpty()) {
                     Spacer(GlanceModifier.width(10.dp))

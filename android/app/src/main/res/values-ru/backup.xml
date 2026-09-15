@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_title">Резервная копия</string>
+    <string name="backup_description">Расположение блоков, цвета и прозрачность виджетов, подписи и избранные цвета.</string>
+    <string name="backup_import">Импорт</string>
+    <string name="backup_export">Экспорт</string>
+    <string name="backup_restore">Восстановить</string>
+    <string name="backup_restore_title">Восстановить настройки?</string>
+    <string name="backup_restore_confirmation">Расположение блоков и избранные цвета будут заменены. Оформление виджетов восстановится по типу и порядку добавления, не по месту на экране. Лишние экземпляры останутся без изменений. Если виджетов ещё нет, добавьте их после импорта — сохранённое оформление будет подставлено автоматически. Копия не создаёт виджеты на рабочем столе.</string>
+    <string name="backup_restore_legacy">Это копия расположения: порядок, размеры и видимость блоков будут заменены. Настройки виджетов и избранные цвета не изменятся.</string>
+    <string name="backup_export_done">Копия сохранена</string>
+    <string name="backup_export_failed">Не удалось сохранить копию</string>
+    <string name="backup_import_failed">Не удалось прочитать копию: проверьте файл и его формат</string>
+    <string name="backup_import_done">Настройки восстановлены</string>
+    <string name="backup_restore_failed">Не удалось завершить восстановление. Часть настроек могла измениться — повторите импорт.</string>
+    <string name="backup_refresh_failed">Настройки сохранены, но не все виджеты обновились. Откройте приложение повторно.</string>
+</resources>

@@ -4,6 +4,20 @@ This file is maintained in English first, followed by a complete Russian transla
 
 ## [Unreleased]
 
+- Updated application version to 0.4.5+55. Unified action-button feedback, refined the color picker, and separated Copy logs from Copy raw data. Unknown protocol fields are collapsed by default.
+
+- Renamed About to Settings and added an App operation heading. Added a Backup section, moving layout import/export out of the editor and extending JSON backups with widget color modes/RGB, opacity, labels and shared favorites. Legacy layout files remain supported; widget profiles map by type/creation order and are retained for recreated widgets.
+
+- Added opt-in Companion Device Manager association and a system-bound CompanionDeviceService on Android 12+, without a permanent notification. Includes per-headset consent/removal, Android 16 presence events, observation restoration, shared-connection recovery and expanded lifecycle diagnostics. OEM behavior is not yet device-verified.
+
+- Added a persistent favorites palette below the color picker: up to 24 unique RGB colors shared across widget backgrounds, elements and text, with tap-to-select and add/remove actions.
+
+- Added a separate Text page with automatic, white, black, system-accent and custom text/icon colors per widget. Text remains opaque; the three tabs occupy equal widths.
+
+- Reorganized widget configuration into swipeable Background / Elements / Text pages with a fixed preview and bottom actions; short wide windows place the preview beside the controls. Label controls are below text colors and are omitted for ANC and compact widgets.
+
+- Added independent per-widget background and element colors (default/system accent/custom), a hue-ring RGB picker with a saturation/brightness field and HEX input, and shared palettes for live previews and all four widget types. Existing colors and separate opacity settings are preserved by default.
+
 - Documentation synchronized with the current implementation.
 - Added bounded WorkManager widget refreshes for Bluetooth connection/disconnection events, A2DP readiness waiting and fresh battery/ANC report tracking.
 - Added persistent publication revisions and a retry worker so unchanged battery readings can repair interrupted widget updates; Glance failures no longer abort the Bluetooth packet collector.
@@ -284,6 +298,20 @@ This file is maintained in English first, followed by a complete Russian transla
 Сначала в этом файле приводится английская версия, ниже — её полный русский перевод.
 
 ## [Не выпущено]
+
+- Версия приложения обновлена до 0.4.5+55. Унифицированы кнопки и анимации нажатия, доработан пикер цветов. Копирование логов отделено от сырых данных; неизвестные поля протокола по умолчанию свёрнуты.
+
+- Экран «О приложении» переименован в «Настройки», добавлен заголовок «Работа приложения». В новый раздел «Резервная копия» перенесён импорт/экспорт расположения; JSON-копия теперь включает режимы и RGB цветов виджетов, прозрачность, подписи и общее избранное. Старые копии расположения поддерживаются; оформление сопоставляется по типу и порядку создания виджетов и сохраняется для повторно добавленных экземпляров.
+
+- Добавлены добровольная привязка через Companion Device Manager и системно привязанная CompanionDeviceService на Android 12+ без постоянного уведомления: подтверждение/удаление связи для каждого комплекта, события присутствия Android 16, восстановление наблюдения и общего соединения, расширенная диагностика жизненного цикла. Поведение на прошивках производителей ещё не проверено на устройстве.
+
+- Внизу пикера добавлена сохраняемая палитра избранного: до 24 уникальных RGB-цветов для фона, элементов и текста всех виджетов, выбор нажатием и добавление/удаление цвета.
+
+- Добавлена отдельная вкладка «Текст» с автоматическим, белым, чёрным, системным акцентным или своим цветом текста и значков каждого виджета. Текст остаётся непрозрачным; три вкладки равномерно занимают всю ширину.
+
+- Настройки виджетов разделены на перелистываемые страницы «Фон» / «Элементы» / «Текст» с закреплённым превью и нижними кнопками; в низких широких окнах превью расположено рядом с настройками. Подписи находятся под цветом текста и скрыты у ANC и компактного виджета.
+
+- Добавлены независимые цвета фона и элементов каждого виджета (стандартный/системный акцент/свой), круговой RGB-пикер с полем насыщенности/яркости и HEX-вводом, общая палитра для живого превью и всех четырёх видов виджетов. Прежние цвета и отдельные настройки прозрачности по умолчанию сохранены.
 
 - Документация синхронизирована с текущей реализацией.
 - Добавлены ограниченные по времени задачи WorkManager для обновления виджетов при подключении/отключении Bluetooth, ожидание готовности A2DP и отслеживание свежих ответов батареи и ANC.

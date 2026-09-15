@@ -8,6 +8,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -21,6 +22,8 @@ fun FreeBuddyTheme(content: @Composable () -> Unit) {
     // every recomposition of the theme root restarts the DataStore collector.
     val mode by remember { ThemeStore.themeMode(context) }
         .collectAsStateWithLifecycle(initialValue = ThemeStore.ThemeMode.SYSTEM)
+    val showEmojis by remember { ThemeStore.showEmojis(context) }
+        .collectAsStateWithLifecycle(initialValue = true)
     val dark = when (mode) {
         ThemeStore.ThemeMode.LIGHT -> false
         ThemeStore.ThemeMode.DARK -> true
@@ -34,5 +37,7 @@ fun FreeBuddyTheme(content: @Composable () -> Unit) {
     }
     // NOTE: MotionScheme.expressive() is still internal in material3 1.4.0;
     // expressive-style motion is provided by explicit spring animations in screens.
-    MaterialTheme(colorScheme = colors, content = content)
+    CompositionLocalProvider(LocalShowEmojis provides showEmojis) {
+        MaterialTheme(colorScheme = colors, content = content)
+    }
 }

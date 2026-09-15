@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="companion_title">Działanie w tle</string>
+    <string name="companion_summary">Aktualizuj widżety bez otwierania aplikacji i stałego powiadomienia.</string>
+    <string name="companion_description">Wybierz słuchawki i zatwierdź prośbę Androida. Ułatwi to aktualizowanie widżetów, gdy aplikacja jest zamknięta.</string>
+    <string name="companion_limits">W HyperOS zezwól też na autostart i ustaw tryb baterii Bez ograniczeń. System nadal może ograniczać działanie w tle. Po wymuszonym zatrzymaniu ponownie otwórz aplikację.</string>
+    <string name="companion_unavailable">Dostępne od Androida 12, jeśli telefon obsługuje tę funkcję.</string>
+    <string name="companion_permission">Zezwól na urządzenia w pobliżu</string>
+    <string name="companion_bluetooth_off">Włącz Bluetooth, aby rozpocząć konfigurację.</string>
+    <string name="companion_empty">Najpierw połącz obsługiwane słuchawki w ustawieniach Bluetooth, a następnie odśwież listę.</string>
+    <string name="companion_enabled">Zażądano działania w tle</string>
+    <string name="companion_disabled">Działanie w tle nie jest skonfigurowane</string>
+    <string name="companion_enable">Włącz</string>
+    <string name="companion_retry">Skonfiguruj ponownie</string>
+    <string name="companion_remove">Usuń powiązanie</string>
+    <string name="companion_remove_hint">Wyłączyć działanie w tle dla tych słuchawek? Parowanie Bluetooth i ustawienia widżetów zostaną zachowane.</string>
+    <string name="companion_waiting">Kończenie konfiguracji…</string>
+    <string name="companion_error">Konfiguracja nie powiodła się. Sprawdź Bluetooth i uprawnienie do urządzeń w pobliżu. Włącz lokalizację, jeśli Android o to poprosi, i spróbuj ponownie.</string>
+    <string name="companion_refresh">Odśwież listę</string>
+</resources>

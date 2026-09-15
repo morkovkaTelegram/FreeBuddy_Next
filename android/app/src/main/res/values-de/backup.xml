@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_title">Sicherung</string>
+    <string name="backup_description">Blockanordnung, Widget-Farben und Transparenz, Beschriftungen und Lieblingsfarben.</string>
+    <string name="backup_import">Importieren</string>
+    <string name="backup_export">Exportieren</string>
+    <string name="backup_restore">Wiederherstellen</string>
+    <string name="backup_restore_title">Einstellungen wiederherstellen?</string>
+    <string name="backup_restore_confirmation">Blockanordnung und Lieblingsfarben werden ersetzt. Das Widget-Aussehen wird nach Typ und Erstellungsreihenfolge zugeordnet, nicht nach Bildschirmposition. Zusätzliche Widgets bleiben unverändert. Falls noch keine Widgets vorhanden sind, füge sie nach dem Import hinzu, um das gespeicherte Aussehen automatisch zu verwenden. Die Sicherung erstellt keine Widgets auf dem Startbildschirm.</string>
+    <string name="backup_restore_legacy">Dies ist eine reine Layout-Sicherung: Reihenfolge, Größen und Sichtbarkeit der Blöcke werden ersetzt. Widget-Einstellungen und Lieblingsfarben bleiben unverändert.</string>
+    <string name="backup_export_done">Sicherung gespeichert</string>
+    <string name="backup_export_failed">Sicherung konnte nicht gespeichert werden</string>
+    <string name="backup_import_failed">Sicherung konnte nicht gelesen werden: Datei und Format prüfen</string>
+    <string name="backup_import_done">Einstellungen wiederhergestellt</string>
+    <string name="backup_restore_failed">Wiederherstellung nicht abgeschlossen. Einige Einstellungen wurden möglicherweise geändert. Import erneut versuchen.</string>
+    <string name="backup_refresh_failed">Einstellungen gespeichert, aber nicht alle Widgets aktualisiert. App erneut öffnen.</string>
+</resources>

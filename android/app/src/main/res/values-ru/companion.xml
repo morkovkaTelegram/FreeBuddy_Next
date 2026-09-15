@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="companion_title">Фоновая работа</string>
+    <string name="companion_summary">Обновление виджетов без открытия приложения и постоянного уведомления.</string>
+    <string name="companion_description">Выберите наушники и подтвердите запрос Android. Это поможет обновлять виджеты, когда приложение закрыто.</string>
+    <string name="companion_limits">На HyperOS также разрешите автозапуск и выберите режим батареи «Без ограничений». Система всё ещё может ограничивать работу в фоне. После принудительной остановки откройте приложение снова.</string>
+    <string name="companion_unavailable">Эта функция доступна на Android 12 и новее, если её поддерживает телефон.</string>
+    <string name="companion_permission">Разрешить устройства поблизости</string>
+    <string name="companion_bluetooth_off">Включите Bluetooth для настройки.</string>
+    <string name="companion_empty">Сначала подключите поддерживаемые наушники в настройках Bluetooth, затем обновите список.</string>
+    <string name="companion_enabled">Фоновая работа запрошена</string>
+    <string name="companion_disabled">Фоновая работа не настроена</string>
+    <string name="companion_enable">Включить</string>
+    <string name="companion_retry">Настроить повторно</string>
+    <string name="companion_remove">Удалить привязку</string>
+    <string name="companion_remove_hint">Отключить фоновую работу для этих наушников? Они останутся в Bluetooth, настройки виджетов сохранятся.</string>
+    <string name="companion_waiting">Завершение настройки…</string>
+    <string name="companion_error">Не удалось настроить. Проверьте Bluetooth и разрешение «Устройства поблизости». Если Android просит — включите геолокацию. Затем повторите попытку.</string>
+    <string name="companion_refresh">Обновить список</string>
+</resources>

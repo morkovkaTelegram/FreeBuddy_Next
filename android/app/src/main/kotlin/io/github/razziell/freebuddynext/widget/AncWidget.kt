@@ -54,16 +54,19 @@ class AncWidget : GlanceAppWidget() {
         }.getOrDefault(0)
         val initialBackgroundOpacity = WidgetStorage.readBackgroundOpacity(context, appWidgetId)
         val initialElementOpacity = WidgetStorage.readElementOpacity(context, appWidgetId)
+        val initialColors = WidgetStorage.readColors(context, appWidgetId)
         provideContent {
             val prefs = currentState<Preferences>()
-            Content(
-                context = context,
-                modeCode = prefs[WidgetStorage.ANC_MODE_KEY] ?: initialMode,
-                connected = (prefs[WidgetStorage.ANC_CONNECTED_KEY]
-                    ?: if (initialConnected) 1 else 0) == 1,
-                backgroundOpacity = prefs[WidgetStorage.BACKGROUND_OPACITY_KEY] ?: initialBackgroundOpacity,
-                elementOpacity = prefs[WidgetStorage.ELEMENT_OPACITY_KEY] ?: initialElementOpacity,
-            )
+            WidgetPaletteProvider(context, prefs.widgetColors(initialColors)) {
+                Content(
+                    context = context,
+                    modeCode = prefs[WidgetStorage.ANC_MODE_KEY] ?: initialMode,
+                    connected = (prefs[WidgetStorage.ANC_CONNECTED_KEY]
+                        ?: if (initialConnected) 1 else 0) == 1,
+                    backgroundOpacity = prefs[WidgetStorage.BACKGROUND_OPACITY_KEY] ?: initialBackgroundOpacity,
+                    elementOpacity = prefs[WidgetStorage.ELEMENT_OPACITY_KEY] ?: initialElementOpacity,
+                )
+            }
         }
     }
 
@@ -139,17 +142,18 @@ class AncWidget : GlanceAppWidget() {
                 contentDescription = description,
                 modifier = GlanceModifier.size(36.dp),
                 colorFilter = ColorFilter.tint(
-                    ColorProvider(R.color.battery_widget_text_color),
+                    ColorProvider(widgetComposeColor(context, R.color.battery_widget_text_color)),
                 ),
             )
         }
     }
 
+    @Composable
     private fun color(context: Context, resource: Int, opacity: Int): ColorProvider =
         ColorProvider(
             Color(
                 WidgetProgressBitmap.withOpacity(
-                    context.getColor(resource),
+                    widgetColor(context, resource),
                     opacity,
                 ),
             ),

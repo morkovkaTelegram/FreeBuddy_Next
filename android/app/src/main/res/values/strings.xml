@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FreeBuddy Next</string>
-    <string name="about">About FreeBuddy Next ℹ️</string>
+    <string name="about">Settings</string>
+    <string name="about_section_title">About the app</string>
+    <string name="companion_section_title">App operation</string>
     <string name="about_text">An independent open-source application for controlling supported Huawei FreeBuds.</string>
     <string name="version_text">Version %1$s</string>
     <string name="connected">Headphones connected 🎧</string>
     <string name="disconnected">Headphones are not connected 🙅</string>
     <string name="disconnected_desc">Connect the headphones to your phone via Bluetooth.</string>
     <string name="connecting">Connecting… 🔄</string>
-    <string name="connecting_desc">Establishing a secure connection with the headphones.</string>
+    <string name="connecting_desc">Establishing a connection with the headphones.</string>
     <string name="connection_failed">Could not connect 🤨</string>
     <string name="connection_failed_desc">The connection may be used by another application. Close it and try again.</string>
     <string name="page_home_no_permission">No Bluetooth access 😢</string>
@@ -136,6 +138,7 @@
     <string name="device_info_eq_none">None</string>
     <string name="device_info_eq_preset">Preset %1$d · %2$s</string>
     <string name="device_info_eq_tlv">EQ TLV %1$d</string>
+    <string name="device_info_copy_logs">Copy logs</string>
     <string name="device_info_copy_raw">Copy raw data</string>
     <string name="device_info_clipboard_label">FreeBuddy Next diagnostics</string>
     <string name="eq_export">Export</string>

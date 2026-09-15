@@ -1,5 +1,7 @@
 package io.github.razziell.freebuddynext.ui
 
+import androidx.compose.ui.text.withLink
+
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -116,7 +118,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -170,7 +171,6 @@ import io.github.razziell.freebuddynext.data.InterfaceLayout
 import io.github.razziell.freebuddynext.data.InterfaceLayoutDefaults
 import io.github.razziell.freebuddynext.data.REQUIRED_HOME_BLOCKS
 import io.github.razziell.freebuddynext.data.InterfaceLayoutFile
-import io.github.razziell.freebuddynext.data.InterfaceLayoutFileCodec
 import io.github.razziell.freebuddynext.data.ThemeStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -232,23 +232,9 @@ private enum class Screen(val depth: Int) {
 
 private val AppCardShape = RoundedCornerShape(16.dp)
 private val MenuItemShape = RoundedCornerShape(12.dp)
-private val LocalShowEmojis = staticCompositionLocalOf { true }
-private val EmojiRegex = Regex(
-    """[\x{1F000}-\x{1FAFF}\x{2100}-\x{214F}\x{2300}-\x{25FF}\x{2600}-\x{27BF}\uFE0E\uFE0F\u200D]+""",
-)
-
-private fun String.withoutEmojis(): String =
-    replace(EmojiRegex, "").replace(Regex(" {2,}"), " ").trim()
-
 @Composable
-private fun stringResource(@StringRes id: Int, vararg formatArgs: Any): String {
-    val value = if (formatArgs.isEmpty()) {
-        androidx.compose.ui.res.stringResource(id)
-    } else {
-        androidx.compose.ui.res.stringResource(id, *formatArgs)
-    }
-    return if (LocalShowEmojis.current) value else value.withoutEmojis()
-}
+private fun stringResource(@StringRes id: Int, vararg formatArgs: Any): String =
+    appStringResource(id, *formatArgs)
 
 @Composable
 fun FreeBuddyApp(repository: HeadphonesRepository, requestBluetoothPermission: () -> Unit) {
@@ -773,6 +759,7 @@ private fun DeviceInfoOverlay(
     val rightProduction = info?.rightSerial?.productionDate(SerialComponent.EARBUD)
     val earbudsProductionMismatch = leftProduction != null && rightProduction != null &&
         leftProduction != rightProduction
+    var unknownFieldsExpanded by rememberSaveable(snapshot.address) { mutableStateOf(false) }
     val clipboardLabel = stringResource(R.string.device_info_clipboard_label)
     val detectedColor = HeadphonesProtocolRegistry.findById(snapshot.protocolId)?.detectColor(info)
     val detectedColorLabel = detectedColor?.let { color ->
@@ -845,17 +832,37 @@ private fun DeviceInfoOverlay(
                     )
                 }
                 if (!info?.unknownFields.isNullOrEmpty()) {
-                    DiagnosticSectionTitle(R.string.device_info_unknown_fields)
-                    info?.unknownFields?.forEach { (id, value) ->
-                        if (id == 25) {
-                            DeviceTlvColorRow(
-                                label = stringResource(R.string.device_info_tlv_field, id),
-                                value = value,
-                                probableColorLabel = stringResource(R.string.device_info_probable_color),
-                                probableColor = detectedColorLabel,
+                    HorizontalDivider(Modifier.padding(vertical = 6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(R.string.device_info_unknown_fields),
+                            modifier = Modifier.weight(1f).semantics { heading() },
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        IconButton(onClick = { unknownFieldsExpanded = !unknownFieldsExpanded }) {
+                            Icon(
+                                if (unknownFieldsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = stringResource(if (unknownFieldsExpanded) R.string.collapse else R.string.expand),
                             )
-                        } else {
-                            DeviceInfoRow(stringResource(R.string.device_info_tlv_field, id), value)
+                        }
+                    }
+                    AnimatedVisibility(visible = unknownFieldsExpanded) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            info?.unknownFields?.forEach { (id, value) ->
+                                if (id == 25) {
+                                    DeviceTlvColorRow(
+                                        label = stringResource(R.string.device_info_tlv_field, id),
+                                        value = value,
+                                        probableColorLabel = stringResource(R.string.device_info_probable_color),
+                                        probableColor = detectedColorLabel,
+                                    )
+                                } else {
+                                    DeviceInfoRow(stringResource(R.string.device_info_tlv_field, id), value)
+                                }
+                            }
                         }
                     }
                 }
@@ -887,12 +894,27 @@ private fun DeviceInfoOverlay(
                     }
                 }
             }
-            Row(
+            Column(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ExpressiveTextButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val logs = buildString {
+                            appendLine("FreeBuddy Next background diagnostics")
+                            appendLine("version=${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+                            appendLine("backgroundEvents:")
+                            repository.backgroundDiagnostics().forEach { appendLine(it) }
+                        }.trimEnd()
+                        clipboard.setPrimaryClip(ClipData.newPlainText(clipboardLabel, logs))
+                    },
+                ) {
+                    Text(stringResource(R.string.device_info_copy_logs))
+                }
+                ExpressiveTextButton(
+                    modifier = Modifier.fillMaxWidth(),
                     onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         clipboard.setPrimaryClip(
@@ -901,7 +923,6 @@ private fun DeviceInfoOverlay(
                                 snapshot.toDiagnosticDump(
                                     activeCodec = activeCodec,
                                     rawResponses = repository.diagnosticLog(),
-                                    backgroundEvents = repository.backgroundDiagnostics(),
                                 ),
                             ),
                         )
@@ -909,7 +930,7 @@ private fun DeviceInfoOverlay(
                 ) {
                     Text(stringResource(R.string.device_info_copy_raw))
                 }
-                ExpressiveTextButton(onClick = onDismiss) {
+                AppActionButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), filled = true) {
                     Text(stringResource(R.string.close))
                 }
             }
@@ -939,7 +960,6 @@ private fun DiagnosticSectionTitle(@StringRes title: Int) {
 private fun HeadphonesSnapshot.toDiagnosticDump(
     activeCodec: String?,
     rawResponses: List<String>,
-    backgroundEvents: List<String>,
 ): String = buildString {
     appendLine("FreeBuddy Next device diagnostics")
     appendLine("protocol=$protocolId")
@@ -975,8 +995,6 @@ private fun HeadphonesSnapshot.toDiagnosticDump(
         }
         eq.rawFields.forEach { (id, value) -> appendLine("eq.tlv$id=$value") }
     }
-    appendLine("backgroundEvents:")
-    backgroundEvents.forEach(::appendLine)
     appendLine("rawResponses:")
     rawResponses.forEach(::appendLine)
 }.trimEnd()
@@ -2518,64 +2536,6 @@ private fun InterfaceEditorScreen(
         ancMode = AncMode.NOISE_CANCELLING,
         ancLevel = AncLevel.ULTRA,
     )
-    val layoutExportDone = stringResource(R.string.interface_layout_export_done)
-    val layoutExportFailed = stringResource(R.string.interface_layout_export_failed)
-    val layoutImportFailed = stringResource(R.string.interface_layout_import_failed)
-    val layoutImportDone = stringResource(R.string.interface_layout_import_done)
-    var pendingLayoutImportJson by rememberSaveable { mutableStateOf<String?>(null) }
-    val pendingLayoutImport = remember(pendingLayoutImportJson) {
-        pendingLayoutImportJson?.let { json ->
-            runCatching { InterfaceLayoutFileCodec.decode(json) }.getOrNull()
-        }
-    }
-    val layoutExportLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json"),
-    ) { uri ->
-        if (uri != null) scope.launch {
-            val success = withContext(Dispatchers.IO) {
-                runCatching {
-                    context.contentResolver.openOutputStream(uri, "wt")!!.bufferedWriter().use { writer ->
-                        writer.write(InterfaceLayoutFileCodec.encode(layout))
-                    }
-                }.isSuccess
-            }
-            Toast.makeText(
-                context,
-                if (success) layoutExportDone else layoutExportFailed,
-                Toast.LENGTH_LONG,
-            ).show()
-        }
-    }
-    val layoutImportLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        if (uri != null) scope.launch {
-            val decoded = withContext(Dispatchers.IO) {
-                runCatching {
-                    val bytes = context.contentResolver.openInputStream(uri)!!.use { input ->
-                        val output = java.io.ByteArrayOutputStream()
-                        val buffer = ByteArray(4 * 1024)
-                        while (true) {
-                            val read = input.read(buffer)
-                            if (read < 0) break
-                            require(output.size() + read <= InterfaceLayoutFileCodec.MAX_FILE_BYTES) {
-                                "File is too large"
-                            }
-                            output.write(buffer, 0, read)
-                        }
-                        output.toByteArray()
-                    }
-                    val text = bytes.toString(Charsets.UTF_8)
-                    InterfaceLayoutFileCodec.decode(text)
-                    text
-                }
-            }
-            decoded.onSuccess { pendingLayoutImportJson = it }
-                .onFailure {
-                    Toast.makeText(context, layoutImportFailed, Toast.LENGTH_LONG).show()
-                }
-        }
-    }
 
     Scaffold(
         topBar = {
@@ -2809,92 +2769,10 @@ private fun InterfaceEditorScreen(
                     Text(stringResource(R.string.interface_editor_reset))
                 }
             }
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        stringResource(R.string.interface_layout_transfer_description),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        ExpressiveButton(
-                            onClick = {
-                                layoutImportLauncher.launch(
-                                    arrayOf(
-                                        "application/json",
-                                        "text/json",
-                                        "text/plain",
-                                        "application/octet-stream",
-                                    ),
-                                )
-                            },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Icon(Icons.Default.ArrowDownward, contentDescription = null)
-                            Spacer(Modifier.width(6.dp))
-                            Text(stringResource(R.string.interface_layout_import))
-                        }
-                        ExpressiveButton(
-                            onClick = {
-                                layoutExportLauncher.launch(InterfaceLayoutFileCodec.FILE_NAME)
-                            },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Icon(Icons.Default.ArrowUpward, contentDescription = null)
-                            Spacer(Modifier.width(6.dp))
-                            Text(stringResource(R.string.interface_layout_export))
-                        }
-                    }
-                }
-            }
             item { Spacer(Modifier.height(24.dp)) }
         }
     }
 
-    pendingLayoutImport?.let { imported ->
-        AlertDialog(
-            onDismissRequest = { pendingLayoutImportJson = null },
-            title = { Text(stringResource(R.string.interface_layout_import_title)) },
-            text = {
-                val hiddenCount =
-                    imported.layout.hiddenHomeBlocks.size + imported.layout.hiddenSettingsBlocks.size
-                var message = stringResource(
-                    R.string.interface_layout_import_confirmation,
-                    imported.layout.imageScalePercent,
-                    imported.layout.batteryScalePercent,
-                    imported.layout.ancScalePercent,
-                )
-                if (hiddenCount > 0) {
-                    message += "\n" + stringResource(
-                        R.string.interface_layout_import_hidden,
-                        hiddenCount,
-                    )
-                }
-                Text(message)
-            },
-            confirmButton = {
-                ExpressiveTextButton(
-                    onClick = {
-                        scope.launch {
-                            ThemeStore.setInterfaceLayout(context, imported.layout)
-                            pendingLayoutImportJson = null
-                            Toast.makeText(context, layoutImportDone, Toast.LENGTH_LONG).show()
-                        }
-                    },
-                ) {
-                    Text(stringResource(R.string.interface_layout_import_replace))
-                }
-            },
-            dismissButton = {
-                ExpressiveTextButton(onClick = { pendingLayoutImportJson = null }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
-    }
 }
 
 private fun supportedHomeBlocks(
@@ -2993,7 +2871,7 @@ private fun ExpressiveClickableCard(
     )
 }
 
-/** Filled button with a clear Expressive press response (scale + ripple). */
+/** Compatibility wrappers; all text actions use the shared outlined style. */
 @Composable
 private fun ExpressiveButton(
     onClick: () -> Unit,
@@ -3001,50 +2879,8 @@ private fun ExpressiveButton(
     enabled: Boolean = true,
     actionDelayMillis: Long = 120,
     content: @Composable RowScope.() -> Unit,
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val scale = remember { Animatable(1f) }
-    val scope = rememberCoroutineScope()
-    var actionPending by remember { mutableStateOf(false) }
-    val delayedOnClick: () -> Unit = {
-        if (!actionPending) {
-            if (actionDelayMillis <= 0) {
-                onClick()
-            } else {
-                actionPending = true
-                scope.launch {
-                    try {
-                        delay(actionDelayMillis)
-                        onClick()
-                    } finally {
-                        actionPending = false
-                    }
-                }
-            }
-        }
-    }
-    LaunchedEffect(interaction) {
-        interaction.interactions.collect { i ->
-            if (i is PressInteraction.Press) {
-                // Always play the full squash even for a quick tap.
-                scale.animateTo(0.9f, tween(durationMillis = 90))
-                scale.animateTo(
-                    1f,
-                    spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
-                )
-            }
-        }
-    }
-    androidx.compose.material3.Button(
-        onClick = delayedOnClick,
-        modifier = modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value },
-        enabled = enabled,
-        interactionSource = interaction,
-        content = content,
-    )
-}
+) = AppActionButton(onClick, modifier, enabled, actionDelayMillis, content = content)
 
-/** Text button with the same Expressive press response as [ExpressiveButton]. */
 @Composable
 private fun ExpressiveTextButton(
     onClick: () -> Unit,
@@ -3052,47 +2888,7 @@ private fun ExpressiveTextButton(
     enabled: Boolean = true,
     actionDelayMillis: Long = 120,
     content: @Composable RowScope.() -> Unit,
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val scale = remember { Animatable(1f) }
-    val scope = rememberCoroutineScope()
-    var actionPending by remember { mutableStateOf(false) }
-    val delayedOnClick: () -> Unit = {
-        if (!actionPending) {
-            if (actionDelayMillis <= 0) {
-                onClick()
-            } else {
-                actionPending = true
-                scope.launch {
-                    try {
-                        delay(actionDelayMillis)
-                        onClick()
-                    } finally {
-                        actionPending = false
-                    }
-                }
-            }
-        }
-    }
-    LaunchedEffect(interaction) {
-        interaction.interactions.collect { i ->
-            if (i is PressInteraction.Press) {
-                scale.animateTo(0.9f, tween(durationMillis = 90))
-                scale.animateTo(
-                    1f,
-                    spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
-                )
-            }
-        }
-    }
-    androidx.compose.material3.TextButton(
-        onClick = delayedOnClick,
-        modifier = modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value },
-        enabled = enabled,
-        interactionSource = interaction,
-        content = content,
-    )
-}
+) = AppActionButton(onClick, modifier, enabled, actionDelayMillis, content = content)
 
 /** M3 Expressive menu row with a guaranteed visible press pulse before dismissal. */
 @Composable
@@ -3326,6 +3122,26 @@ private fun AboutScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
+                stringResource(R.string.companion_section_title),
+                modifier = Modifier.semantics { heading() },
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            ExpressiveClickableCard(
+                onClick = {
+                    context.startActivity(android.content.Intent(context,
+                        io.github.razziell.freebuddynext.companion.CompanionSetupActivity::class.java))
+                },
+                modifier = Modifier.fillMaxWidth(),
+                actionDelayMillis = 170,
+            ) {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Text(stringResource(R.string.companion_title), style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.companion_summary), style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Text(
                 stringResource(R.string.appearance),
                 modifier = Modifier.semantics { heading() },
                 style = MaterialTheme.typography.titleMedium,
@@ -3402,18 +3218,48 @@ private fun AboutScreen(
                     }
                 }
             }
+            BackupSettingsSection()
+            Text(
+                stringResource(R.string.about_section_title),
+                modifier = Modifier.semantics { heading() },
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
             Card(Modifier.fillMaxWidth(), shape = AppCardShape) {
                 Column(
                     Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
-                    Text(stringResource(R.string.about_text))
+                    val appName = stringResource(R.string.app_name)
+                    val linkColor = MaterialTheme.colorScheme.primary
+                    Text(
+                        androidx.compose.ui.text.buildAnnotatedString {
+                            withLink(
+                                androidx.compose.ui.text.LinkAnnotation.Url(
+                                    "https://github.com/Razziell/FreeBuddy_Next",
+                                    styles = androidx.compose.ui.text.TextLinkStyles(
+                                        style = androidx.compose.ui.text.SpanStyle(
+                                            color = linkColor,
+                                            textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
+                                        ),
+                                    ),
+                                ),
+                            ) {
+                                append(appName)
+                            }
+                        },
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                    Text(
+                        stringResource(R.string.about_text),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                     Text(
                         stringResource(
                             R.string.version_text,
                             "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
                         ),
+                        style = MaterialTheme.typography.bodySmall,
                     )
                 }
             }

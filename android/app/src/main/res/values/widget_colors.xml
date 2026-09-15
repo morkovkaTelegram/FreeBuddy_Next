@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_background_color">Background color</string>
+    <string name="widget_elements_color">Element color</string>
+    <string name="widget_color_source">Color source</string>
+    <string name="widget_color_default">Default</string>
+    <string name="widget_color_accent">System accent</string>
+    <string name="widget_color_custom">Custom color</string>
+    <string name="widget_color_choose">Choose color · %1$s</string>
+    <string name="widget_color_hex">HEX · #RRGGBB</string>
+    <string name="widget_color_hex_error">Enter six hexadecimal digits, for example #82B1FF</string>
+    <string name="widget_tab_background">Background</string>
+    <string name="widget_tab_elements">Elements</string>
+    <string name="widget_tab_labels">Labels</string>
+    <string name="widget_tab_text">Text</string>
+    <string name="widget_text_color">Text and icon color</string>
+    <string name="widget_color_auto">Automatic</string>
+    <string name="widget_color_white">White</string>
+    <string name="widget_color_black">Black</string>
+    <string name="widget_text_color_hint">Applies to percentages, labels and icons. Text and icons stay opaque. Check readability in the preview, especially when using a transparent background.</string>
+    <string name="widget_favorites_title">Favorite colors (up to %1$d colors)</string>
+    <string name="widget_favorites_add">Add to favorites</string>
+    <string name="widget_favorites_remove">Remove from favorites</string>
+    <string name="widget_favorites_previous">Previous colors</string>
+    <string name="widget_favorites_next">More colors</string>
+    <string name="widget_background_hint" formatted="false">Widget background transparency: 0% — opaque, 100% — fully transparent. Elements, text and icons are unaffected.</string>
+    <string name="widget_elements_hint" formatted="false">Battery bars and ANC button transparency: 0% — opaque, 100% — fully transparent. Background, text and icons are unaffected.</string>
+</resources>

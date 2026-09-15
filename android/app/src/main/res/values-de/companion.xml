@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="companion_title">Hintergrundbetrieb</string>
+    <string name="companion_summary">Widgets aktualisieren, ohne die App zu öffnen oder eine dauerhafte Benachrichtigung anzuzeigen.</string>
+    <string name="companion_description">Wähle die Kopfhörer und bestätige die Android-Anfrage. So können Widgets auch bei geschlossener App aktualisiert werden.</string>
+    <string name="companion_limits">Erlaube unter HyperOS auch den Autostart und wähle den Akkumodus Ohne Einschränkungen. Das System kann den Hintergrundbetrieb weiterhin begrenzen. Öffne die App nach einem erzwungenen Stopp erneut.</string>
+    <string name="companion_unavailable">Ab Android 12 verfügbar, wenn dein Telefon die Funktion unterstützt.</string>
+    <string name="companion_permission">Geräte in der Nähe erlauben</string>
+    <string name="companion_bluetooth_off">Aktiviere Bluetooth für die Einrichtung.</string>
+    <string name="companion_empty">Verbinde zuerst unterstützte Kopfhörer in den Bluetooth-Einstellungen und aktualisiere dann die Liste.</string>
+    <string name="companion_enabled">Hintergrundbetrieb angefordert</string>
+    <string name="companion_disabled">Hintergrundbetrieb nicht eingerichtet</string>
+    <string name="companion_enable">Aktivieren</string>
+    <string name="companion_retry">Erneut einrichten</string>
+    <string name="companion_remove">Verknüpfung entfernen</string>
+    <string name="companion_remove_hint">Hintergrundbetrieb für diese Kopfhörer deaktivieren? Bluetooth-Kopplung und Widget-Einstellungen bleiben erhalten.</string>
+    <string name="companion_waiting">Einrichtung wird abgeschlossen…</string>
+    <string name="companion_error">Einrichtung fehlgeschlagen. Prüfe Bluetooth und die Berechtigung für Geräte in der Nähe. Aktiviere den Standort, falls Android danach fragt, und versuche es erneut.</string>
+    <string name="companion_refresh">Liste aktualisieren</string>
+</resources>

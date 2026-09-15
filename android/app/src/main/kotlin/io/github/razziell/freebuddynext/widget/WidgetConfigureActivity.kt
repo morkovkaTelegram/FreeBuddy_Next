@@ -8,8 +8,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,7 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -33,14 +31,14 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.material.icons.Icons
@@ -53,11 +51,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
+import io.github.razziell.freebuddynext.ui.appStringResource as stringResource
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -107,15 +103,17 @@ class WidgetConfigureActivity : ComponentActivity() {
                     initialBackgroundTransparency = initialBackgroundTransparency,
                     initialElementTransparency = initialElementTransparency,
                     initialLabelMode = initialLabelMode,
+                    initialColors = WidgetStorage.readColors(this, appWidgetId),
                     isAncWidget = isAncWidget,
                     isCompactWidget = isCompactWidget,
                     isColumnsWidget = isColumnsWidget,
                     onCancel = { finish() },
-                    onSave = { backgroundTransparency, elementTransparency, labelMode ->
+                    onSave = { backgroundTransparency, elementTransparency, labelMode, colors ->
                         save(
                             backgroundOpacity = 100 - backgroundTransparency,
                             elementOpacity = 100 - elementTransparency,
                             labelMode = labelMode,
+                            colors = colors,
                         )
                     },
                 )
@@ -123,7 +121,7 @@ class WidgetConfigureActivity : ComponentActivity() {
         }
     }
 
-    private fun save(backgroundOpacity: Int, elementOpacity: Int, labelMode: Int) {
+    private fun save(backgroundOpacity: Int, elementOpacity: Int, labelMode: Int, colors: WidgetColors) {
         WidgetStorage.writeOpacities(
             this,
             appWidgetId,
@@ -131,6 +129,7 @@ class WidgetConfigureActivity : ComponentActivity() {
             elementOpacity,
         )
         WidgetStorage.writeLabelMode(this, appWidgetId, labelMode)
+        WidgetStorage.writeColors(this, appWidgetId, colors)
         lifecycleScope.launch {
             WidgetStorage.updateAll(this@WidgetConfigureActivity)
             setResult(RESULT_OK, resultIntent())
@@ -147,85 +146,96 @@ private fun ConfigureScreen(
     initialBackgroundTransparency: Int,
     initialElementTransparency: Int,
     initialLabelMode: Int,
+    initialColors: WidgetColors,
     isAncWidget: Boolean,
     isCompactWidget: Boolean,
     isColumnsWidget: Boolean,
     onCancel: () -> Unit,
-    onSave: (Int, Int, Int) -> Unit,
+    onSave: (Int, Int, Int, WidgetColors) -> Unit,
 ) {
-    var backgroundTransparency by remember {
+    var backgroundTransparency by rememberSaveable {
         mutableIntStateOf(initialBackgroundTransparency.coerceIn(0, 100))
     }
-    var elementTransparency by remember {
+    var elementTransparency by rememberSaveable {
         mutableIntStateOf(initialElementTransparency.coerceIn(0, 100))
     }
-    var labelMode by remember { mutableIntStateOf(initialLabelMode) }
+    var labelMode by rememberSaveable { mutableIntStateOf(initialLabelMode) }
+    var backgroundMode by rememberSaveable { mutableIntStateOf(initialColors.backgroundMode) }
+    var backgroundRgb by rememberSaveable { mutableIntStateOf(initialColors.backgroundRgb) }
+    var elementMode by rememberSaveable { mutableIntStateOf(initialColors.elementMode) }
+    var elementRgb by rememberSaveable { mutableIntStateOf(initialColors.elementRgb) }
+    var textMode by rememberSaveable { mutableIntStateOf(initialColors.textMode) }
+    var textRgb by rememberSaveable { mutableIntStateOf(initialColors.textRgb) }
+    val colors = WidgetColors(backgroundMode, backgroundRgb, elementMode, elementRgb, textMode, textRgb)
+    val context = LocalContext.current
+    val palette = colors.resolve(context)
     val supportsLabels = !isAncWidget && !isCompactWidget
-    Surface(Modifier.fillMaxSize()) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                stringResource(R.string.widget_transparency_title),
-                modifier = Modifier.semantics { heading() },
-                style = MaterialTheme.typography.titleLarge,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(20.dp))
-            when {
-                isAncWidget -> AncWidgetPreview(backgroundTransparency, elementTransparency)
-                isCompactWidget -> CompactWidgetPreview(backgroundTransparency, elementTransparency)
-                isColumnsWidget -> ColumnsWidgetPreview(
-                    backgroundTransparency = backgroundTransparency,
-                    elementTransparency = elementTransparency,
-                    labelMode = labelMode,
-                )
-                else -> RowsWidgetPreview(backgroundTransparency, elementTransparency, labelMode)
+    val pages = listOf(stringResource(R.string.widget_tab_background),
+        stringResource(R.string.widget_tab_elements), stringResource(R.string.widget_tab_text))
+    WidgetSettingsLayout(
+        pages = pages,
+        onCancel = onCancel,
+        onSave = { onSave(backgroundTransparency, elementTransparency, labelMode, colors) },
+        preview = {
+            WidgetPaletteProvider(context, colors) {
+                when {
+                    isAncWidget -> AncWidgetPreview(backgroundTransparency, elementTransparency)
+                    isCompactWidget -> CompactWidgetPreview(backgroundTransparency, elementTransparency)
+                    isColumnsWidget -> ColumnsWidgetPreview(
+                        backgroundTransparency = backgroundTransparency,
+                        elementTransparency = elementTransparency,
+                        labelMode = labelMode,
+                    )
+                    else -> RowsWidgetPreview(backgroundTransparency, elementTransparency, labelMode)
+                }
             }
-            Spacer(Modifier.height(20.dp))
-            TransparencyControl(
-                label = stringResource(R.string.widget_background_transparency),
-                transparency = backgroundTransparency,
-                onTransparencyChange = { backgroundTransparency = it },
-            )
-            Spacer(Modifier.height(16.dp))
-            TransparencyControl(
-                label = stringResource(R.string.widget_elements_transparency),
-                transparency = elementTransparency,
-                onTransparencyChange = { elementTransparency = it },
-            )
-            Spacer(Modifier.height(12.dp))
+        },
+    ) { page ->
+        when (page) {
+            0 -> {
+                WidgetColorControl(stringResource(R.string.widget_background_color), backgroundMode,
+                    backgroundRgb, palette.background, onMode = { backgroundMode = it },
+                    onCustom = { backgroundRgb = it })
+                TransparencyControl(
+                    label = stringResource(R.string.widget_background_transparency),
+                    transparency = backgroundTransparency,
+                    onTransparencyChange = { backgroundTransparency = it },
+                )
+            }
+            1 -> {
+                WidgetColorControl(stringResource(R.string.widget_elements_color), elementMode,
+                    elementRgb, palette.filled, onMode = { elementMode = it },
+                    onCustom = { elementRgb = it })
+                TransparencyControl(
+                    label = stringResource(R.string.widget_elements_transparency),
+                    transparency = elementTransparency,
+                    onTransparencyChange = { elementTransparency = it },
+                )
+            }
+            2 -> {
+                WidgetColorControl(stringResource(R.string.widget_text_color), textMode,
+                    textRgb, palette.text, onMode = { textMode = it },
+                    onCustom = { textRgb = it }, textColor = true)
+                if (supportsLabels) {
+                    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(stringResource(R.string.widget_tab_labels), style = MaterialTheme.typography.titleMedium)
+                            WidgetLabelModeMenu(selected = labelMode, onSelected = { labelMode = it })
+                        }
+                    }
+                }
+                Text(stringResource(R.string.widget_text_color_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        if (page < 2) {
             Text(
-                stringResource(R.string.widget_transparency_hint),
+                stringResource(if (page == 0) R.string.widget_background_hint else R.string.widget_elements_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (supportsLabels) {
-                Spacer(Modifier.height(20.dp))
-                WidgetLabelModeMenu(
-                    selected = labelMode,
-                    onSelected = { labelMode = it },
-                )
-            }
-            Spacer(Modifier.height(32.dp))
-            Row {
-                WidgetActionButton(onClick = onCancel, filled = false) {
-                    Text(stringResource(R.string.cancel))
-                }
-                Spacer(Modifier.width(16.dp))
-                WidgetActionButton(
-                    onClick = { onSave(backgroundTransparency, elementTransparency, labelMode) },
-                    filled = true,
-                ) {
-                    Text(stringResource(R.string.save))
-                }
-            }
         }
     }
 }
@@ -240,8 +250,8 @@ private fun TransparencyControl(
         Modifier.widthIn(max = 400.dp).fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.weight(1f))
+        Text(label, modifier = Modifier.weight(1f).padding(end = 12.dp),
+            style = MaterialTheme.typography.titleMedium)
         Text(
             stringResource(R.string.widget_battery_level, transparency),
             style = MaterialTheme.typography.titleMedium,
@@ -269,10 +279,10 @@ private fun TransparencyControl(
 private fun CompactWidgetPreview(backgroundTransparency: Int, elementTransparency: Int) {
     val backgroundAlpha = (100 - backgroundTransparency) / 100f
     val elementAlpha = (100 - elementTransparency) / 100f
-    val outer = colorResource(R.color.battery_widget_bar_background).copy(alpha = backgroundAlpha)
-    val filled = colorResource(R.color.battery_widget_bar_color).copy(alpha = elementAlpha)
-    val empty = colorResource(R.color.battery_widget_empty_color).copy(alpha = elementAlpha)
-    val text = colorResource(R.color.battery_widget_text_color)
+    val outer = widgetComposeColor(LocalContext.current, R.color.battery_widget_bar_background).copy(alpha = backgroundAlpha)
+    val filled = widgetComposeColor(LocalContext.current, R.color.battery_widget_bar_color).copy(alpha = elementAlpha)
+    val empty = widgetComposeColor(LocalContext.current, R.color.battery_widget_empty_color).copy(alpha = elementAlpha)
+    val text = widgetComposeColor(LocalContext.current, R.color.battery_widget_text_color)
     Box(
         Modifier.widthIn(max = 340.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)),
     ) {
@@ -323,10 +333,10 @@ private fun CompactPreviewCell(
 private fun AncWidgetPreview(backgroundTransparency: Int, elementTransparency: Int) {
     val backgroundAlpha = (100 - backgroundTransparency) / 100f
     val elementAlpha = (100 - elementTransparency) / 100f
-    val outer = colorResource(R.color.battery_widget_bar_background).copy(alpha = backgroundAlpha)
-    val selected = colorResource(R.color.battery_widget_bar_color).copy(alpha = elementAlpha)
-    val unselected = colorResource(R.color.battery_widget_empty_color).copy(alpha = elementAlpha)
-    val text = colorResource(R.color.battery_widget_text_color)
+    val outer = widgetComposeColor(LocalContext.current, R.color.battery_widget_bar_background).copy(alpha = backgroundAlpha)
+    val selected = widgetComposeColor(LocalContext.current, R.color.battery_widget_bar_color).copy(alpha = elementAlpha)
+    val unselected = widgetComposeColor(LocalContext.current, R.color.battery_widget_empty_color).copy(alpha = elementAlpha)
+    val text = widgetComposeColor(LocalContext.current, R.color.battery_widget_text_color)
 
     Box(
         Modifier
@@ -400,10 +410,10 @@ private fun ColumnsWidgetPreview(
 ) {
     val backgroundAlpha = (100 - backgroundTransparency) / 100f
     val elementAlpha = (100 - elementTransparency) / 100f
-    val outer = colorResource(R.color.battery_widget_bar_background).copy(alpha = backgroundAlpha)
-    val filled = colorResource(R.color.battery_widget_bar_color).copy(alpha = elementAlpha)
-    val empty = colorResource(R.color.battery_widget_empty_color).copy(alpha = elementAlpha)
-    val text = colorResource(R.color.battery_widget_text_color)
+    val outer = widgetComposeColor(LocalContext.current, R.color.battery_widget_bar_background).copy(alpha = backgroundAlpha)
+    val filled = widgetComposeColor(LocalContext.current, R.color.battery_widget_bar_color).copy(alpha = elementAlpha)
+    val empty = widgetComposeColor(LocalContext.current, R.color.battery_widget_empty_color).copy(alpha = elementAlpha)
+    val text = widgetComposeColor(LocalContext.current, R.color.battery_widget_text_color)
 
     Box(
         Modifier
@@ -496,10 +506,10 @@ private fun RowsWidgetPreview(
 ) {
     val backgroundAlpha = (100 - backgroundTransparency) / 100f
     val elementAlpha = (100 - elementTransparency) / 100f
-    val outer = colorResource(R.color.battery_widget_bar_background).copy(alpha = backgroundAlpha)
-    val filled = colorResource(R.color.battery_widget_bar_color).copy(alpha = elementAlpha)
-    val empty = colorResource(R.color.battery_widget_empty_color).copy(alpha = elementAlpha)
-    val text = colorResource(R.color.battery_widget_text_color) // always opaque
+    val outer = widgetComposeColor(LocalContext.current, R.color.battery_widget_bar_background).copy(alpha = backgroundAlpha)
+    val filled = widgetComposeColor(LocalContext.current, R.color.battery_widget_bar_color).copy(alpha = elementAlpha)
+    val empty = widgetComposeColor(LocalContext.current, R.color.battery_widget_empty_color).copy(alpha = elementAlpha)
+    val text = widgetComposeColor(LocalContext.current, R.color.battery_widget_text_color) // always opaque
 
     Box(
         Modifier
@@ -540,61 +550,16 @@ private fun previewLabel(mode: Int, full: String, short: String?): String = when
     else -> full
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun WidgetActionButton(
+internal fun WidgetActionButton(
     onClick: () -> Unit,
-    filled: Boolean,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    filled: Boolean = false,
     content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
-) {
-    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-    val scale = remember { androidx.compose.animation.core.Animatable(1f) }
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
-    var pending by remember { mutableStateOf(false) }
-    val delayedClick: () -> Unit = {
-        if (!pending) {
-            pending = true
-            scope.launch {
-                try {
-                    kotlinx.coroutines.delay(120)
-                    onClick()
-                } finally {
-                    pending = false
-                }
-            }
-        }
-    }
-    androidx.compose.runtime.LaunchedEffect(interaction) {
-        interaction.interactions.collect { event ->
-            if (event is androidx.compose.foundation.interaction.PressInteraction.Press) {
-                scale.animateTo(0.9f, androidx.compose.animation.core.tween(90))
-                scale.animateTo(
-                    1f,
-                    androidx.compose.animation.core.spring(
-                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
-                        stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
-                    ),
-                )
-            }
-        }
-    }
-    val modifier = Modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value }
-    if (filled) {
-        Button(
-            onClick = delayedClick,
-            modifier = modifier,
-            interactionSource = interaction,
-            content = content,
-        )
-    } else {
-        OutlinedButton(
-            onClick = delayedClick,
-            modifier = modifier,
-            interactionSource = interaction,
-            content = content,
-        )
-    }
-}
+) = io.github.razziell.freebuddynext.ui.AppActionButton(
+    onClick = onClick, modifier = modifier, enabled = enabled, filled = filled, content = content,
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -650,7 +615,7 @@ private fun WidgetLabelModeMenu(selected: Int, onSelected: (Int) -> Unit) {
 
 /** Matches the main app's Expressive menu row and keeps feedback visible before dismissal. */
 @Composable
-private fun WidgetExpressiveDropdownMenuItem(
+internal fun WidgetExpressiveDropdownMenuItem(
     selected: Boolean,
     text: @Composable () -> Unit,
     trailingIcon: @Composable (() -> Unit)? = null,
