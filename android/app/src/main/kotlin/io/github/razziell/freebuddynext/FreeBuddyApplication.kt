@@ -17,6 +17,8 @@ class FreeBuddyApplication : Application() {
         backgroundScope.launch {
             io.github.razziell.freebuddynext.bluetooth.BackgroundDiagnostics.recordProcessStart(this@FreeBuddyApplication)
             CompanionAccess.restore(this@FreeBuddyApplication)
+            io.github.razziell.freebuddynext.data.GestureQuietHours.scheduleAlarms(this@FreeBuddyApplication)
+            headphonesRepository.applyGestureQuietHours()
         }
     }
 }
