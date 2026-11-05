@@ -13,6 +13,9 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import io.github.razziell.freebuddynext.FreeBuddyApplication
 import io.github.razziell.freebuddynext.protocol.DoubleTap
+import io.github.razziell.freebuddynext.protocol.Hold
+import io.github.razziell.freebuddynext.protocol.SplitHoldAction
+import io.github.razziell.freebuddynext.protocol.Swipe
 import io.github.razziell.freebuddynext.protocol.TripleTap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,12 +29,12 @@ import java.util.Calendar
 private val Context.gestureQuietDataStore by preferencesDataStore(name = "gesture_quiet_hours")
 
 /**
- * Quiet hours for double / triple tap.
+ * Quiet hours for all gesture controls.
  *
  * When enabled and the current local time falls inside [startMinutes, endMinutes)
- * (range may wrap midnight, e.g. 23:30 → 06:40), the app forces both earbuds to
- * [DoubleTap.NONE] / [TripleTap.NONE]. Preferred actions chosen by the user are
- * stored separately and restored when the window ends or the feature is disabled.
+ * (range may wrap midnight, e.g. 23:30 → 06:40), the app forces double/triple tap,
+ * hold and swipe to NONE on the headphones. Preferred actions chosen by the user
+ * are stored separately and restored when the window ends or the feature is disabled.
  */
 object GestureQuietHours {
     private val ENABLED = booleanPreferencesKey("enabled")
@@ -42,6 +45,10 @@ object GestureQuietHours {
     private val PREF_DOUBLE_RIGHT = stringPreferencesKey("pref_double_right")
     private val PREF_TRIPLE_LEFT = stringPreferencesKey("pref_triple_left")
     private val PREF_TRIPLE_RIGHT = stringPreferencesKey("pref_triple_right")
+    private val PREF_HOLD = stringPreferencesKey("pref_hold")
+    private val PREF_SWIPE = stringPreferencesKey("pref_swipe")
+    private val PREF_SPLIT_HOLD_LEFT = stringPreferencesKey("pref_split_hold_left")
+    private val PREF_SPLIT_HOLD_RIGHT = stringPreferencesKey("pref_split_hold_right")
 
     /** Default window: 23:30 – 06:40 */
     const val DEFAULT_START_MINUTES = 23 * 60 + 30
@@ -62,6 +69,10 @@ object GestureQuietHours {
         val doubleRight: DoubleTap? = null,
         val tripleLeft: TripleTap? = null,
         val tripleRight: TripleTap? = null,
+        val hold: Hold? = null,
+        val swipe: Swipe? = null,
+        val splitHoldLeft: SplitHoldAction? = null,
+        val splitHoldRight: SplitHoldAction? = null,
     )
 
     fun config(context: Context): Flow<Config> =
@@ -93,6 +104,10 @@ object GestureQuietHours {
                 doubleRight = prefs[PREF_DOUBLE_RIGHT]?.let { runCatching { DoubleTap.valueOf(it) }.getOrNull() },
                 tripleLeft = prefs[PREF_TRIPLE_LEFT]?.let { runCatching { TripleTap.valueOf(it) }.getOrNull() },
                 tripleRight = prefs[PREF_TRIPLE_RIGHT]?.let { runCatching { TripleTap.valueOf(it) }.getOrNull() },
+                hold = prefs[PREF_HOLD]?.let { runCatching { Hold.valueOf(it) }.getOrNull() },
+                swipe = prefs[PREF_SWIPE]?.let { runCatching { Swipe.valueOf(it) }.getOrNull() },
+                splitHoldLeft = prefs[PREF_SPLIT_HOLD_LEFT]?.let { runCatching { SplitHoldAction.valueOf(it) }.getOrNull() },
+                splitHoldRight = prefs[PREF_SPLIT_HOLD_RIGHT]?.let { runCatching { SplitHoldAction.valueOf(it) }.getOrNull() },
             )
         }
 
@@ -118,6 +133,25 @@ object GestureQuietHours {
         }
     }
 
+    suspend fun savePreferredHold(context: Context, value: Hold) {
+        context.gestureQuietDataStore.edit { it[PREF_HOLD] = value.name }
+    }
+
+    suspend fun savePreferredSwipe(context: Context, value: Swipe) {
+        context.gestureQuietDataStore.edit { it[PREF_SWIPE] = value.name }
+    }
+
+    suspend fun savePreferredSplitHold(
+        context: Context,
+        left: SplitHoldAction? = null,
+        right: SplitHoldAction? = null,
+    ) {
+        context.gestureQuietDataStore.edit { prefs ->
+            left?.let { prefs[PREF_SPLIT_HOLD_LEFT] = it.name }
+            right?.let { prefs[PREF_SPLIT_HOLD_RIGHT] = it.name }
+        }
+    }
+
     /** Seed preferred values from the device once, ignoring NONE. */
     suspend fun ensurePreferredFromDevice(
         context: Context,
@@ -125,6 +159,10 @@ object GestureQuietHours {
         doubleRight: DoubleTap?,
         tripleLeft: TripleTap?,
         tripleRight: TripleTap?,
+        hold: Hold? = null,
+        swipe: Swipe? = null,
+        splitHoldLeft: SplitHoldAction? = null,
+        splitHoldRight: SplitHoldAction? = null,
     ) {
         context.gestureQuietDataStore.edit { prefs ->
             if (prefs[PREF_DOUBLE_LEFT] == null && doubleLeft != null && doubleLeft != DoubleTap.NONE) {
@@ -139,6 +177,18 @@ object GestureQuietHours {
             if (prefs[PREF_TRIPLE_RIGHT] == null && tripleRight != null && tripleRight != TripleTap.NONE) {
                 prefs[PREF_TRIPLE_RIGHT] = tripleRight.name
             }
+            if (prefs[PREF_HOLD] == null && hold != null && hold != Hold.NONE) {
+                prefs[PREF_HOLD] = hold.name
+            }
+            if (prefs[PREF_SWIPE] == null && swipe != null && swipe != Swipe.NONE) {
+                prefs[PREF_SWIPE] = swipe.name
+            }
+            if (prefs[PREF_SPLIT_HOLD_LEFT] == null && splitHoldLeft != null && splitHoldLeft != SplitHoldAction.NONE) {
+                prefs[PREF_SPLIT_HOLD_LEFT] = splitHoldLeft.name
+            }
+            if (prefs[PREF_SPLIT_HOLD_RIGHT] == null && splitHoldRight != null && splitHoldRight != SplitHoldAction.NONE) {
+                prefs[PREF_SPLIT_HOLD_RIGHT] = splitHoldRight.name
+            }
         }
     }
 
@@ -151,7 +201,6 @@ object GestureQuietHours {
         } else if (start < end) {
             nowMinutes in start until end
         } else {
-            // Wraps midnight
             nowMinutes >= start || nowMinutes < end
         }
     }
@@ -207,7 +256,6 @@ object GestureQuietHours {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
         return PendingIntent.getBroadcast(context, requestCode, intent, flags)
     }
-
 }
 
 /** Applies quiet-hours boundaries and re-arms the next alarm. */
