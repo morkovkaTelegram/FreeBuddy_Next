@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.REQUEST_COMPANION_RUN_IN_BACKGROUND" />
     <uses-permission android:name="android.permission.REQUEST_OBSERVE_COMPANION_DEVICE_PRESENCE" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-feature android:name="android.software.companion_device_setup" android:required="false" />
 
     <application
@@ -118,6 +120,15 @@
                 <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED" />
                 <action android:name="android.bluetooth.a2dp.profile.action.CONNECTION_STATE_CHANGED" />
                 <action android:name="android.bluetooth.a2dp.profile.action.CODEC_CONFIG_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".data.GestureQuietHoursReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="io.github.razziell.freebuddynext.GESTURE_QUIET_BOUNDARY" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
     </application>
