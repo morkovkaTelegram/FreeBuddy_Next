@@ -66,6 +66,11 @@
     <string name="hold_modes_minimum_hint">At least two modes must be selected</string>
     <string name="hold_modes_disabled_hint">Select “Switch ANC” above to configure the modes</string>
     <string name="swipe">Swipe</string>
+    <string name="gesture_quiet_hours">Quiet hours for gestures</string>
+    <string name="gesture_quiet_hours_desc">Disable double/triple tap, hold and swipe during the selected time range every day.</string>
+    <string name="gesture_quiet_hours_from">From</string>
+    <string name="gesture_quiet_hours_to">To</string>
+    <string name="gesture_quiet_hours_active">Gestures ignored until %1$s</string>
     <string name="action_none">None</string>
     <string name="action_assistant">Assistant</string>
     <string name="action_play_pause">Play/pause</string>
